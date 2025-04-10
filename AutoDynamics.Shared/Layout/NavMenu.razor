@@ -1,0 +1,109 @@
+﻿@inject NavigationManager Navigation
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">AutoDynamics</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column pt-3">
+        @foreach (var menu in menuOBJ.Values)
+        {
+            <div class="nav-btn" @onclick="() => MenuClicked(menu)">
+                <p class="rounded-3 user-select-none">@menu.Name</p>
+                @if (menu.SubMenus.Count > 0)
+                {
+                    <ul style="@(menu.IsExpanded ? "display:block;" : "display:none;")">
+                        @foreach (var sub in menu.SubMenus)
+                        {
+                            <li style="cursor:pointer;user-select:none" class="text-white rounded-3" onclick=@(()=> Navigation.NavigateTo(sub.Path))>@sub.Name</li>
+                        }
+                    </ul>
+                }
+            </div>
+        }
+    </nav>
+</div>
+
+@code
+{
+    class MenuType
+    {
+        public string Name { get; set; }
+        public string Path { get; set; }
+        public bool IsExpanded { get; set; } = false;
+        public List<MenuType> SubMenus { get; set; }
+
+        public MenuType(string name, string path)
+        {
+            Name = name;
+            Path = path;
+            SubMenus = new List<MenuType>();
+        }
+    }
+
+    public void NavigateToPath(string path)
+    {
+        Navigation.NavigateTo(path);
+    }
+    Dictionary<int, MenuType> menuOBJ = new Dictionary<int, MenuType>
+    {
+        { 1, new MenuType("Customer", "#") {
+            SubMenus = new List<MenuType> {
+                new MenuType("Add", "/customer/add"),
+                new MenuType("Manage Users", "/customer/manage"),
+            }
+        }},
+        { 2, new MenuType("Vehicle", "#") {
+            SubMenus = new List<MenuType> {
+                new MenuType("Add", "/vehicle/add"),
+                new MenuType("Manage Vehicle", "/vehicle/details"),
+                new MenuType("Vehicle Makes", "/vehicleMake"),
+                new MenuType("Vehicle Models", "/vehicleModel"),
+            }
+        }},
+        { 3, new MenuType("Product", "#") {
+            SubMenus = new List<MenuType> {
+                new MenuType("Add", "/product/add"),
+                new MenuType("Manage Product", "/product/details"),
+                new MenuType("Manage Brand", "/brand/details"),
+            }
+        }},
+        { 4, new MenuType("Billing", "#") {
+            SubMenus = new List<MenuType> {
+                new MenuType("Add Bill", "/billing"),
+                new MenuType("View Bill", "/bill/view"),
+            }
+        }},
+        { 5, new MenuType("Purchase", "#") {
+            SubMenus = new List<MenuType> {
+                new MenuType("Add Purchase", "/purchase"),
+                new MenuType("View Purchase", "/purchase/view"),
+            }
+        }},
+        { 6, new MenuType("Services", "/services") {
+        }},
+        { 7, new MenuType("Credit Record", "/credit/details") {
+        }}
+    };
+
+    void MenuClicked(MenuType menuV)
+    {
+        if(menuV.SubMenus.Count == 0)
+        {
+            Navigation.NavigateTo(menuV.Path);
+        }
+        else
+        {
+            var menu = menuOBJ.Values.FirstOrDefault(m => m.Name == menuV.Name);
+            if (menu != null)
+            {
+                menu.IsExpanded = !menu.IsExpanded; // Toggle only the clicked menu
+            }
+            StateHasChanged();
+        }
+        
+    }
+}

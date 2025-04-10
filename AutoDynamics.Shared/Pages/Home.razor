@@ -1,0 +1,79 @@
+﻿@page "/home"
+@using AutoDynamics.Shared.Services
+@inject IWhatsAppService WhatsAppService
+
+<h3>WhatsApp Background Messaging</h3>
+
+@if (isLoading)
+{
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+}
+else
+{
+    <div>
+        <button class="btn btn-success" @onclick="StartWhatsApp">Start WhatsApp (Hidden)</button>
+        <button class="btn btn-primary" @onclick="SendTestMessage">Send Test Message</button>
+        <button class="btn btn-danger" @onclick="StopWhatsApp">Close WhatsApp</button>
+    </div>
+
+    <br />
+
+    <label>Phone Number:</label>
+    <input class="form-control" @bind="phoneNumber" placeholder="Enter Phone Number" />
+
+    <label>Message:</label>
+    <textarea class="form-control" @bind="message" placeholder="Enter your message"></textarea>
+
+    <button class="btn btn-warning mt-2" @onclick="SendCustomMessage">Send Custom Message</button>
+
+    <p class="text-success">@statusMessage</p>
+}
+
+@code {
+    private string phoneNumber = "";
+    private string message = "";
+    private bool statusMessage;
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        //await StartWhatsApp();
+    }
+
+    private async Task StartWhatsApp()
+    {
+        isLoading = true;
+        await WhatsAppService.StartWhatsApp();
+        isLoading = false;
+    }
+
+    private async Task SendTestMessage()
+    {
+        isLoading = true;
+        statusMessage = await WhatsAppService.SendMessage("9360436527", "Hello! This is a test message.");
+        isLoading = false;
+    }
+
+    private async Task SendCustomMessage()
+    {
+        if (!string.IsNullOrWhiteSpace(phoneNumber) && !string.IsNullOrWhiteSpace(message))
+        {
+            isLoading = true;
+            statusMessage = await WhatsAppService.SendMessage(phoneNumber, message);
+            isLoading = false;
+        }
+        else
+        {
+            
+        }
+    }
+
+    private async Task StopWhatsApp()
+    {
+        isLoading = true;
+        await WhatsAppService.StopWhatsApp();
+        isLoading = false;
+    }
+}

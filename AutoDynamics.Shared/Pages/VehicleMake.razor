@@ -1,0 +1,159 @@
+@page "/vehicleMake"
+@using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Services
+@inject IDatabaseHandler DatabaseHandler
+@inject ICurrentData CurrentData
+<h1>Vehicle Makes</h1>
+
+<h3>This page is used to manage Vehicle Makes</h3>
+
+<EditForm Model="@vehicleMake" OnValidSubmit="HandleSubmit">
+    <h2 class="text-center mt-3">Create Vehicle Make</h2>
+    <div class="mb-3">
+        <label for="VehicleMake" class="form-label">Vehicle Make:</label>
+        <input type="text" id="VehicleMake" @bind="vehicleMake.Vehicle_Make" class="form-control" maxlength="255" required>
+    </div>
+    <button type="submit" class="btn btn-primary w-100">@(isUpdating ? "Updating" : "Submit")</button>
+</EditForm>
+
+@if (isProcessing)
+{
+    <Loader></Loader>
+}
+<h2 class="mt-4">Vehicle Makes Available</h2>
+
+
+<div class="container mt-4">
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th>Vehicle Make ID</th>
+                    <th>Vehicle Make</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (vehicleMakes.Count == 0)
+                {
+                    <tr>
+                        <td colspan="10" class="text-center text-muted">No customers found.</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var vehicleMakeData in vehicleMakes)
+                    {
+                        <tr>
+                            <td>@vehicleMakeData.VehicleMakeID</td>
+                            <td>@vehicleMakeData.Vehicle_Make</td>
+                            <td>
+                                <button class="btn btn-warning btn-sm" @onclick="() => UpdateService(vehicleMakeData)">Update</button>
+                                <button class="btn btn-danger btn-sm" @onclick="() => DeleteService(vehicleMakeData.VehicleMakeID)">Delete</button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code
+{
+    private VehicleMakeType vehicleMake { set; get; } = new VehicleMakeType();
+    private List<VehicleMakeType> vehicleMakes { set; get; } = new List<VehicleMakeType>();
+    private bool isUpdating = false;
+    private bool isProcessing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FetchServices();
+    }
+    public void UpdateService(VehicleMakeType currentVehicleMake)
+    {
+        isUpdating = true;
+        vehicleMake = currentVehicleMake;
+        StateHasChanged();
+    }
+    public void setProcessing(bool state)
+    {
+        isProcessing = state;
+        StateHasChanged();
+    }
+    public async Task FetchServices()
+    {
+        setProcessing(true);
+        vehicleMakes.Clear();
+        string query = @"SELECT * FROM VehicleMakes";
+
+        var result = await DatabaseHandler.ExecuteQueryAsync(query);
+        if (result.Count > 0)
+        {
+            foreach (var row in result)
+            {
+                vehicleMakes.Add(
+                    new VehicleMakeType
+                        {
+                            VehicleMakeID = row["VehicleMakeID"].ToString() ?? "",
+                            Vehicle_Make = row["VehicleMake"].ToString() ?? ""
+                        }
+                );
+            }
+        }
+        setProcessing(false);
+    }
+    public async Task<bool> ManageService(VehicleMakeType data)
+    {
+        setProcessing(true);
+        string query = "";
+        var parameter = new Dictionary<string, object>();
+        if (isUpdating)
+        {
+            query = @"UPDATE VehicleMakes SET VehicleMake = @vehicleMake WHERE VehicleMakeID = @vehicleMakeID";
+            parameter = new Dictionary<string, object>
+            {
+                {"VehicleMakeID",data.VehicleMakeID},
+                {"VehicleMake",data.Vehicle_Make},
+            };
+
+            int result = await DatabaseHandler.ExecuteNonQueryAsync(query, parameter);
+            isUpdating = false;
+            StateHasChanged();
+            return result > 0;
+        }
+        else
+        {
+            string id = await DatabaseHandler.GenerateID("VM", 6, "VehicleMakes", "VehicleMakeID");
+            query = @"INSERT INTO VehicleMakes (VehicleMakeID,VehicleMake) VALUES (@vehicleMakeID,@vehicleMake)";
+
+            parameter = new Dictionary<string, object>
+            {
+                {"@vehicleMakeID" ,id},
+                {"@vehicleMake",data.Vehicle_Make},
+            };
+
+            int rowsAffected = await DatabaseHandler.ExecuteNonQueryAsync(query, parameter);
+            setProcessing(false);
+            return rowsAffected > 0;
+        }
+
+    }
+    public async void HandleSubmit()
+    {
+        await ManageService(vehicleMake);
+        vehicleMake.VehicleMakeID = "";
+        vehicleMake.Vehicle_Make = "";
+        await FetchServices();
+        StateHasChanged();
+    }
+
+    public async Task DeleteService(string id)
+    {
+        string query = $"DELETE FROM VehicleMakes WHERE VehicleMakeID = '{id}'";
+        await DatabaseHandler.ExecuteQueryAsync(query);
+        await FetchServices();
+        StateHasChanged();
+    }
+
+}

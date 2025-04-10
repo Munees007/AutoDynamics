@@ -1,0 +1,76 @@
+﻿.back {
+    background-image: url("../wwwroot/images/login_page.png");
+    background-size: cover;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.form-parent {
+    background-color: rgba(0,109,119,0.4);
+    border-radius: 10px;
+    box-shadow: 1px 2px 6px black;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+.loginBtn {
+    height: 3rem;
+    border: 2px solid black;
+    border-radius: 5px;
+    background-color: #EE6D50;
+    font-size:x-large;
+    color:white;
+    margin:0rem 3rem;
+}
+.loginBtn:hover
+{
+    transform:scale(1.1)
+}
+.loginBtn:active {
+  transform: scale(0.8)
+}
+.no-account
+{
+    text-align:center;
+    font-weight:bold
+}
+.no-account a{
+    color:blue;
+    cursor:pointer
+}
+    .form-parent h1 {
+        font-weight: bolder;
+        text-align: center
+    }
+
+.form-element {
+    display: grid;
+    grid-template-columns:10rem 1fr;
+}
+
+    .form-element p {
+        font-weight: bolder;
+        font-size: x-large
+    }
+
+    .form-element input {
+        border-radius: 5px;
+        height:fit-content;
+        font-size:x-large;
+        border:2px solid black;
+    }
+
+    .form-element select {
+        border-radius: 5px;
+        height: fit-content;
+        font-size: x-large;
+        border: 2px solid black;
+    }
+
+@media(max-width: 641px) {
+    .form-element {
+        grid-template-columns: repeat(1,1fr);
+        gap: 0
+    }
+}

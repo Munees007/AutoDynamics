@@ -1,0 +1,194 @@
+﻿@page "/"
+@inherits LayoutComponentBase
+@using AutoDynamics.Shared.Services
+@inject IDatabaseHandler DatabaseHandler
+@inject IAlertService AlertService
+@inject IMyLocalStorageService MyLocalStorageService
+@inject NavigationManager Navigation
+@using System.Diagnostics
+@using System.Data
+@using BCrypt.Net
+
+<div style="background-image:url(@BgSource)" class="w-100 back vh-100">
+    <form class="form-parent w-auto h-auto p-4" @onsubmit="LoginSignUp">
+        <h1>@(isLogin ? "Login" : "Sign Up")</h1>
+
+        <div class="form-element h-auto">
+            <p>Username</p>
+            <input type="text" @bind="username" required />
+        </div>
+
+        <div class="form-element">
+            <p>Password</p>
+            <input type="password" @bind="password" required />
+        </div>
+
+        <div class="form-element">
+            <p>Branch</p>
+            <select @bind="branch">
+                <option>Sivakasi</option>
+                <option>ByPass</option>
+            </select>
+        </div>
+
+        <button class="loginBtn" type="submit" disabled="@isProcessing">
+            @(isProcessing ? "Processing..." : (isLogin ? "Login" : "Sign Up"))
+        </button>
+
+        <!-- Progress Bar -->
+        @if (isProcessing)
+        {
+            <div class="progress-container">
+                <a-spin tip="Processing..."></a-spin>
+            </div>
+        }
+
+        <p class="no-account">
+            @(isLogin ? "Doesn't have an account?" : "Already have an account?")
+            <a href="javascript:void(0)" @onclick="ChangeState">
+                @(isLogin ? "Sign Up" : "Login")
+            </a>
+        </p>
+    </form>
+</div>
+
+@code {
+    private bool isLogin = true;
+    private bool isProcessing = false;
+    private string username = "";
+    private string password = "";
+    private string branch = "Sivakasi"; // Default branch
+    private string BgSource = "/images/login_page.png";
+    private bool hasRendered = false;
+
+    protected override void OnInitialized()
+    {
+        isLogin = true;
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if(firstRender && !hasRendered)
+        {
+            hasRendered = true;
+            var isLoggedIn = await MyLocalStorageService.GetItemAsync("IsLogin");
+
+            if (isLoggedIn == "true")
+            {
+                Navigation.NavigateTo("/home", true); // Redirect to home
+            }
+        }
+
+    }
+
+    private void ChangeState()
+    {
+        isLogin = !isLogin;
+        username = "";
+        password = "";
+        isProcessing = false;
+        StateHasChanged();
+    }
+
+    private async Task LoginSignUp()
+    {
+        isProcessing = true;
+        StateHasChanged();
+
+        try
+        {
+            if (isLogin)
+            {
+                // **LOGIN LOGIC (Password Verification)**
+                string query = "SELECT PasswordHash FROM Users WHERE Username = @username and Branch = @branch";
+                var parameters = new Dictionary<string, object>
+                {
+                    { "@username", username },
+					{ "@branch", branch }
+                };
+
+                var result = await DatabaseHandler.ExecuteQueryAsync(query, parameters);
+
+                if (result.Count > 0)
+                {
+                    string storedHash = result[0]["PasswordHash"].ToString();
+
+                    // **Compare hashed password with entered password**
+                    if (BCrypt.Verify(password, storedHash))
+                    {
+                        await MyLocalStorageService.SetItemAsync("Username", username);
+                        await MyLocalStorageService.SetItemAsync("Branch", branch);
+                        await MyLocalStorageService.SetItemAsync("IsLogin", "true");
+                        await AlertService.ShowAlertAsync("Login", "Login Successful", "Proceed");
+
+                        if(username == "Arun Kumar" || username == "Muneeswaran")
+                        {
+                            await MyLocalStorageService.SetItemAsync("IsAdmin", "true");
+                        }
+                        else
+                        {
+                            await MyLocalStorageService.SetItemAsync("IsAdmin", "false");
+                        }
+                        //go to main Layout
+                        Navigation.NavigateTo("/home",true);
+                    }
+                    else
+                    {
+                        await AlertService.ShowAlertAsync("Login", "Invalid Credential", "Try again");
+                    }
+                }
+                else
+                {
+                    await AlertService.ShowAlertAsync("Login", "Invalid Credential", "Try again");
+                }
+            }
+            else
+            {
+                // **SIGN-UP LOGIC (Hash Password Before Storing)**
+                string hashedPassword = BCrypt.HashPassword(password);
+
+                string query = "INSERT INTO Users (Username, PasswordHash, Branch) VALUES (@username, @password, @branch)";
+                var parameters = new Dictionary<string, object>
+                {
+                    { "@username", username },
+                    { "@password", hashedPassword }, // Store hashed password
+                    { "@branch", branch }
+                };
+
+                int rowsAffected = await DatabaseHandler.ExecuteNonQueryAsync(query, parameters);
+                if (rowsAffected > 0)
+                {
+                    await AlertService.ShowAlertAsync("Sign Up", "Sign Up Successful", "Login");
+                    isLogin = true;
+                    StateHasChanged();
+                }
+                else
+                {
+                    await AlertService.ShowAlertAsync("Sign Up", "Somethign went wrong", "Try again");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await AlertService.ShowAlertAsync("Sign Up", "Somethign went wrong", "Try again");
+            Debug.WriteLine($"❌ Error: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+}
+
+@* <Router AppAssembly="@typeof(MainLayout).Assembly"> *@
+@*     <Found Context="routeData"> *@
+@*         <AuthorizeRouteView RouteData="@routeData" DefaultLayout="typeof(MainLayout)" /> *@
+@*     </Found> *@
+@*     <NotFound> *@
+@*         <LayoutView Layout="typeof(MainLayout)"> *@
+@*             <p>Sorry, the page was not found.</p> *@
+@*         </LayoutView> *@
+@*     </NotFound> *@
+@* </Router> *@

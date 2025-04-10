@@ -1,0 +1,34 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link rel="stylesheet" href="_content/AutoDynamics.Shared/bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="_content/AutoDynamics.Shared/app.css" />
+    <link rel="stylesheet" href="AutoDynamics.Web.styles.css" />
+    <link rel="icon" type="image/png" href="_content/AutoDynamics.Shared/favicon.png" />
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+
+<body>
+    <Routes @rendermode="InteractiveServer" />
+    <script src="_framework/blazor.web.js"></script>
+    <script>
+                       window.openPdfFromBase64 = (base64Data) => {
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'application/pdf' });
+
+            const blobUrl = URL.createObjectURL(blob);
+            window.open(blobUrl, '_blank');
+        };
+    </script>
+</body>
+
+</html>

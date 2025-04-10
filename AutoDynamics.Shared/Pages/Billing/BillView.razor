@@ -1,0 +1,16 @@
+@page "/bill/single-view";
+@using AutoDynamics.Shared.Pages
+@using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Services
+@inject ICurrentData CurrentData
+
+<Billing isViewing="true" updateData="billData"></Billing>
+
+@code
+{
+	public BillDetails billData{ get; set; } = new BillDetails();
+	protected override void OnInitialized()
+	{
+		billData = (BillDetails) CurrentData.GetCurrentCustomer();
+	}
+}

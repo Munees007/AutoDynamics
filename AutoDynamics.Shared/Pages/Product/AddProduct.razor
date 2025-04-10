@@ -1,0 +1,468 @@
+@page "/product/add"
+@using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Services
+@using AutoDynamics.Shared.Pages.Components
+@inject IDatabaseHandler DatabaseHandler
+@inject IAlertService AlertService
+@inject IMyLocalStorageService MyLocalStorageService
+@inject ICurrentData CurrentData
+@using System.Diagnostics
+
+@* Managing Brand Form *@
+
+<div class="position-relative">
+    <EditForm Model="@brand">
+        <h2 class="text-center mt-3">Create Brand</h2>
+        @if(!isBrandUpdating)
+        {
+            <div class="mb-3">
+                <label for="BrandShortForm" class="form-label">Brand ShortForm:@if (brandValidate[0])
+                    {
+                        <p class="text-danger">Brand Short Form Already There, Try different name</p>
+                    }</label>
+                <input @oninput="onBrandShortFormInput" autocomplete="off" type="text" id="BrandShortForm" @bind="brand.BrandShortForm" class="form-control" required>
+            </div>
+        }
+        <div class="mb-3">
+            <label for="BrandName" class="form-label">Brand Name:@if (brandValidate[1])
+                {
+                    <p class="text-danger">Brand Name Already There, Try different name</p>
+                }</label>
+            <input @oninput="onBrandNameInput" autocomplete="off" type="text" id="BrandName" @bind="brand.BrandName" class="form-control" required>
+        </div>
+
+
+        <button type="button" onclick="@HandleBrandSubmit" class="btn btn-primary w-100">@(isBrandUpdating ? "Update" : "Submit")</button>
+    </EditForm>
+
+    <EditForm Model="@product" class="mb-4">
+        <h2 class="text-center mt-3">Create Product</h2>
+
+        <div class="mb-3">
+            <label for="HSNCode" class="form-label">HSNCode:</label>
+            <input autocomplete="off" type="text" id="HSNCode" @bind="product.HSNCode" class="form-control" placeholder="Enter the HSN Code" required maxlength="12">
+        </div>
+        <div class="mb-3">
+            <label for="Brand" class="form-label">Brand:</label>
+            <input @onkeydown="HandleBranchKey" autocomplete="off" type="text" id="Brand" @bind="brandSearch" @oninput="OnBrandInput" class="form-control" placeholder="Search by Brand Name" required maxlength="12">
+            <SearchSelect showSuggestions="showBrandSuggestions" @ref="brandListRef" T="BrandType" Items="filteredBrands" OnSelect="@(e=>OnBrandSelect(e))" ShowSuggestionsChanged="@((bool val) => showBrandSuggestions = val)">
+                <ItemTemplate Context="b">
+                    <div>@b.BrandName</div>
+                </ItemTemplate>
+            </SearchSelect>
+        </div>
+
+        <div class="mb-3">
+            <label for="Size" class="form-label">Size:</label>
+            <input @onkeydown="HandleSizeKey" autocomplete="off" type="text" id="Size" @bind="sizeSearch" class="form-control" maxlength="255" placeholder="Search by Size" required @oninput="OnSizeInput">
+            <SearchSelect showSuggestions="showSizeSuggestions" @ref="sizeListRef" T="string" Items="Sizes" OnSelect="@(e=>OnSizeSelect(e))" ShowSuggestionsChanged="@((bool val) => showSizeSuggestions = val)">
+                <ItemTemplate Context="b">
+                    <div>@b</div>
+                </ItemTemplate>
+            </SearchSelect>
+        </div>
+
+        <div class="mb-3" hidden="@(!showPattern)">
+            <label for="Pattern" class="form-label">Pattern:</label>
+            <input @onkeydown="HandlePatternKey" autocomplete="off" type="text" id="Pattern" @bind="patternSearch" class="form-control" placeholder="Search by Pattern" maxlength="255"  @oninput="OnPatternInput">
+            <SearchSelect showSuggestions="showPatternSuggestions" @ref="patternListRef" T="string" Items="Patterns" OnSelect="@(e=>OnPatternSelect(e))" ShowSuggestionsChanged="@((bool val) => showPatternSuggestions = val)">
+                <ItemTemplate Context="b">
+                    <div>@b</div>
+                </ItemTemplate>
+            </SearchSelect>
+        </div>
+
+        <div class="mb-3">
+            <label for="tubeOrTubeless" class="form-label">Tube or Tubeless:</label>
+            <select autocomplete="off" id="tubeOrTubeless" class="form-control" @bind="product.TubeOrTubeless">
+                <option value="">Select Tube or Tubeless</option>
+                <option value="Tube">Tube</option>
+                <option value="Tubeless">Tubeless</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="Price" class="form-label">Price:</label>
+            <input autocomplete="off" type="number" id="Price" @bind="product.Price" class="form-control" maxlength="255">
+        </div>
+
+        <button type="button" onclick="@HandleSubmit" class="btn btn-primary w-100">@(isProductUpdating ? "Update" : "Submit")</button>
+    </EditForm>
+
+    @if(isProcessing)
+    {
+        <Loader/>
+
+    }
+
+</div>
+
+@code
+{
+    [Parameter] public ProductType product { set; get; } = new ProductType();
+    [Parameter] public BrandType brand { set; get; } = new BrandType();
+    [Parameter] public bool isProductUpdating { get; set; } = false;
+    [Parameter] public bool isBrandUpdating { get; set; } = false;
+    bool isProcessing = false,showPattern = true;
+    bool[] brandValidate = new bool[2];
+
+
+
+    private string sizeSearch = "";
+    private bool showSizeSuggestions = false;
+    private HashSet<string> filteredSizes = new HashSet<string>();
+    private List<string> Sizes = new List<string>();
+    private SearchSelect<string> sizeListRef;
+
+    public void HandleSizeKey(KeyboardEventArgs e)
+    {
+        sizeListRef?.HandleKeyDown(e);
+    }
+
+    public void OnSizeInput(ChangeEventArgs e)
+    {
+        string temp = e.Value.ToString() ?? "";
+        sizeSearch = temp;
+        Sizes = filteredSizes.Where((s) => s.Contains(temp, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        showSizeSuggestions = filteredSizes.Any();
+
+    }
+
+    public void OnSizeSelect(string size)
+    {
+        product.Size = size;
+        sizeSearch = size;
+        showSizeSuggestions = false;
+    }
+
+
+
+    private string patternSearch = "";
+    private bool showPatternSuggestions = false;
+    private HashSet<string> filteredPatterns = new HashSet<string>();
+    public List<string> Patterns = new List<string>();
+    private SearchSelect<string> patternListRef;
+
+    public void HandlePatternKey(KeyboardEventArgs e)
+    {
+        patternListRef?.HandleKeyDown(e);
+    }
+
+    public void OnPatternInput(ChangeEventArgs e)
+    {
+        string temp = e.Value.ToString() ?? "";
+        patternSearch = temp;
+        Patterns = filteredPatterns.Where((s) => s.Contains(temp, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        showPatternSuggestions = filteredPatterns.Any();
+
+    }
+
+    public void OnPatternSelect(string pattern)
+    {
+        product.Pattern = pattern;
+        patternSearch = pattern;
+        showPatternSuggestions = false;
+    }
+
+    private string brandSearch = "";
+    private bool showBrandSuggestions = false;
+    private List<BrandType> filteredBrands = new List<BrandType>();
+    private SearchSelect<BrandType> brandListRef;
+
+
+    public void HandleBranchKey(KeyboardEventArgs e)
+    {
+        brandListRef?.HandleKeyDown(e);
+    }
+
+    public void OnBrandInput(ChangeEventArgs e)
+    {
+        string temp = e.Value.ToString() ?? "";
+        brandSearch = temp;
+        filteredBrands = brands.Where(b => b.BrandName.Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+                                           b.BrandID.Contains(temp, StringComparison.OrdinalIgnoreCase)).ToList();
+        showBrandSuggestions = filteredBrands.Any();
+    }
+
+    public void  OnBrandSelect(BrandType brand)
+    {
+
+        if(brand.BrandName.ToLower() == "tube")
+        {
+            showPattern = false;
+            StateHasChanged();
+        }
+        else
+        {
+            showPattern = true;
+            StateHasChanged();
+        }
+        product.Brand = brand.BrandName;
+        product.BrandID = brand.BrandID;
+        brandSearch = brand.BrandName;
+        showBrandSuggestions = false;
+    }
+
+    public void onBrandShortFormInput(ChangeEventArgs e)
+    {
+        string temp = e.Value.ToString() ?? "";
+
+        List<BrandType> filtered = brands.Where(b => b.BrandShortForm == temp).ToList();
+        brandValidate[0] = filtered.Any();
+    }
+
+    public void onBrandNameInput(ChangeEventArgs e)
+    {
+        string temp = e.Value.ToString() ?? "";
+
+        List<BrandType> filtered = brands.Where(b => b.BrandName == temp).ToList();
+        brandValidate[1] = filtered.Any();
+    }
+
+
+    public List<ProductType> products { get; set; } = new List<ProductType>();
+    public List<BrandType> brands { get; set; } = new List<BrandType>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FetchData();
+        if(isProductUpdating)
+        {
+            product =(ProductType)CurrentData.GetCurrentCustomer();
+            brandSearch = product.Brand;
+            sizeSearch = product.Size;
+            patternSearch = product.Pattern;
+            if(brandSearch.ToLower() =="tube")
+            {
+                showPattern = false;
+            }
+            StateHasChanged();
+        }
+        else
+        {
+            product.HSNCode = "40111010";
+            StateHasChanged();
+        }
+
+        if(isBrandUpdating)
+        {
+            brand = (BrandType)CurrentData.GetCurrentCustomer();
+            StateHasChanged();
+        }
+    }
+
+    public async Task<bool> ManageBrandDB(BrandType data)
+    {
+        if (isBrandUpdating)
+        {
+            string updateQuery = @"UPDATE Brands SET BrandName = @brandName WHERE BrandID = @brandId";
+
+            var updateParameter = new Dictionary<string, object>
+            {
+
+                {"@brandId",data.BrandID},
+                {"@brandName",data.BrandName},
+            };
+
+            int rowsAffected = await DatabaseHandler.ExecuteNonQueryAsync(updateQuery, updateParameter);
+            await AlertService.ShowAlertAsync("Product Update", "Update Successful", "Done");
+            return rowsAffected > 0;
+        }
+        else
+        {
+
+            string brandID = await DatabaseHandler.GenerateID(brand.BrandShortForm, 8, "Brands", "BrandID");
+            string insertQuery = @"INSERT INTO Brands (BrandShortForm,BrandID,BrandName) VALUES (@brandShortForm,@brandID,@brandName)";
+            var insertParameter = new Dictionary<string, object>
+            {
+                {"@brandShortForm",data.BrandShortForm},
+                {"@brandID",brandID},
+                {"@brandName",data.BrandName},
+            };
+            int insertRowsAffected = await DatabaseHandler.ExecuteNonQueryAsync(insertQuery, insertParameter);
+            await AlertService.ShowAlertAsync("Product Add:", "Added Successful", "Done");
+
+            return insertRowsAffected > 0;
+        }
+    }
+
+    public async Task FetchData()
+    {
+        brands.Clear();
+
+        products.Clear();
+        string brandsFetchQuery = @"SELECT * FROM Brands";
+        var res = await DatabaseHandler.ExecuteQueryAsync(brandsFetchQuery);
+        if (res.Count > 0)
+        {
+            foreach (var row in res)
+            {
+                brands.Add(new BrandType
+                    {
+                        BrandID = row["BrandID"].ToString() ?? "",
+                        BrandName = row["BrandName"].ToString() ?? ""
+                    });
+            }
+        }
+        string productsFetchQuery = @"SELECT * FROM Product";
+        var res2 = await DatabaseHandler.ExecuteQueryAsync(productsFetchQuery);
+        if (res2.Count > 0)
+        {
+            foreach (var row in res2)
+            {
+                products.Add(new ProductType
+					{
+						ProductID = row["ProductID"].ToString() ?? "",
+						Brand = row["Brand"].ToString() ?? "",
+                        HSNCode = row["HSNCode"].ToString() ?? "",
+						BrandID = row["BrandID"].ToString() ?? "",
+						Size = row["Size"].ToString() ?? "",
+						Pattern = row["Pattern"].ToString() ?? "",
+						TubeOrTubeless = row["TubeOrTubeless"].ToString() ?? "",
+						Price = Convert.ToDouble(row["Price"].ToString()),
+						CreatedBy = row["CreatedBy"].ToString() ?? "",
+						LastUpdatedBy = row["LastUpdatedBy"].ToString() ?? ""
+					});
+
+                filteredSizes.Add(row["Size"].ToString() ?? "");
+
+                filteredPatterns.Add(row["Pattern"].ToString() ?? "");
+            }
+        }
+    }
+    public async Task<bool> ManageDB(ProductType data)
+    {
+        string username = await MyLocalStorageService.GetItemAsync("Username") ?? "";
+        if(isProductUpdating)
+        {
+            string updateQuery = @"UPDATE Product SET HSNCode = @hsnCode, Brand = @brand,BrandID = @brandID, Size = @size, Pattern = @pattern, TubeOrTubeless = @tubeOrTubeless, Price = @price, CreatedBy = @createdBy, LastUpdatedBy = @lastUpdatedBy WHERE ProductID = @productId";
+
+            var updateParameter = new Dictionary<string, object>
+            {
+                {"@productId",data.ProductID},
+                {"@hsnCode",data.HSNCode},
+                {"@brand",data.Brand},
+				{"@brandID",data.BrandID},
+                {"@size",data.Size},
+                {"@pattern",data.Pattern},
+                {"@tubeOrTubeless",data.TubeOrTubeless},
+                {"@price",data.Price},
+                {"@createdBy",data.CreatedBy},
+                {"@lastUpdatedBy",username}
+            };
+
+            int rowsAffected = await DatabaseHandler.ExecuteNonQueryAsync(updateQuery, updateParameter);
+            await AlertService.ShowAlertAsync("Product Update", "Update Successful", "Done");
+            return rowsAffected > 0;
+        }
+        else
+        {
+            string productId = await DatabaseHandler.GenerateID("PD", 10, "Product", "ProductID");
+            string insertQuery = @"INSERT INTO Product (ProductID,HSNCode,Brand,BrandID,Size,Pattern,TubeOrTubeless,Price,CreatedBy) VALUES (@productID,@hsnCode,@brand,@brandID,@size,@pattern,@tubeOrTubeless,@price,@createdBy)";
+            var insertParameter = new Dictionary<string, object>
+            {
+                {"@productId",productId},
+                {"@hsnCode",product.HSNCode},
+                {"@brand",data.Brand},
+				{"@brandID",data.BrandID},
+                {"@size",data.Size},
+                {"@pattern",data.Pattern},
+                {"@tubeOrTubeless",data.TubeOrTubeless},
+                {"@price",data.Price},
+                {"@createdBy",username}
+            };
+            int insertRowsAffected = await DatabaseHandler.ExecuteNonQueryAsync(insertQuery, insertParameter);
+            await AlertService.ShowAlertAsync("Product Add:", "Added Successful", "Done");
+
+            return insertRowsAffected > 0;
+        }
+    }
+
+    public async void HandleSubmit()
+    {
+        isProcessing = true;
+        List<string> errors = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(product.Brand))
+            errors.Add("Brand is required.");
+
+        if (string.IsNullOrWhiteSpace(product.Size))
+            errors.Add("Size is required.");
+
+        if (string.IsNullOrWhiteSpace(product.Pattern) && showPattern)
+            errors.Add("Pattern is required.");
+
+        if (string.IsNullOrWhiteSpace(product.TubeOrTubeless))
+            errors.Add("Tube or Tubeless must be selected.");
+
+        if (product.Price < 0)
+            errors.Add("Price must be a positive number.");
+
+
+        if (products.Any(p =>
+                string.Equals(p.Size, product.Size, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(p.Brand, product.Brand, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(p.Pattern, product.Pattern, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(p.TubeOrTubeless, product.TubeOrTubeless, StringComparison.OrdinalIgnoreCase)))
+        {
+            errors.Add("Product already exists");
+        }
+
+        if (errors.Count == 0 || isProductUpdating)
+        {
+            await ManageDB(product);
+            await FetchData();
+            product = new ProductType();
+            patternSearch = "";
+            sizeSearch = "";
+            brandSearch = "";
+            showPattern = true;
+
+        }
+        else
+        {
+            string error = string.Join("\n", errors);
+            await AlertService.ShowAlertAsync("Invalid Product Form Data:", error, "Try Again");
+        }
+        isProcessing = false;
+        StateHasChanged();
+    }
+
+
+    public async void HandleBrandSubmit()
+    {
+        isProcessing = true;
+        List<string> errors = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(brand.BrandShortForm))
+            errors.Add("Brand ShortForm is required.");
+
+        if (string.IsNullOrWhiteSpace(brand.BrandName))
+            errors.Add("Brand Name is required.");
+
+        if (brandValidate[0])
+            errors.Add("Brand Short Form already there");
+
+        if (brandValidate[1])
+            errors.Add("Brand name alread there");
+
+        if (errors.Count == 0 || isBrandUpdating)
+        {
+
+            await ManageBrandDB(brand);
+            await FetchData();
+            brand = new BrandType();
+            
+        }
+        else
+        {
+            string error = string.Join("\n", errors);
+            await AlertService.ShowAlertAsync("Invalid Brand Form Data:", error, "Try Again");
+        }
+
+        isProcessing = false;
+        StateHasChanged();
+    }
+}

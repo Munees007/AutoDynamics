@@ -1,0 +1,169 @@
+@page "/services"
+@using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Services
+@inject IDatabaseHandler DatabaseHandler
+@inject ICurrentData CurrentData
+<h1>Services</h1>
+
+<h3>This page is used to manage services providing</h3>
+
+<EditForm Model="@service" OnValidSubmit="HandleSubmit">
+    <h2 class="text-center mt-3">Create Service</h2>
+    <div class="mb-3">
+        <label for="HSNCode" class="form-label">HSNCode:</label>
+        <input type="text" id="HSNCode" @bind="service.HSNCode" class="form-control" maxlength="20" required >
+    </div>
+
+    <div class="mb-3">
+        <label for="Service" class="form-label">Service:</label>
+        <input type="text" id="Service" @bind="service.Service" class="form-control" maxlength="255" required >
+    </div>
+    <button type="submit" class="btn btn-primary w-100">@(isUpdating ? "Updating" :  "Submit")</button>
+</EditForm>
+
+@if(isProcessing)
+{
+    <Loader></Loader>
+}
+<h2 class="mt-4">Services Providing</h2>
+
+
+<div class="container mt-4">
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th>Service ID</th>
+                    <th>HSNCode</th>
+                    <th>Service</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (services.Count == 0)
+                {
+                    <tr>
+                        <td colspan="10" class="text-center text-muted">No customers found.</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var serviceData in services)
+                    {
+                        <tr>
+                            <td>@serviceData.ServiceID</td>
+                            <td>@serviceData.HSNCode</td>
+                            <td>@serviceData.Service</td>
+                            <td>
+                                <button class="btn btn-warning btn-sm" @onclick="() => UpdateService(serviceData)">Update</button>
+                                <button class="btn btn-danger btn-sm" @onclick="() => DeleteService(serviceData.ServiceID)">Delete</button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code
+{
+    private ServiceModal service { set;get; } = new ServiceModal();
+    private List<ServiceModal> services {set;get;} = new List<ServiceModal>();
+    private bool isUpdating = false;
+    private bool isProcessing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FetchServices();
+    }
+    public void UpdateService(ServiceModal currentService)
+    {
+        isUpdating = true;
+        service = currentService;
+        StateHasChanged();
+    }
+    public void setProcessing(bool state)
+    {
+        isProcessing = state;
+        StateHasChanged();
+    }
+    public async Task FetchServices()
+    {
+        setProcessing(true);
+        services.Clear();
+        string query = @"SELECT * FROM Services";
+
+        var result = await DatabaseHandler.ExecuteQueryAsync(query);
+        if(result.Count > 0)
+        {
+            foreach(var row in result)
+            {
+                services.Add(
+                    new ServiceModal
+                    {
+                        ServiceID = row["ServiceID"].ToString() ?? "",
+                        HSNCode = row["HSNCode"].ToString() ?? "",
+                        Service = row["Service"].ToString() ?? ""
+                    }
+                );
+            }
+        }
+        setProcessing(false);
+    }
+    public async Task<bool> ManageService(ServiceModal data)
+    {
+        setProcessing(true);
+        string query = "";
+        var parameter = new Dictionary<string, object>();
+        if(isUpdating)
+        {
+            query = @"UPDATE Services SET HSNCode = @hsnCode, Service = @service WHERE ServiceID = @serviceID";
+            parameter = new Dictionary<string, object>
+            {
+                {"ServiceID",data.ServiceID},
+                {"HSNCode",data.HSNCode},
+                {"Service",data.Service}
+            };
+
+            int result = await DatabaseHandler.ExecuteNonQueryAsync(query, parameter);
+            isUpdating = false;
+            StateHasChanged();
+            return result > 0;
+        }
+        else
+        {
+            string id = await DatabaseHandler.GenerateID("SE", 3, "Services", "ServiceID");
+            query = @"INSERT INTO Services (ServiceID,HSNCode,Service) VALUES (@serviceID,@hsnCode,@service)";
+
+            parameter = new Dictionary<string, object>
+            {
+                {"@serviceID" ,id},
+                {"@hsnCode",data.HSNCode},
+                {"@service",data.Service}
+            };
+            
+            int rowsAffected = await DatabaseHandler.ExecuteNonQueryAsync(query, parameter);
+            setProcessing(false);
+            return rowsAffected > 0;
+        }
+        
+    }
+    public async void HandleSubmit()
+    {
+        await ManageService(service);
+        service.ServiceID = "";
+        service.Service = "";
+        await FetchServices();
+        StateHasChanged();
+    }
+
+    public async Task DeleteService(string id)
+    {
+        string query = $"DELETE FROM Services WHERE ServiceID = '{id}'";
+        await DatabaseHandler.ExecuteQueryAsync(query);
+        await FetchServices();
+        StateHasChanged();
+    }
+
+}

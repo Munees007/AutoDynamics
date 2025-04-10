@@ -1,0 +1,153 @@
+@page "/customer/manage"
+@using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Services
+@inject IDatabaseHandler DatabaseHandler
+@inject NavigationManager Navigation
+@inject ICurrentData CurrentData
+@inject IAlertService AlertService
+@inject IMyLocalStorageService MyLocalStorageService
+
+<h1 class="text-center mt-3">Customer List</h1>
+
+
+<div class="container mt-4">
+    <input autocomplete="off" type="text" class="form-control mb-3" placeholder="Search by Customer Name, Contact, Vehicle No, or Customer ID"
+    @bind="searchTerm" @oninput="FilterData" />
+</div>
+
+<div class="container mt-4">
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th>Customer ID</th>
+                    <th>Name</th>
+                    <th>Contact</th>
+                    <th>City</th>
+                    <th>GSTIN</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (filteredCustomers.Count == 0)
+                {
+                    <tr>
+                        <td colspan="10" class="text-center text-muted">No customers found.</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var customer in filteredCustomers)
+                    {
+                        <tr>
+                            <td>@customer.CustomerId</td>
+                            <td>@customer.Name</td>
+                            <td>@customer.Contact</td>
+                            <td>@customer.City</td>
+                            <td>@customer.GSTIN</td>
+                            <td>
+                                <button class="btn btn-primary btn-sm" @onclick="() => ViewCustomer(customer    )">View</button>
+                                <button class="btn btn-dark btn-sm" @onclick="() => UpdateCustomer(customer)">Update</button>
+                                @if (isAdmin) {<button class="btn btn-danger btn-sm" @onclick="() => DeleteCustomer(customer.CustomerId)">Delete</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private string searchTerm = "";
+    private bool isAdmin = false;
+    public List<UserModal> customers { get; set; } = new();
+    public List<UserModal> filteredCustomers { get; set; } = new List<UserModal>();
+    protected override async Task OnInitializedAsync()
+    {
+        isAdmin = await MyLocalStorageService.GetItemAsync("IsAdmin") == "true" ? true : false;
+        await fetchData();
+        filteredCustomers = customers;
+    }
+
+    public void FilterData(ChangeEventArgs e)
+    {
+        searchTerm = e.Value.ToString().Replace(" ", "").Replace(".", "") ?? "";
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filteredCustomers = customers;
+            return;
+        }
+        else
+        {
+
+            filteredCustomers = customers
+                .Where(c =>
+                    c.CustomerId.Replace(" ","").Replace(".","").Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    c.Name.Replace(" ", "").Replace(".", "").Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    c.Contact.Replace(" ", "").Replace(".", "").Contains(searchTerm, StringComparison.OrdinalIgnoreCase)
+                    )
+                .ToList();
+        }
+        StateHasChanged();
+    }
+
+    public async Task fetchData()
+    {
+        string query = "SELECT * FROM Customers";
+        var result = await DatabaseHandler.ExecuteQueryAsync(query);
+        customers = new List<UserModal>();
+        if (result.Count > 0)
+        {
+            foreach (var row in result)
+            {
+                customers.Add(new UserModal
+                    {
+                        CustomerId = row["CustomerID"].ToString() ?? "",
+                        Name = row["Name"].ToString() ?? "",
+                        Contact = row["Contact"].ToString() ?? "",
+                        GSTIN = row["GSTIN"].ToString() ?? "",
+                        Address = row["Address"].ToString() ?? "",
+                        Area = row["Area"].ToString() ?? "",
+                        City = row["City"].ToString() ?? "",
+                        State = row["State"].ToString() ?? "",
+                        Country = row["Country"].ToString() ?? "",
+                        District = row["District"].ToString() ?? "",
+                        Nationality = row["Nationality"].ToString() ?? "",
+                        PinCode = row["PinCode"].ToString() ?? "",
+                        Website = row["Website"].ToString() ?? "",
+                        LastUpdatedBy = row["LastUpdatedBy"].ToString() ?? "",
+                        Email = row["Email"].ToString() ?? "",
+                        IsSMSAllowed = row["IsSMSAllowed"].ToString() == "True" ? true : false,
+                        IsEmailAllowed = row["IsEmailAllowed"].ToString() == "True" ? true : false,
+                        IsWhatsAppAllowed = row["IsWhatsAppAllowed"].ToString() == "True" ? true : false,
+                        CreatedBy = row["CreatedBy"].ToString() ?? "",
+                        CreateAt = row["CreatedAt"].ToString() ?? "",
+                        LastUpdatedAt = row["LastUpdatedAt"].ToString() ?? ""
+                    });
+            }
+        }
+    }
+
+    private void ViewCustomer(UserModal user)
+    {
+        CurrentData.SetCurrentCustomer(user);
+        Navigation.NavigateTo($"/customer/details");
+    }
+
+    private async Task DeleteCustomer(string customerId)
+    {
+        string query = $"DELETE FROM Customers WHERE CustomerID = '{customerId}'";
+        await DatabaseHandler.ExecuteQueryAsync(query);
+        await AlertService.ShowAlertAsync("Delete Customer:", "Deleted Successfully", "OK");
+        await fetchData();
+        StateHasChanged();
+    }
+
+    private void UpdateCustomer(UserModal user)
+    {
+        CurrentData.SetCurrentCustomer(user);
+        Navigation.NavigateTo($"/customer/update");
+    }
+}

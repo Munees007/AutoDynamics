@@ -1,0 +1,159 @@
+﻿
+@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+
+@using AutoDynamics.Shared.Services
+@inject IMyLocalStorageService MyLocalStorageService
+<div class="page" >
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4 d-flex gap-2">
+            <button class="btn btn-primary px-3 py-2 fw-bold" @onclick="GoBack" disabled="@(!canGoBack)">
+                🔙 Back
+            </button>
+            <button class="btn btn-primary px-3 py-2 fw-bold" @onclick="GoForward" disabled="@(!canGoForward)">
+                🔜 Forward
+            </button>
+            <div class="position-relative">
+                <!-- Profile Icon Button -->
+                <button style="background-image:url(@profileImgSource)" class="profile-btn" @onclick="ToggleDropdown"></button>
+
+                <!-- Dropdown Content -->
+                @if (showDropdown)
+                {
+
+                    <div class=" dropdown-menu show position-absolute end-0 mt-2 p-2 shadow rounded bg-white" style="width: 150px;">
+                        <div class="text-center fw-bold">@Username</div>
+                        <hr class="my-2">
+                        <div class="text-center fw-bold">@Branch</div>
+                        <hr class="my-2">
+                        <button class="dropdown-item text-danger text-center" @onclick="LogOut">
+                            <i class="bi bi-box-arrow-right me-1"></i> Logout
+                        </button>
+                    </div>
+                }
+            </div>
+
+        </div>
+
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private bool hasRendered = false;
+    private bool canGoBack => historyIndex > 0;
+    private bool canGoForward => historyIndex < history.Count - 1;
+    private string Username = "";
+    private string Branch = "";
+    private string profileImgSource = "/images/boy.png";
+    private List<string> history = new();
+    private int historyIndex = -1;
+    private bool isNavigatingBackOrForward = false;
+
+
+    private bool showDropdown = false;
+
+    private void ToggleDropdown()
+    {
+        showDropdown = !showDropdown;
+    }
+
+    public void CloseDropdown()
+    {
+        showDropdown = false;
+    }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+
+
+        Navigation.LocationChanged += OnLocationChanged;
+        history.Add(Navigation.Uri); // Store initial page
+        historyIndex = 0;  
+    }
+
+    protected override async void OnAfterRender(bool firstRender)
+    {
+        if(firstRender)
+        {
+            
+            Username = await MyLocalStorageService.GetItemAsync("Username") ?? "";
+            Branch = await MyLocalStorageService.GetItemAsync("Branch") ?? "";
+        }
+    }
+
+
+
+    public async void LogOut()
+    {
+        await MyLocalStorageService.RemoveItemAsync("Username");
+        await MyLocalStorageService.RemoveItemAsync("Branch");
+        await MyLocalStorageService.RemoveItemAsync("IsLogin");
+        await MyLocalStorageService.RemoveItemAsync("IsAdmin");
+        Navigation.NavigateTo("/");
+    }
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        if (!isNavigatingBackOrForward)
+        {
+            // Remove forward history if user navigates manually
+            if (historyIndex < history.Count - 1)
+            {
+                history.RemoveRange(historyIndex + 1, history.Count - historyIndex - 1);
+            }
+
+            history.Add(e.Location);
+            historyIndex = history.Count - 1;
+        }
+
+        isNavigatingBackOrForward = false;
+        StateHasChanged(); // Refresh UI
+    }
+
+    private void GoBack()
+    {
+        if (canGoBack)
+        {
+            isNavigatingBackOrForward = true;
+            historyIndex--;
+            Navigation.NavigateTo(history[historyIndex]);
+        }
+    }
+
+    private void GoForward()
+    {
+        if (canGoForward)
+        {
+            isNavigatingBackOrForward = true;
+            historyIndex++;
+            Navigation.NavigateTo(history[historyIndex]);
+        }
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !hasRendered)
+        {
+            hasRendered = true;
+            var isLoggedIn = await MyLocalStorageService.GetItemAsync("IsLogin");
+
+            if (isLoggedIn != "true")
+            {
+                Navigation.NavigateTo("/", true); // Redirect back to login if not authenticated
+            }
+        }
+    }
+}

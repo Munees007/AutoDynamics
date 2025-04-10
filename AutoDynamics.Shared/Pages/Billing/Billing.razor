@@ -1,0 +1,631 @@
+﻿@page "/billing"
+@using System.Globalization
+@using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Services
+@using AutoDynamics.Shared.Pages.Components
+@using System.Diagnostics
+@inject IDatabaseHandler DatabaseHandler
+@inject IAlertService AlertService
+@inject IMyLocalStorageService MyLocalStorageService
+@inject IPDFGenerator PDFGenerator
+@inject IFormFactor FormFactor
+@inject IJSRuntime JS
+<h3 class="text-primary">Billing</h3>
+
+<div class="container m-3 position-relative">
+    @if(isAdmin)
+    {
+        <!-- Branch Selection -->
+        <div class="row">
+            <div class="col-md-4">
+                <label class="form-label">Branch</label>
+                <select disabled="@isViewing" autocomplete="off" class="form-select" @bind="SelectedBranch">
+                    <option value="">Select Branch</option>
+                    <option value="Sivakasi">Sivakasi</option>
+                    <option value="Bypass">Bypass</option>
+                </select>
+            </div>
+        </div>
+
+        <hr />
+    }
+
+
+    <!-- Bill Details -->
+    <div class="row">
+        <!-- Customer Field -->
+        <div class="col-md-4">
+            <label class="form-label">Customer</label>
+
+            <div class="input-group">
+                <input disabled="@isViewing" @onkeydown="HandleCustomerKey" autocomplete="off" type="text" id="Customer" @bind="CustomerSearch" @oninput="OnCustomerSearch" class="form-control" placeholder="Search by ID, Name, or Contact" required>
+                <button type="button" class="btn btn-outline-secondary" @onclick="NecessaryData">
+                    🔄
+                </button>
+            </div>
+            <SearchSelect @ref="customerListRef" Items="filteredCustomers" OnSelect="@(c=> SelectCustomer(c))" T="UserModal" showSuggestions="ShowCustomerSuggestion" ShowSuggestionsChanged="@((bool val) => ShowCustomerSuggestion = val)">
+                <ItemTemplate Context="cust">
+                    <div>@cust.CustomerId - @cust.Name - @cust.Contact</div>
+                </ItemTemplate>
+            </SearchSelect>
+            @* <ul class="list-group position-absolute mt-1" style="z-index:1000;" hidden="@(!ShowCustomerSuggestion)"> *@
+            @*     @foreach (var customer in filteredCustomers) *@
+            @*     { *@
+            @*         <li style="cursor:pointer" class="list-group-item list-group-item-action" @onclick="() => SelectCustomer(customer)"> *@
+            @*             @customer.CustomerId - @customer.Name - @customer.Contact *@
+            @*         </li> *@
+            @*     } *@
+            @* </ul> *@
+            <p>@SelectedCustomer</p>
+        </div>
+
+        <!-- Vehicle No Field -->
+        <div class="col-md-4">
+            <label class="form-label">Vehicle No</label>
+            <div class="input-group">
+                <input disabled="@isViewing" @onkeydown="HandleVehicleKey" autocomplete="off" type="text" id="VehicleNo" @bind="VehicleSearch" @oninput="OnVehicleSearch" class="form-control" placeholder="Search by ID, Name, or Contact" required>
+                <button type="button" class="btn btn-outline-secondary" @onclick="NecessaryData">
+                    🔄
+                </button>
+            </div>
+            <SearchSelect showSuggestions="ShowVehicleSuggestion" @ref="vehicleListRef" T="VehicleType" OnSelect="@(v=> SelectVehicle(v))" Items="filteredVehicles" ShowSuggestionsChanged="@((bool val) => ShowVehicleSuggestion = val)">
+                <ItemTemplate Context="v">
+                    <div>@v.VehicleNo - @v.ModelName</div>
+                </ItemTemplate>
+            </SearchSelect>
+            @* <ul class="list-group position-absolute mt-1" style="z-index:1000;" hidden="@(!ShowVehicleSuggestion)"> *@
+            @*     @foreach (var vehicle in filteredVehicles) *@
+            @*     { *@
+            @*         <li style="cursor:pointer" class="list-group-item list-group-item-action" @onclick="() => SelectVehicle(vehicle)"> *@
+            @*             @vehicle.VehicleNo - @vehicle.ModelName *@
+            @*         </li> *@
+            @*     } *@
+            @* </ul> *@
+            <p>@SelectedVehicle</p>
+        </div>
+
+        <!-- Usage Reading Field -->
+        <div class="col-md-4">
+            <label class="form-label">Usage Reading</label>
+            <input disabled="@isViewing" type="number" id="UsageReading" @bind="bill.UsageReading" class="form-control" placeholder="Enter Usage Reading" required>
+        </div>
+    </div>
+
+
+    @if(showCustomerForm){
+        <div class="mt-4 p-3">
+            <h1 class="text-black">Add Customer</h1>
+            <CustomerForm isUpdating=false submitForm="SubmitForm" isBilling=true/>
+        </div>
+    }
+
+    @if(showVehicleForm)
+    {
+        <VechicleAdd isUpdating=false isBilling=true CustomerId="@CustomerSearch" SubmitForm="SubmitFormVehicle"/>
+    }
+
+
+
+    <hr />
+
+    <!-- Bill Items (Service & Product) -->
+    <h5>Bill Items</h5>
+    <button disabled="@isViewing" class="btn btn-success btn-sm mb-2" @onclick="AddNewItem">Add Item</button>
+
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Item Type</th>
+                <th>Item Name</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                <th>Taxable Value</th>
+                <th>CGST</th>
+                <th>SGST</th>
+                <th>Total Price</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in BillItems)
+            {
+                <tr>
+                    <td>
+                        <select disabled="@isViewing" autocomplete="off" class="form-select" @bind="item.ItemType">
+                            <option value="SERVICE">Service</option>
+                            <option value="PRODUCT">Product</option>
+                        </select>
+                    </td>
+                    @if (item.ItemType == "SERVICE")
+                    {
+                        <td>
+                            <select disabled="@isViewing" autocomplete="off" class="form-select" @bind="item.ItemName">
+                                <option>Select a Service</option>
+                                @foreach (ServiceModal service in services)
+                                {
+                                    <option value="@service.Service">@service.Service</option>
+                                }
+                            </select>
+                        </td>
+                    }
+                    else
+                    {
+                        <td>
+                            <select disabled="@isViewing" autocomplete="off" class="form-select" @bind="item.ItemName">
+                                <option>Select a Product</option>
+                                @foreach (ProductType product in products)
+                                {
+                                    <option value="@product.Brand">@product.Brand</option>
+                                }
+                            </select>
+                        </td>
+                    }
+                    <td><input disabled="@isViewing" autocomplete="off" type="number" class="form-control" @bind="item.Quantity" min="1"></td>
+                    <td><input disabled="@isViewing" autocomplete="off" type="number" class="form-control" @bind="item.UnitPrice" min="0" step="0.01"></td>
+
+                    @* Tax Calculation *@
+                    @{
+                        var total = item.Quantity * item.UnitPrice;
+                        item.TaxableValue = Math.Round(total / 1.18m,2);
+                        var cgst = item.ItemType == "SERVICE" ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
+                        var sgst = item.ItemType == "SERVICE" ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
+                        item.TotalPrice = Math.Round(item.TaxableValue + cgst + sgst);
+                    }
+                    <td>@item.TaxableValue</td>
+                    <td>@cgst.ToString("F2")</td>
+                    <td>@sgst.ToString("F2")</td>
+                    <td>@item.TotalPrice</td>
+
+                    <td>
+                        <button disabled="@isViewing" class="btn btn-danger btn-sm" @onclick="() => RemoveItem(item)">Remove</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+
+    </table>
+    <div class="d-flex w-100 justify-content-end">
+        <button disabled="@isViewing" class="btn btn-primary" onclick="@setCashAmount" style="right:5px">Full Cash</button>
+    </div>
+    <hr />
+
+    <!-- Payment Section -->
+    <h5>Payments</h5>
+    <div class="row">
+        <div class="col-md-3">
+            <label class="form-label">Cash</label>
+            <input autocomplete="off" type="number" @onblur="@manageCredit" disabled="@(restrictCashBox||isViewing)"  class="form-control" @bind="CashAmount" min="0" step="0.01">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Credit</label>
+            <input autocomplete="off" type="number" @onblur="@manageCredit" disabled="@(restrictCashBox||isViewing)" class="form-control" @bind="BankAmount" min="0" step="0.01">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Card</label>
+            <input autocomplete="off" type="number" @onblur="@manageCredit" disabled="@(restrictCashBox||isViewing)" class="form-control" @bind="CardAmount" min="0" step="0.01">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">UPI</label>
+            <input autocomplete="off" type="number" @onblur="@manageCredit" disabled="@(restrictCashBox||isViewing)" class="form-control" @bind="UPIAmount" min="0" step="0.01">
+        </div>
+    </div>
+
+    <hr />
+    <!-- Total and Submit -->
+    <div class="row">
+
+        <div class="col-md-6">
+            <h4>Total: ₹@TotalAmount</h4>
+        </div>
+        <div class="col-md-6 text-end">
+            <button disabled="@isViewing" class="btn btn-primary" @onclick="HandleSubmit">Submit Bill</button>
+        </div>
+    </div>
+    @if (isProcessing)
+    {
+        <Loader/>
+
+    }
+</div>
+
+@code {
+    [Parameter] public bool isUpdating { set; get; } = false;
+    [Parameter] public BillDetails updateData { set; get; } = new();
+    [Parameter] public bool isViewing {set;get;} = false;
+    private string CustomerSearch = "";
+    private string SelectedCustomer = "No Customer Selected";
+    private string SelectedVehicle = "No Vehicle Selected";
+    private bool ShowCustomerSuggestion = false;
+    private string VehicleSearch = "";
+    private bool ShowVehicleSuggestion = false;
+    private string SelectedBranch = "Sivakasi";
+    private string CustomerId = "";
+    private decimal TotalAmount => BillItems.Sum(x => x.TotalPrice);
+    private decimal Discount = 0;
+    private bool restrictCashBox = false;
+    private decimal GrandTotal => TotalAmount * (1 - Discount / 100);
+    private decimal CashAmount = 0, BankAmount = 0, CardAmount = 0, UPIAmount = 0;
+    private bool showCustomerForm = false;
+    private bool showVehicleForm = false;
+    private bool isAdmin = false;
+    private bool isProcessing = false;
+    private Bill bill = new();
+    private BillPayment billPayment = new();
+
+    private List<BillItem> BillItems = new();
+
+    private List<UserModal> customers { set; get; } = new List<UserModal>();
+    private List<VehicleType> vehicles { set; get; } = new List<VehicleType>();
+    private List<ServiceModal> services { set; get; } = new List<ServiceModal>();
+    private List<ProductType> products { set; get; } = new List<ProductType>();
+
+    private List<UserModal> filteredCustomers { set; get; } = new List<UserModal>();
+    private List<VehicleType> filteredVehicles { set; get; } = new List<VehicleType>();
+    private List<ServiceModal> filteredServices { set; get; } = new List<ServiceModal>();
+    private List<ProductType> filteredProducts { set; get; } = new List<ProductType>();
+
+    private SearchSelect<UserModal> customerListRef;
+    private SearchSelect<VehicleType> vehicleListRef;
+
+    public void HandleCustomerKey(KeyboardEventArgs e)
+    {
+        customerListRef?.HandleKeyDown(e);
+    }
+
+    public void HandleVehicleKey(KeyboardEventArgs e)
+    {
+        vehicleListRef?.HandleKeyDown(e);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        isAdmin = await MyLocalStorageService.GetItemAsync("IsAdmin") == "true" ? true : false;
+        if(isUpdating)
+        {
+            bill = updateData.Bill;
+            BillItems = updateData.BillItems;
+            billPayment = updateData.BillPayment;
+            CardAmount = updateData.BillPayment.CardAmount;
+            CashAmount = updateData.BillPayment.CashAmount;
+            BankAmount = updateData.BillPayment.BankAmount;
+            UPIAmount = updateData.BillPayment.UPIAmount;
+
+            CustomerSearch = updateData.Bill.CustomerID;
+            SelectCustomer(updateData.customer);
+            VehicleSearch = updateData.Bill.VehicleNo;
+            SelectVehicle(updateData.Bill.Vehicle);
+            SelectedBranch = updateData.Bill.Branch;
+            StateHasChanged();
+        }
+        if(!isAdmin)
+        {
+            string branch = await MyLocalStorageService.GetItemAsync("Branch") ?? "";
+            bill.Branch = branch;
+            SelectedBranch = branch;
+            Debug.WriteLine(branch);
+        }
+
+        if(isViewing)
+        {
+            bill = updateData.Bill;
+            BillItems = updateData.BillItems;
+            billPayment = updateData.BillPayment;
+            CardAmount = updateData.BillPayment.CardAmount;
+            CashAmount = updateData.BillPayment.CashAmount;
+            BankAmount = updateData.BillPayment.BankAmount;
+            UPIAmount = updateData.BillPayment.UPIAmount;
+
+            CustomerSearch = updateData.Bill.CustomerID;
+            SelectCustomer(updateData.customer);
+            VehicleSearch = updateData.Bill.VehicleNo;
+            SelectVehicle(updateData.Bill.Vehicle);
+            SelectedBranch = updateData.Bill.Branch;
+            StateHasChanged();
+        }
+        await NecessaryData();
+    }
+    public async Task SubmitFormVehicle(VehicleType vehicle)
+    {
+        await NecessaryData();
+        VehicleSearch = $"{vehicle.VehicleNo}";
+        bill.VehicleNo = vehicle.VehicleNo;
+        ShowVehicleSuggestion = false;
+        showVehicleForm = false;
+
+    }
+    public async Task SubmitForm(UserModal customer)
+    {
+        Debug.WriteLine("Triggered");
+        await NecessaryData();
+        CustomerSearch = $"{customer.CustomerId}";
+        SelectedCustomer = $"{customer.Name}-{customer.Contact}";
+        bill.Customer = customer;
+        bill.CustomerID = customer.CustomerId;
+        showCustomerForm = false;
+        StateHasChanged();
+    }
+    public void manageCredit()
+    {
+        Debug.WriteLine("changed");
+        decimal temp = CashAmount + UPIAmount + CardAmount;
+        if(temp < TotalAmount)
+        {
+            BankAmount = TotalAmount - temp;
+        }
+        else
+        {
+            BankAmount = 0;
+        }
+        StateHasChanged();
+    }
+    public void setCashAmount()
+    {
+        CashAmount = TotalAmount;
+        BankAmount = 0;
+        UPIAmount = 0;
+        CardAmount = 0;
+        if(!isAdmin)
+        {
+            restrictCashBox = true;
+        }
+        StateHasChanged();
+    }
+    public async void HandleSubmit()
+    {
+        Debug.WriteLine(SelectedBranch);
+        isProcessing = true;
+        if (restrictCashBox)
+        {
+            CashAmount = TotalAmount;
+        }
+        manageCredit();
+        billPayment.CardAmount = CardAmount;
+        billPayment.CashAmount = CashAmount;
+        billPayment.BankAmount = BankAmount;
+        billPayment.UPIAmount = UPIAmount;
+        bill.CustomerID = CustomerSearch;
+        bill.VehicleNo = VehicleSearch;
+        bill.Branch = SelectedBranch;
+        bill.BillingYear = DateTime.Now.Year;
+        bill.Discount = Discount;
+        bill.TotalAmount = TotalAmount;
+        bill.GrandTotal = GrandTotal;
+
+
+        BillDetails finalBill = new BillDetails
+            {
+                Bill = bill,
+                BillItems = BillItems,
+                BillPayment = billPayment
+            };
+        if(isUpdating)
+        {
+            int[] temp = await DatabaseHandler.InsertBillAsync(bill, BillItems, billPayment, true);
+        }
+        else
+        {
+            int[] data = await DatabaseHandler.InsertBillAsync(bill, BillItems, billPayment, false);
+            bill.BillID = data[0];
+            finalBill.Bill.BillID = data[0];
+            bill.BillNo = data[1];
+            finalBill.Bill.BillNo = data[1];
+        }
+
+        if (FormFactor.GetFormFactor() == "Web")
+        {
+            await PDFGenerator.GeneratePdfAsync(finalBill,JS);
+        }
+        else
+        {
+            await PDFGenerator.GeneratePdfAsync(finalBill,null);
+        }
+
+        await AlertService.ShowAlertAsync("Billing", $"Bill Generated", "Done");
+        isProcessing = false;
+        bill  = new Bill();
+        BillItems = new List<BillItem>();
+        CashAmount = 0;
+        CardAmount = 0;
+        BankAmount = 0;
+        UPIAmount = 0;
+        restrictCashBox = false;
+        CustomerSearch = "";
+        VehicleSearch = "";
+        SelectedCustomer = "No Customer Selected";
+        StateHasChanged();
+    }
+    public async Task NecessaryData()
+    {
+        string customerQuery = @"SELECT * FROM Customers";
+        string vehicleQuery = @"SELECT * FROM Vehicle";
+        string serviceQuery = @"SELECT * FROM Services";
+        string productsQuery = @"SELECT * FROM Product";
+
+        var res1 = await DatabaseHandler.ExecuteQueryAsync(customerQuery);
+        var res2 = await DatabaseHandler.ExecuteQueryAsync(vehicleQuery);
+        var res3 = await DatabaseHandler.ExecuteQueryAsync(serviceQuery);
+        var res4 = await DatabaseHandler.ExecuteQueryAsync(productsQuery);
+
+        customers = new List<UserModal>();
+        vehicles = new List<VehicleType>();
+        services = new List<ServiceModal>();
+        products = new List<ProductType>();
+
+        if(res1.Count>0)
+        {
+            foreach(var row in res1)
+            {
+                customers.Add(new UserModal
+                {
+                    CustomerId = row["CustomerID"].ToString() ?? "",
+                    Name = row["Name"].ToString() ?? "",
+                    Contact = row["Contact"].ToString() ?? "",
+                });
+            }
+        }
+        if(res2.Count>0)
+        {
+            foreach(var row in res2)
+            {
+                vehicles.Add(new VehicleType
+                {
+                    CustomerID = row["CustomerID"].ToString() ?? "",
+                    VehicleNo = row["VehicleNo"].ToString() ?? "",  
+                    ModelName = row["ModelName"].ToString() ?? "",
+                    VehicleMake = row["VehicleMake"].ToString() ?? ""
+                });
+            }
+        }
+        if (res3.Count > 0)
+        {
+            foreach(var row in res3)
+            {
+                services.Add(new ServiceModal
+                {
+                    ServiceID = row["ServiceID"].ToString() ?? "",
+                    HSNCode = row["HSNCode"].ToString() ?? "",
+                    Service = row["Service"].ToString() ?? ""
+                });
+            }
+        }
+        if (res4.Count > 0)
+        {
+            foreach(var row in res4)
+            {
+                products.Add(new ProductType
+                {
+                    ProductID = row["ProductID"].ToString() ?? "",
+                    Brand = row["Brand"].ToString() ?? "",
+                    Size = row["Size"].ToString() ?? "",
+                    Pattern = row["Pattern"].ToString() ?? "",
+                    TubeOrTubeless = row["TubeOrTubeless"].ToString() ?? "",
+                    Price = Double.Parse(row["Price"].ToString() ?? "0"),
+                });
+            }
+        }
+    }
+
+    private void AddNewItem()
+    {
+        BillItems.Add(new BillItem());
+    }
+
+    private void RemoveItem(BillItem item)
+    {
+        BillItems.Remove(item);
+    }
+
+    public async Task OnVehicleSearch(ChangeEventArgs e)
+    {
+        VehicleSearch = e.Value.ToString() ?? "";
+
+        VehicleSearch.Replace(" ", "").Replace(".", "");
+        SelectedVehicle = "No Vehicle Selected";
+        if(string.IsNullOrWhiteSpace(VehicleSearch))
+        {
+            ShowVehicleSuggestion = false;
+            showVehicleForm = false;
+            filteredVehicles.Clear();
+            return;
+        }
+
+        filteredVehicles = vehicles.Where(v => 
+             v.CustomerID.Replace(" ", "").Replace(".", "").Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase) &&
+             v.VehicleNo.Replace(" ","").Replace(".","").Contains(VehicleSearch,StringComparison.OrdinalIgnoreCase)
+         ).ToList();
+
+
+        ShowVehicleSuggestion = filteredVehicles.Any();
+
+
+        if(ShowVehicleSuggestion==false)
+        {
+            showCustomerForm = false;
+            showVehicleForm = true;
+        }
+        else
+        {
+            showVehicleForm = false;
+
+        }
+    }
+
+    public async void OnCustomerSearch(ChangeEventArgs e)
+    {
+        CustomerSearch = e.Value.ToString() ?? "";
+        CustomerSearch.Replace(" ", "").Replace(".", "");
+        SelectedCustomer = "No Customer Selected";
+        if(string.IsNullOrWhiteSpace(CustomerSearch))
+        {
+            ShowCustomerSuggestion = false;
+            filteredCustomers.Clear();
+            return;
+        }
+
+        filteredCustomers = customers
+            .Where(c => c.CustomerId.Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Replace(" ", "").Replace(".", "").Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase) ||
+                        c.Contact.Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if(VehicleSearch !="")
+        {
+            filteredVehicles = vehicles.Where(v =>
+             v.CustomerID.Replace(" ", "").Replace(".", "").Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase) &&
+             v.VehicleNo.Replace(" ", "").Replace(".", "").Contains(VehicleSearch, StringComparison.OrdinalIgnoreCase)
+                ).ToList();
+
+            if(filteredVehicles.Any())
+            {
+                ShowVehicleSuggestion = true;
+            }
+            else
+            {
+                VehicleSearch = "";
+                ShowVehicleSuggestion = false;
+            }
+        }
+        ShowCustomerSuggestion = filteredCustomers.Any();
+        if(ShowCustomerSuggestion==false)
+        {
+            showCustomerForm = true;
+            showVehicleForm = false;
+        }
+        else
+        {
+            showCustomerForm = false;
+        }
+    }
+
+    private void SelectCustomer(UserModal customer)
+    {
+        CustomerSearch = $"{customer.CustomerId}";
+        SelectedCustomer = $"{customer.Name}-{customer.Contact}";
+        bill.Customer = customer;
+        bill.CustomerID = customer.CustomerId;
+        ShowCustomerSuggestion = false;
+        showCustomerForm = false;
+        if(VehicleSearch == "")
+        {
+            filteredVehicles = vehicles.Where(v => v.CustomerID == customer.CustomerId).ToList();
+            ShowVehicleSuggestion = filteredVehicles.Any();
+        }
+
+        StateHasChanged();
+
+    }
+    private void SelectVehicle(VehicleType vehicle)
+    {
+        VehicleSearch = $"{vehicle.VehicleNo}";
+        SelectedVehicle = $"{vehicle.ModelName} - {vehicle.VehicleMake}";
+        bill.VehicleNo = vehicle.VehicleNo;
+        ShowVehicleSuggestion = false;
+        showVehicleForm = false;
+        if(CustomerSearch == "")
+        {
+            filteredCustomers = customers.Where(c => c.CustomerId == vehicle.CustomerID).ToList();
+            ShowCustomerSuggestion = filteredCustomers.Any();
+        }
+        StateHasChanged();
+    }
+}

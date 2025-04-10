@@ -1,0 +1,103 @@
+@page "/credit/details"
+@using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Services
+@inject IDatabaseHandler DatabaseHandler
+@inject ICurrentData CurrentData
+@inject NavigationManager Navigation
+<h1 class="text-center mt-3">Credit lists</h1>
+
+<div class="container mt-4">
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th>Credit ID</th>
+                    <th>Customer ID</th>
+                    <th>Bill ID</th>
+                    <th>Credit Amount</th>
+                    <th>Paid Amount</th>
+                    <th>Remaining Balance</th>
+                    <th>Due Date</th>
+                    <th>Status</th>
+                    <th>Created At</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (records.Count == 0)
+                {
+                    <tr>
+                        <td colspan="10" class="text-center text-muted">No customers found.</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var record in records)
+                    {
+                        <tr>
+                            <td>@record.CreditID</td>
+                            <td>@record.CustomerID</td>
+                            <td>@record.BillID</td>
+                            <td>@record.CreditAmount</td>
+                            <td>@record.PaidAmount</td>
+                            <td>@record.RemainingBalance</td>
+                            <td>@record.DueDate</td>
+                            <td>@record.Status</td>
+                            <td>@record.CreatedAt</td>
+                        </tr>
+
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+@code {
+    List<CreditRecord> records = new List<CreditRecord>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FetchData();
+        StateHasChanged();
+    }
+
+    public async Task FetchData()
+    {
+        string fetchQuery = "SELECT * FROM CreditRecord";
+
+        var result = await DatabaseHandler.ExecuteQueryAsync(fetchQuery);
+        if (result.Count > 0)
+        {
+            foreach (var row in result)
+            {
+				records.Add(new CreditRecord
+					{
+                        CreditID = Convert.ToUInt64(row["CreditID"]),
+                        CustomerID = row["CustomerID"].ToString() ?? "",
+                        BillID = row["BillID"] == DBNull.Value ? null : Convert.ToUInt64(row["BillID"]),
+                        CreditAmount = Convert.ToDecimal(row["CreditAmount"]),
+                        PaidAmount = Convert.ToDecimal(row["PaidAmount"]),
+                        RemainingBalance = row["RemainingBalance"] == DBNull.Value ? null : Convert.ToDecimal(row["RemainingBalance"]),
+                        DueDate = Convert.ToDateTime(row["DueDate"]),
+                        Status = row["Status"].ToString() ?? "",
+                        CreatedAt = Convert.ToDateTime(row["CreatedAt"])
+						
+					});
+            }
+        }
+
+    }
+
+
+    public void UpdateProduct(BrandType data)
+    {
+        CurrentData.SetCurrentCustomer(data);
+        Navigation.NavigateTo("/brand/update");
+    }
+
+    public async Task DeleteProduct(string brandID)
+    {
+        string deleteQuery = $"DELETE FROM Brands WHERE BrandID = {brandID}";
+
+        await DatabaseHandler.ExecuteQueryAsync(deleteQuery);
+    }
+}

@@ -1,0 +1,14 @@
+@page "/vehicle/update"
+@using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Services
+@inject ICurrentData CurrentData
+<VechicleAdd isUpdating=true updateData="@data"/>
+
+@code{
+	VehicleType data { set; get; } = new VehicleType();
+	protected override void OnInitialized()
+	{
+		data =(VehicleType)CurrentData.GetCurrentCustomer();
+		StateHasChanged();
+	}
+}

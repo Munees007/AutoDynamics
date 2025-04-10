@@ -1,0 +1,6 @@
+﻿<Router AppAssembly="typeof(Layout.LoginLayout).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" DefaultLayout="@(routeData.PageType == typeof(Layout.LoginLayout) ? typeof(Layout.LoginLayout) : typeof(Layout.MainLayout))" />
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+</Router>

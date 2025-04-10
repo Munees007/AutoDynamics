@@ -1,0 +1,166 @@
+@page "/vehicle/details"
+@using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Services
+@using System.Diagnostics
+@inject IDatabaseHandler DatabaseHandler
+@inject ICurrentData CurrentData
+@inject IAlertService AlertService
+@inject IMyLocalStorageService MyLocalStorageService
+@inject NavigationManager Navigation
+<h1 class="text-center mt-3">Vehicle Deatils</h1>
+
+<div class="container mt-4">
+    <input autocomplete="off" type="text" class="form-control mb-3" placeholder="Search by Customer Name, Contact, Vehicle No, or Customer ID"
+    @bind="searchTerm" @oninput="FilterData" />
+</div>
+
+<div class="container mt-4">
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th>Customer ID</th>
+                    <th>Name</th>
+                    <th>Contact</th>
+                    <th>Vehicle No</th>
+                    <th>Vehicle Make</th>
+                    <th>Model Name</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (filterVehicleCustomers.Count == 0)
+                {
+                    <tr>
+                        <td colspan="10" class="text-center text-muted">No customers found.</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var vehicleCustomer in filterVehicleCustomers)
+                    {
+                        <tr>
+                            <td>@vehicleCustomer.Vehicle.CustomerID</td>
+                            <td>@vehicleCustomer.customer.Name</td>
+                            <td>@vehicleCustomer.customer.Contact</td>
+                            <td>@vehicleCustomer.Vehicle.VehicleNo</td>
+                            <td>@vehicleCustomer.Vehicle.VehicleMake</td>
+                            <td>@vehicleCustomer.Vehicle.ModelName</td>
+                            <td>
+                                <button class="btn btn-primary btn-sm" @onclick="() => ViewVehicle(vehicleCustomer.Vehicle)">View</button>
+                                <button class="btn btn-dark btn-sm" @onclick="() => UpdateVehicle(vehicleCustomer.Vehicle)">Update</button>
+                                @if (isAdmin)
+                                {
+                                    <button class="btn btn-danger btn-sm" @onclick="() => DeleteVehicle(vehicleCustomer.Vehicle.VehicleNo)">Delete</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+@code{
+    private string searchTerm = "";
+    private bool isAdmin = false;
+    public class VehicleCustomer
+    {
+        public VehicleType Vehicle { set; get; } = new VehicleType();
+        public UserModal customer { set; get; } = new UserModal();
+    }
+
+    List<VehicleCustomer> vehicleCustomers = new List<VehicleCustomer>();
+    List<VehicleCustomer> filterVehicleCustomers = new List<VehicleCustomer>();
+    public async Task FilterData(ChangeEventArgs e)
+    {
+        searchTerm = e.Value.ToString() ?? "";
+
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filterVehicleCustomers = vehicleCustomers;
+            return;
+        }
+        else
+        {
+            string normalizedSearchTerm = searchTerm.Replace(" ", "").Replace(".", "").ToUpper();
+            filterVehicleCustomers = vehicleCustomers
+                .Where(vc =>
+                    vc.Vehicle.CustomerID.Replace(" ", "").Replace(".", "").Contains(normalizedSearchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    vc.customer.Name.Replace(" ", "").Replace(".", "").Contains(normalizedSearchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    vc.customer.Contact.Replace(" ", "").Replace(".", "").Contains(normalizedSearchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    vc.Vehicle.VehicleNo.Replace(" ", "").Replace(".", "").Contains(normalizedSearchTerm, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            Debug.WriteLine(searchTerm);
+        }
+        StateHasChanged();
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        isAdmin = await MyLocalStorageService.GetItemAsync("IsAdmin") == "true" ? true : false;
+        await FetchData();
+        filterVehicleCustomers = vehicleCustomers;
+        StateHasChanged();
+    }
+
+    public async Task FetchData()
+    {
+        vehicleCustomers = new List<VehicleCustomer>();
+        string fetchQuery = @"SELECT c.*,v.*
+    FROM Vehicle v
+    JOIN Customers c ON v.CustomerID = c.CustomerID;
+        ";
+
+        var result = await DatabaseHandler.ExecuteQueryAsync(fetchQuery);
+        if(result.Count > 0)
+        {
+            foreach (var row in result)
+            {
+                vehicleCustomers.Add(new VehicleCustomer
+                    {
+                        Vehicle = new VehicleType
+                        {
+                            CustomerID = row["CustomerID"].ToString() ?? "",
+                            VehicleNo = row["VehicleNo"].ToString() ?? "",
+                            VehicleMake = row["VehicleMake"].ToString() ?? "",
+                            MfgYear = Int32.Parse(row["MfgYear"].ToString() ?? "0"),
+                            ModelName = row["ModelName"].ToString() ?? "",
+                            Description = row["Description"].ToString() ?? "",
+                            CreateAt = row["CreateAt"].ToString() ?? "",
+                            CreatedBy = row["CreatedBy"].ToString() ?? "",
+                            LastUpdatedAt = row["LastUpdatedAt"].ToString() ?? "",
+                            LastUpdatedBy = row["LastUpdatedBy"].ToString() ?? ""
+                        },
+                        customer = new UserModal
+                        {
+                            Name = row["Name"].ToString() ?? "",
+                            Contact = row["Contact"].ToString() ?? ""
+                        }
+                    });
+            }
+        }
+
+    }
+
+    public void ViewVehicle(VehicleType data)
+    {
+        CurrentData.SetCurrentCustomer(data);
+        Navigation.NavigateTo("/vehicle/view");
+    }
+
+    public void UpdateVehicle(VehicleType data)
+    {
+        CurrentData.SetCurrentCustomer(data);
+        Navigation.NavigateTo("/vehicle/update");
+    }
+
+    public async Task DeleteVehicle(string VehicleNo)
+    {
+        string deleteQuery = $"DELETE FROM Vehicle WHERE VehicleNo = '{VehicleNo}'";
+
+        await DatabaseHandler.ExecuteQueryAsync(deleteQuery);
+        await AlertService.ShowAlertAsync("Vehicle Delete:", "Deleted Successfully", "OK");
+        await FetchData();
+        StateHasChanged();
+    }
+}

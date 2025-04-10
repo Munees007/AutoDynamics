@@ -1,0 +1,61 @@
+@typeparam T
+@using System.Diagnostics
+<ul class="list-group position-absolute mt-1" style="z-index:1000;" hidden="@(!showSuggestions)">
+    @for (int i=0;i<Items.Count;i++)
+    {
+        var index = i;
+        <li style="cursor:pointer" class="@(highlightedIndex == i ? "active text-white bg-primary" : "") list-group-item list-group-item-action" @onclick="() => SelectItem(index)">
+            @ItemTemplate(Items[i])
+        </li>
+    }
+</ul>
+
+@code
+{
+    [Parameter] public List<T> Items { get; set; }
+    [Parameter] public RenderFragment<T> ItemTemplate { get; set; }
+    [Parameter] public EventCallback<T> OnSelect { get; set; }
+    [Parameter] public bool showSuggestions { get; set; } = false;
+    [Parameter] public EventCallback<bool> ShowSuggestionsChanged { get; set; }
+
+    private int highlightedIndex = -1;
+
+    public async void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (Items == null || Items.Count == 0) return;
+
+        if(e.Key == "Escape")
+        {
+            await UpdateShowSuggestions(false);
+        }
+        if (e.Key == "ArrowDown")
+        {
+            highlightedIndex = (highlightedIndex + 1) % Items.Count;
+        }
+        else if (e.Key == "ArrowUp")
+        {
+            highlightedIndex = (highlightedIndex - 1 + Items.Count) % Items.Count;
+        }
+        else if (e.Key == "Enter" && highlightedIndex >= 0)
+        {
+            SelectItem(highlightedIndex);
+        }
+    }
+
+
+    public async void SelectItem(int index)
+    {
+        if (index >= 0 && index < Items.Count)
+        {
+            await OnSelect.InvokeAsync(Items[index]);
+            highlightedIndex = -1;
+            StateHasChanged();
+        }
+    }
+    private async Task UpdateShowSuggestions(bool value)
+    {
+        showSuggestions = value;
+        await ShowSuggestionsChanged.InvokeAsync(value);
+        StateHasChanged();
+    }
+}

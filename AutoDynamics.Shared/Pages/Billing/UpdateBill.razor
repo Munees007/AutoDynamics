@@ -1,0 +1,16 @@
+@page "/updateBill"
+@using AutoDynamics.Shared.Services
+@using AutoDynamics.Shared.Modals
+@inject ICurrentData CurrentCustomer
+<h1>Update Customer</h1>
+
+<Billing isUpdating="true" updateData="updatingBill"></Billing>
+
+@code {
+	private BillDetails updatingBill { set; get; } = new();
+	protected override void OnInitialized()
+	{
+		updatingBill = (BillDetails)CurrentCustomer.GetCurrentCustomer();
+	}
+}
+

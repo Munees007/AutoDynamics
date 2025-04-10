@@ -1,0 +1,73 @@
+@page "/credit-table"
+
+<h3 class="text-center text-primary mt-3">Credit Table</h3>
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-6">
+            <input type="text" @bind="SearchTerm" @oninput="FilterCredits" class="form-control" placeholder="Search by Name or ID">
+        </div>
+    </div>
+
+    <div class="table-responsive mt-3">
+        <table class="table table-bordered table-hover shadow-sm">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Customer Name</th>
+                    <th>Credit Amount</th>
+                    <th>Due Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var credit in FilteredCredits)
+                {
+                    <tr class="@(credit.CreditAmount > 10000 ? "table-warning" : "")">
+                        <td>@credit.Id</td>
+                        <td>@credit.CustomerName</td>
+                        <td>?@credit.CreditAmount</td>
+                        <td>@credit.DueDate.ToShortDateString()</td>
+                        <td>
+                            <span class="badge @(credit.CreditAmount > 0 ? "bg-danger" : "bg-success")">
+                                @(credit.CreditAmount > 0 ? "Pending" : "Cleared")
+                            </span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private string SearchTerm = "";
+    private List<Credit> Credits = new()
+    {
+        new Credit { Id = 1, CustomerName = "John Doe", CreditAmount = 12000, DueDate = DateTime.Now.AddDays(10) },
+        new Credit { Id = 2, CustomerName = "Jane Smith", CreditAmount = 5000, DueDate = DateTime.Now.AddDays(5) },
+        new Credit { Id = 3, CustomerName = "Michael Johnson", CreditAmount = 0, DueDate = DateTime.Now.AddDays(-1) }
+    };
+
+    private List<Credit> FilteredCredits = new();
+
+    protected override void OnInitialized()
+    {
+        FilteredCredits = Credits;
+    }
+
+    private void FilterCredits()
+    {
+        FilteredCredits = Credits
+            .Where(c => c.CustomerName.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) || c.Id.ToString().Contains(SearchTerm))
+            .ToList();
+    }
+
+    private class Credit
+    {
+        public int Id { get; set; }
+        public string CustomerName { get; set; }
+        public double CreditAmount { get; set; }
+        public DateTime DueDate { get; set; }
+    }
+}

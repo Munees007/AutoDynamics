@@ -1,0 +1,38 @@
+@page "/product/view"
+@using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Services
+@inject ICurrentData CurrentCustomer
+
+<div class="container mt-4">
+    <div class="card shadow-lg">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Customer Details</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Product ID:</strong> @product.ProductID</p>
+                    <p><strong>Brand:</strong> @product.Brand</p>
+                    <p><strong>Size:</strong> @product.Size</p>
+                    <p><strong>pattern:</strong> @product.Pattern</p>
+                    <p><strong>Tube or Tubeless:</strong> @product.TubeOrTubeless</p>
+                    <p><strong>Price:</strong> @product.Price</p>
+                    <p><strong>Created By:</strong> @product.CreatedBy</p>
+                    <p><strong>Created At:</strong> @product.CreateAt</p>
+                    <p><strong>Last Updated By:</strong> @product.LastUpdatedBy</p>
+                    <p><strong>Last Updated At:</strong> @product.LastUpdatedAt</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code
+{
+    ProductType product { get; set; } = new ProductType();
+
+    protected override void OnInitialized()
+    {
+        product = (ProductType)CurrentCustomer.GetCurrentCustomer();
+    }
+}
