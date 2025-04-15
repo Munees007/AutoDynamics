@@ -10,7 +10,7 @@
 	private UserModal updatingUser { set; get; } = new UserModal();
 	protected override void OnInitialized()
 	{
-		updatingUser = (UserModal)CurrentCustomer.GetCurrentCustomer();
+		updatingUser = CurrentCustomer.Get<UserModal>(CurrentType.Customer) ?? new() ;
 	}
 }
 

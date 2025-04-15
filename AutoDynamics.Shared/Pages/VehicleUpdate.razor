@@ -8,7 +8,7 @@
 	VehicleType data { set; get; } = new VehicleType();
 	protected override void OnInitialized()
 	{
-		data =(VehicleType)CurrentData.GetCurrentCustomer();
+		data = CurrentData.Get<VehicleType>(CurrentType.Vehicle) ?? new();
 		StateHasChanged();
 	}
 }

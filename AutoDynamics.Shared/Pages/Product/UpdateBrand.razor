@@ -10,7 +10,7 @@
 	BrandType data { set; get; } = new BrandType();
 	protected override void OnInitialized()
 	{
-		data = (BrandType)CurrentData.GetCurrentCustomer();
+		data = CurrentData.Get<BrandType>(CurrentType.Brand) ?? new();
 		StateHasChanged();
 	}
 }

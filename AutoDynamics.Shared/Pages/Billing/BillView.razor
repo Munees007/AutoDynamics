@@ -11,6 +11,6 @@
 	public BillDetails billData{ get; set; } = new BillDetails();
 	protected override void OnInitialized()
 	{
-		billData = (BillDetails) CurrentData.GetCurrentCustomer();
+		billData = CurrentData.Get<BillDetails>(CurrentType.Bill) ?? new();
 	}
 }

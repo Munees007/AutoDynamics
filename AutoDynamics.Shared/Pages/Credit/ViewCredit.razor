@@ -11,9 +11,11 @@
         <table class="table table-striped table-bordered">
             <thead class="table-dark">
                 <tr>
-                    <th>Credit ID</th>
-                    <th>Customer ID</th>
-                    <th>Bill ID</th>
+                    <th>S. No</th>
+                    <th>Bill No</th>
+                    <th>Branch</th>
+                    <th>Customer Name</th>
+                    <th>Customer Mobile</th>
                     <th>Credit Amount</th>
                     <th>Paid Amount</th>
                     <th>Remaining Balance</th>
@@ -31,12 +33,15 @@
                 }
                 else
                 {
+                    int sno = 1;
                     @foreach (var record in records)
                     {
-                        <tr>
-                            <td>@record.CreditID</td>
-                            <td>@record.CustomerID</td>
-                            <td>@record.BillID</td>
+                        <tr style="cursor:pointer" @onclick="()=> CreditSelect(record.Customer)">
+                            <td>@sno</td>
+                            <td>@record.BillNo</td>
+                            <td>@record.Branch</td>
+                            <td>@record.Customer.Name</td>
+                            <td>@record.Customer.Contact</td>
                             <td>@record.CreditAmount</td>
                             <td>@record.PaidAmount</td>
                             <td>@record.RemainingBalance</td>
@@ -44,7 +49,7 @@
                             <td>@record.Status</td>
                             <td>@record.CreatedAt</td>
                         </tr>
-
+                        sno++;
                     }
                 }
             </tbody>
@@ -59,28 +64,57 @@
         await FetchData();
         StateHasChanged();
     }
-
+    public void CreditSelect(UserModal data)
+    {
+        CurrentData.Set(CurrentType.Customer, data);
+        Navigation.NavigateTo("/view/credit-customer");
+    }
     public async Task FetchData()
     {
-        string fetchQuery = "SELECT * FROM CreditRecord";
+        string fetchQuery = "SELECT c.*,cu.*,b.* FROM CreditRecord c JOIN Customers cu ON c.CustomerID = cu.CustomerID LEFT JOIN Bills b ON c.BillID = b.BillID";
 
         var result = await DatabaseHandler.ExecuteQueryAsync(fetchQuery);
         if (result.Count > 0)
         {
             foreach (var row in result)
             {
-				records.Add(new CreditRecord
+                records.Add(new CreditRecord
 					{
                         CreditID = Convert.ToUInt64(row["CreditID"]),
                         CustomerID = row["CustomerID"].ToString() ?? "",
+                        BillNo = row["BillNo"].ToString(),
+                        Branch = row["Branch"].ToString(),
                         BillID = row["BillID"] == DBNull.Value ? null : Convert.ToUInt64(row["BillID"]),
                         CreditAmount = Convert.ToDecimal(row["CreditAmount"]),
                         PaidAmount = Convert.ToDecimal(row["PaidAmount"]),
                         RemainingBalance = row["RemainingBalance"] == DBNull.Value ? null : Convert.ToDecimal(row["RemainingBalance"]),
                         DueDate = Convert.ToDateTime(row["DueDate"]),
                         Status = row["Status"].ToString() ?? "",
-                        CreatedAt = Convert.ToDateTime(row["CreatedAt"])
-						
+                        CreatedAt = Convert.ToDateTime(row["CreatedAt"]),
+						Customer = new UserModal
+                        {
+                            CustomerId = row["CustomerID"].ToString() ?? "",
+                            Name = row["Name"].ToString() ?? "",
+                            Contact = row["Contact"].ToString() ?? "",
+                            GSTIN = row["GSTIN"].ToString() ?? "",
+                            Address = row["Address"].ToString() ?? "",
+                            Area = row["Area"].ToString() ?? "",
+                            City = row["City"].ToString() ?? "",
+                            State = row["State"].ToString() ?? "",
+                            Country = row["Country"].ToString() ?? "",
+                            District = row["District"].ToString() ?? "",
+                            Nationality = row["Nationality"].ToString() ?? "",
+                            PinCode = row["PinCode"].ToString() ?? "",
+                            Website = row["Website"].ToString() ?? "",
+                            LastUpdatedBy = row["LastUpdatedBy"].ToString() ?? "",
+                            Email = row["Email"].ToString() ?? "",
+                            IsSMSAllowed = row["IsSMSAllowed"].ToString() == "True" ? true : false,
+                            IsEmailAllowed = row["IsEmailAllowed"].ToString() == "True" ? true : false,
+                            IsWhatsAppAllowed = row["IsWhatsAppAllowed"].ToString() == "True" ? true : false,
+                            CreatedBy = row["CreatedBy"].ToString() ?? "",
+                            CreateAt = row["CreatedAt"].ToString() ?? "",
+                            LastUpdatedAt = row["LastUpdatedAt"].ToString() ?? ""
+                        }
 					});
             }
         }
@@ -90,7 +124,7 @@
 
     public void UpdateProduct(BrandType data)
     {
-        CurrentData.SetCurrentCustomer(data);
+        CurrentData.Set(CurrentType.Brand,data);
         Navigation.NavigateTo("/brand/update");
     }
 

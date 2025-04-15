@@ -33,6 +33,6 @@
 
     protected override void OnInitialized()
     {
-        product = (ProductType)CurrentCustomer.GetCurrentCustomer();
+        product = CurrentCustomer.Get<ProductType>(CurrentType.Product) ?? new();
     }
 }

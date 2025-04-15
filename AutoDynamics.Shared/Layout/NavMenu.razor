@@ -83,9 +83,15 @@
                 new MenuType("View Purchase", "/purchase/view"),
             }
         }},
-        { 6, new MenuType("Services", "/services") {
+        { 6, new MenuType("Suppliers", "#") {
+            SubMenus = new List<MenuType> {
+                new MenuType("Add Supplier", "/supplier/add"),
+                new MenuType("Manage Supplier", "/supplier/details"),
+            }
         }},
-        { 7, new MenuType("Credit Record", "/credit/details") {
+        { 7, new MenuType("Services", "/services") {
+        }},
+        { 8, new MenuType("Credit Record", "/credit/details") {
         }}
     };
 

@@ -1,0 +1,15 @@
+@page "/view/credit-customer"
+@using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Services
+@inject ICurrentData CurrentData
+<CustomerSingleView isCredit=true customerData="data"/>
+
+@code
+{
+	public UserModal data { set; get; } = new UserModal();
+
+	protected override void OnInitialized()
+	{
+		data = CurrentData.Get<UserModal>(CurrentType.Customer) ?? new();
+	}
+}

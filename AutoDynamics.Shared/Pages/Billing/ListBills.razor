@@ -34,7 +34,7 @@
 </div>
 <div class="w-100 d-flex justify-content-between align-items-md-center">
     <button class="btn btn-primary mb-3" @onclick="ApplyFilters">Apply Filters</button>
-    @* <button class="btn btn-success mb-3" @onclick="generateExcel">Download Excel</button> *@
+    <button class="btn btn-success mb-3" @onclick="generateExcel">Download Excel</button>
 </div>
 @if (billDetails == null || !billDetails.Any())
 {
@@ -192,13 +192,13 @@ else
 
     private void ViewBill(BillDetails bill)
     {
-        CurrentData.SetCurrentCustomer(bill);
+        CurrentData.Set(CurrentType.Bill,bill);
         Navigation.NavigateTo("/bill/single-view");
     }
 
     private void UpdateBill(BillDetails bill)
     {
-        CurrentData.SetCurrentCustomer(bill);
+        CurrentData.Set(CurrentType.Bill,bill);
         Navigation.NavigateTo($"/updateBill");
     }
     async void DownloadBill(BillDetails data)

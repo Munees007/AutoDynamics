@@ -7,10 +7,22 @@ using System.Threading.Tasks;
 
 namespace AutoDynamics.Shared.Services
 {
+    public enum CurrentType
+    {
+        Customer,
+        Vehicle,
+        Bill,
+        CreditRecord,
+        Brand,
+        Model,
+        Product
+    }
+
     public interface ICurrentData
     {
-        public object currentCustomer { get; set; }
-        public object GetCurrentCustomer();
-        public void SetCurrentCustomer(object currentData);
+        void Set(CurrentType type, object data);
+        T? Get<T>(CurrentType type) where T : class;
+        void Clear(CurrentType type);
+        void ClearAll();
     }
 }

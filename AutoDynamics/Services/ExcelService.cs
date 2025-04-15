@@ -38,6 +38,8 @@ namespace AutoDynamics.Services
                 var taxableValue = Math.Round(bills[row].Bill.TotalAmount / 1.18m, 2);
                 var cgst = Math.Round(taxableValue * (9 / 100m), 2);
                 var sgst = Math.Round(taxableValue * (9 / 100m), 2);
+                var roundingDiffRaw = bills[row].Bill.TotalAmount - (taxableValue + cgst + sgst);
+                var roundingDiff = roundingDiffRaw > 0 ? Math.Round(roundingDiffRaw, 2) : 0m;
                 string billID = bills[row].Bill.Branch == "Sivakasi" ? "SFR" + bills[row].Bill.BillNo.ToString().PadLeft(4, '0') : "BPR" + bills[row].Bill.BillNo.ToString().PadLeft(4, '0');
                 ws.Cell(row + 2, 1).Value = bills[row].Bill.BillDate.ToString("dd-MM-yyyy");
                 ws.Cell(row + 2, 2).Value = 998729;
@@ -50,7 +52,7 @@ namespace AutoDynamics.Services
                 ws.Cell(row + 2, 9).Value = taxableValue;
                 ws.Cell(row + 2, 10).Value = cgst;
                 ws.Cell(row + 2, 11).Value = sgst;
-                ws.Cell(row + 2, 12).Value = 0;
+                ws.Cell(row + 2, 12).Value = roundingDiff;
                 ws.Cell(row + 2, 13).Value = bills[row].Bill.TotalAmount;
             }
             using var ms = new MemoryStream();

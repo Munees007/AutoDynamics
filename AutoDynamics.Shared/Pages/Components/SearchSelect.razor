@@ -1,6 +1,6 @@
 @typeparam T
 @using System.Diagnostics
-<ul class="list-group position-absolute mt-1" style="z-index:1000;" hidden="@(!showSuggestions)">
+<ul class="list-group position-absolute mt-1" style="z-index:1000;max-height: 200px; overflow-y: auto;" hidden="@(!showSuggestions)">
     @for (int i=0;i<Items.Count;i++)
     {
         var index = i;

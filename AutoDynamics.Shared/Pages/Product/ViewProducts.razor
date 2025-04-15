@@ -97,13 +97,13 @@
 
     public void ViewProduct(ProductType data)
     {
-        CurrentData.SetCurrentCustomer(data);
+        CurrentData.Set(CurrentType.Product,data);
         Navigation.NavigateTo("/product/view");
     }
 
     public void UpdateProduct(ProductType data)
     {
-        CurrentData.SetCurrentCustomer(data);
+        CurrentData.Set(CurrentType.Product,data);
         Navigation.NavigateTo("/product/update");
     }
 

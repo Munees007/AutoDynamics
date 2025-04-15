@@ -201,7 +201,7 @@ namespace AutoDynamics.Services
                         totalSGST += sgstAmt;
                         totalQuantity += item.Quantity;
                         totalTaxableAmount += item.TaxableValue;
-
+                        //var hsnCode = item.ItemType == "SERVICE" ? "998729" : "";
                         table.AddCell(new PdfPCell(new Phrase(item.ItemName, normalFont)));
                         table.AddCell(new PdfPCell(new Phrase("998729", normalFont)) { HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER });
                         table.AddCell(new PdfPCell(new Phrase(item.Quantity.ToString(), normalFont)) { HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER });

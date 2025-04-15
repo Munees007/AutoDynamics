@@ -125,7 +125,12 @@
         sizeSearch = temp;
         Sizes = filteredSizes.Where((s) => s.Contains(temp, StringComparison.OrdinalIgnoreCase)).ToList();
 
-        showSizeSuggestions = filteredSizes.Any();
+        showSizeSuggestions = Sizes.Any();
+
+        if(showSizeSuggestions == false)
+        {
+            product.Size = temp;
+        }
 
     }
 
@@ -155,7 +160,12 @@
         patternSearch = temp;
         Patterns = filteredPatterns.Where((s) => s.Contains(temp, StringComparison.OrdinalIgnoreCase)).ToList();
 
-        showPatternSuggestions = filteredPatterns.Any();
+        showPatternSuggestions = Patterns.Any();
+
+        if(showPatternSuggestions == false)
+        {
+            product.Pattern = temp;
+        }
 
     }
 
@@ -230,7 +240,7 @@
         await FetchData();
         if(isProductUpdating)
         {
-            product =(ProductType)CurrentData.GetCurrentCustomer();
+            product = CurrentData.Get<ProductType>(CurrentType.Product) ?? new();
             brandSearch = product.Brand;
             sizeSearch = product.Size;
             patternSearch = product.Pattern;
@@ -248,7 +258,7 @@
 
         if(isBrandUpdating)
         {
-            brand = (BrandType)CurrentData.GetCurrentCustomer();
+            brand = CurrentData.Get<BrandType>(CurrentType.Brand) ?? new();
             StateHasChanged();
         }
     }
@@ -364,7 +374,7 @@
             var insertParameter = new Dictionary<string, object>
             {
                 {"@productId",productId},
-                {"@hsnCode",product.HSNCode},
+                {"@hsnCode",data.HSNCode},
                 {"@brand",data.Brand},
 				{"@brandID",data.BrandID},
                 {"@size",data.Size},

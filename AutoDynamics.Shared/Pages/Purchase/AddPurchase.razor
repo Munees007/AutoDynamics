@@ -1,0 +1,466 @@
+﻿@page "/purchase"
+@using System.Globalization
+@using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Modals.PurchaseTypes
+@using AutoDynamics.Shared.Services
+@using AutoDynamics.Shared.Pages.Components
+@using System.Diagnostics
+@inject IDatabaseHandler DatabaseHandler
+@inject IAlertService AlertService
+@inject IMyLocalStorageService MyLocalStorageService
+@inject IPDFGenerator PDFGenerator
+@inject IFormFactor FormFactor
+@inject IJSRuntime JS
+<h3 class="text-primary">Purchase</h3>
+
+<div class="container m-3 position-relative">
+
+    <!-- Bill Details -->
+    <div class="row">
+        <div class="col-md-4">
+            <label class="form-label">Date</label>
+            <input disabled="@isViewing" type="date" id="UsageReading"  class="form-control" placeholder="Enter Usage Reading" required>
+        </div>
+
+        <!-- Customer Field -->
+        <div class="col-md-4">
+            <label class="form-label">Supplier</label>
+
+            <div class="input-group">
+                <input disabled="@isViewing" @onkeydown="HandleCustomerKey" autocomplete="off" type="text" id="Customer" @bind="CustomerSearch" @oninput="OnCustomerSearch" class="form-control" placeholder="Search by ID, Name, or Contact" required>
+                <button type="button" class="btn btn-outline-secondary" @onclick="NecessaryData">
+                    🔄
+                </button>
+            </div>
+            <SearchSelect @ref="customerListRef" Items="filteredSuppliers" OnSelect="@(c=> SelectCustomer(c))" T="Supplier" showSuggestions="ShowCustomerSuggestion" ShowSuggestionsChanged="@((bool val) => ShowCustomerSuggestion = val)">
+                <ItemTemplate Context="cust">
+                    <div>@cust.SupplierID - @cust.Name - @cust.Contact</div>
+                </ItemTemplate>
+            </SearchSelect>
+            @* <ul class="list-group position-absolute mt-1" style="z-index:1000;" hidden="@(!ShowCustomerSuggestion)"> *@
+            @*     @foreach (var customer in filteredCustomers) *@
+            @*     { *@
+            @*         <li style="cursor:pointer" class="list-group-item list-group-item-action" @onclick="() => SelectCustomer(customer)"> *@
+            @*             @customer.CustomerId - @customer.Name - @customer.Contact *@
+            @*         </li> *@
+            @*     } *@
+            @* </ul> *@
+            <p>@SelectedCustomer</p>
+        </div>
+
+
+    </div>
+
+
+    @if (showCustomerForm)
+    {
+        <div class="mt-4 p-3">
+            <h1 class="text-black">Add Customer</h1>
+            <SupplierForm isUpdating=false  isBilling=true />
+        </div>
+    }
+
+    <hr />
+
+    <!-- Product Items (Product) -->
+    <h5>Product Items</h5>
+    <button disabled="@isViewing" class="btn btn-success btn-sm mb-2" @onclick="AddNewItem">Add Item</button>
+
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Item Name</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                <th>Discount Type</th>
+                <th>Discount Value</th>
+                <th>Apply On</th>
+                <th>Taxable Value</th>
+                <th>CGST</th>
+                <th>SGST</th>
+                <th>Total Price</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in purchaseItems)
+            {
+                <tr>
+                    <td style="min-width:140px">
+                        <input disabled="@isViewing" @bind-value="item.ProductName" @onkeydown="HandleProductKey"  autocomplete="off" type="text"   @oninput="OnProductsSearch" class="form-control " placeholder="Search by ID, Name" required>
+                        <SearchSelect @ref="productListRef" Items="filteredProducts" OnSelect="@(c=> {
+                                                                                                        item.ProductID = c.ProductID;ProductSearch = $"{c.Brand} - {c.Size} - {c.Pattern} ({c.TubeOrTubeless})";item.ProductName = $"{c.Brand} - {c.Size} - {c.Pattern} ({c.TubeOrTubeless})";item.Product = c;
+                                                                                                        showProductsSuggestion = false; StateHasChanged();
+                                                                                                 })" T="ProductType" showSuggestions="showProductsSuggestion" ShowSuggestionsChanged="@((bool val) => showProductsSuggestion = val)">
+                            <ItemTemplate Context="cust">
+                                <div>@cust.Brand - @cust.Size - @cust.Pattern (@cust.TubeOrTubeless)</div>
+                            </ItemTemplate>
+                        </SearchSelect>
+                    </td>
+                    <td><input disabled="@isViewing" autocomplete="off" type="number" class="form-control" @bind="item.Quantity" min="1"></td>
+                    <td style="min-width:120px"><input disabled="@isViewing" autocomplete="off" type="number" class="form-control" @bind="item.UnitPrice" min="0" step="0.01"></td>
+
+                    <!-- New Discount UI Fields -->
+                    <td >
+                        <select disabled="@isViewing" @bind="item.DiscountType" class="form-select" style="width:fit-content" >
+                            <option value="@DiscountType.AMOUNT">₹</option>
+                            <option value="@DiscountType.PERCENT">%</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input disabled="@isViewing" @bind="item.DiscountValue" type="number" class="form-control"  min="0" step="0.01" />
+                    </td>
+                    <td>
+                        <select disabled="@isViewing" @bind="item.DiscountScope" class="form-select" style="width:fit-content" >
+                            <option value="@DiscountScope.PER_UNIT">Per Unit</option>
+                            <option value="@DiscountScope.TOTAL">All Quantity</option>
+                        </select>
+                    </td>
+
+                    @* Tax Calculation *@
+                    @{
+
+                        var subTotal = item.Quantity * item.UnitPrice;
+                        decimal discount = 0;
+
+                        if (item.DiscountType == DiscountType.AMOUNT)
+                        {
+                            discount = item.DiscountScope == DiscountScope.PER_UNIT
+                            ? item.DiscountValue * item.Quantity
+                            : item.DiscountValue;
+                        }
+                        else if (item.DiscountType == DiscountType.PERCENT)
+                        {
+                            discount = item.DiscountScope == DiscountScope.PER_UNIT
+                            ? (item.UnitPrice * item.DiscountValue / 100m) * item.Quantity
+                            : (subTotal * item.DiscountValue / 100m);
+                        }
+
+                        var total = subTotal - discount;
+
+                        item.TaxableValue = item.Product.Brand == "TUBE" ? Math.Round(total / 1.18m, 2) : Math.Round(total / 1.28m, 2);
+                        var cgst = item.Product.Brand == "TUBE" ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
+                        var sgst = item.Product.Brand == "TUBE" ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
+                        item.TotalPrice = Math.Round(item.TaxableValue + cgst + sgst);
+                    }
+                    <td>@item.TaxableValue</td>
+                    <td>@cgst.ToString("F2")</td>
+                    <td>@sgst.ToString("F2")</td>
+                    <td>@item.TotalPrice</td>
+
+                    <td>
+                        <button disabled="@isViewing" class="btn btn-danger btn-sm" @onclick="() => RemoveItem(item)">Remove</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+
+    </table>
+    <hr />
+    <!-- Total and Submit -->
+    <div class="row">
+
+        <div class="col-md-6">
+            <h4>Total: ₹@TotalAmount</h4>
+        </div>
+        <div class="col-md-6 text-end">
+            <button disabled="true" class="btn btn-primary" @onclick="HandleSubmit">Add Purchase</button>
+        </div>
+    </div>
+    @if (isProcessing)
+    {
+        <Loader />
+
+    }
+</div>
+
+@code {
+    [Parameter] public bool isUpdating { set; get; } = false;
+    [Parameter] public PurchaseDetails updateData { set; get; } = new();
+    [Parameter] public bool isViewing { set; get; } = false;
+    private string CustomerSearch = "";
+    private string ProductSearch = "";
+    private string SelectedCustomer = "No Supplier Selected";
+    private string SelectedVehicle = "No Vehicle Selected";
+    private bool ShowCustomerSuggestion = false;
+    private bool showProductsSuggestion = false;
+    private string VehicleSearch = "";
+    private bool ShowVehicleSuggestion = false;
+    private string SelectedBranch = "Sivakasi";
+    private string CustomerId = "";
+    private decimal TotalAmount => purchaseItems.Sum(x => x.TotalPrice);
+    private decimal Discount = 0;
+    private bool restrictCashBox = false;
+    private decimal GrandTotal => TotalAmount * (1 - Discount / 100);
+    private decimal CashAmount = 0, BankAmount = 0, CardAmount = 0, UPIAmount = 0;
+    private bool showCustomerForm = false;
+    private bool showVehicleForm = false;
+    private bool isAdmin = false;
+    private bool isProcessing = false;
+    private Purchase purchase = new();
+
+
+    private List<PurchaseItems> purchaseItems = new();
+
+    private List<Supplier> suppliers { set; get; } = new List<Supplier>();
+    private List<ProductType> products { set; get; } = new List<ProductType>();
+
+    private List<Supplier> filteredSuppliers { set; get; } = new List<Supplier>();
+    private List<ProductType> filteredProducts { set; get; } = new List<ProductType>();
+
+    private SearchSelect<Supplier> customerListRef;
+    private SearchSelect<ProductType> productListRef;
+
+    public void HandleCustomerKey(KeyboardEventArgs e)
+    {
+        customerListRef?.HandleKeyDown(e);
+    }
+
+    public void HandleProductKey(KeyboardEventArgs e)
+    {
+        productListRef?.HandleKeyDown(e);
+    }
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        isAdmin = await MyLocalStorageService.GetItemAsync("IsAdmin") == "true" ? true : false;
+        if (isUpdating)
+        {
+            purchase = updateData.purchase;
+            purchaseItems = updateData.purchaseItems;
+
+            CustomerSearch = updateData.purchase.SupplierID;
+            SelectCustomer(updateData.purchase.Supplier);
+            SelectedBranch = updateData.purchase.Branch;
+            StateHasChanged();
+        }
+        if (!isAdmin)
+        {
+            string branch = await MyLocalStorageService.GetItemAsync("Branch") ?? "";
+            purchase.Branch = branch;
+            SelectedBranch = branch;
+            Debug.WriteLine(branch);
+        }
+
+        if (isViewing)
+        {
+            purchase = updateData.purchase;
+            purchaseItems = updateData.purchaseItems;
+
+            CustomerSearch = updateData.purchase.SupplierID;
+            SelectCustomer(updateData.purchase.Supplier);
+            SelectedBranch = updateData.purchase.Branch;
+            StateHasChanged();
+        }
+        await NecessaryData();
+    }
+    public async Task SubmitFormVehicle(VehicleType vehicle)
+    {
+
+
+    }
+    public async Task SubmitForm(Supplier supplier)
+    {
+        Debug.WriteLine("Triggered");
+        await NecessaryData();
+        CustomerSearch = $"{supplier.SupplierID}";
+        SelectedCustomer = $"{supplier.Name}-{supplier.Contact}";
+        purchase.Supplier = supplier;
+        purchase.SupplierID = purchase.SupplierID;
+        showCustomerForm = false;
+        StateHasChanged();
+    }
+    public void manageCredit()
+    {
+        Debug.WriteLine("changed");
+        decimal temp = CashAmount + UPIAmount + CardAmount;
+        if (temp < TotalAmount)
+        {
+            BankAmount = TotalAmount - temp;
+        }
+        else
+        {
+            BankAmount = 0;
+        }
+        StateHasChanged();
+    }
+    public void setCashAmount()
+    {
+        CashAmount = TotalAmount;
+        BankAmount = 0;
+        UPIAmount = 0;
+        CardAmount = 0;
+        if (!isAdmin)
+        {
+            restrictCashBox = true;
+        }
+        StateHasChanged();
+    }
+    public async void HandleSubmit()
+    {
+        Debug.WriteLine(SelectedBranch);
+        isProcessing = true;
+        if (restrictCashBox)
+        {
+            CashAmount = TotalAmount;
+        }
+        manageCredit();
+
+        purchase.SupplierID = CustomerSearch;
+
+        purchase.Branch = SelectedBranch;
+        purchase.BillingYear = DateTime.Now.Year;
+        purchase.DiscountAmount = Discount;
+        purchase.TotalAmount = TotalAmount;
+        purchase.GrandTotal = GrandTotal;
+
+
+        PurchaseDetails finalBill = new PurchaseDetails
+            {
+                purchase = purchase,
+                purchaseItems = purchaseItems,
+            };
+        if (isUpdating)
+        {
+            //int[] temp = await DatabaseHandler.InsertBillAsync(bill, BillItems, billPayment, true);
+        }
+        else
+        {
+            // int[] data = await DatabaseHandler.InsertBillAsync(bill, BillItems, billPayment, false);
+            // bill.BillID = data[0];
+            // finalBill.Bill.BillID = data[0];
+            // bill.BillNo = data[1];
+            // finalBill.Bill.BillNo = data[1];
+        }
+
+        if (FormFactor.GetFormFactor() == "Web")
+        {
+            //await PDFGenerator.GeneratePdfAsync(finalBill, JS);
+        }
+        else
+        {
+            //await PDFGenerator.GeneratePdfAsync(finalBill, null);
+        }
+
+        await AlertService.ShowAlertAsync("Billing", $"Bill Generated", "Done");
+        isProcessing = false;
+        purchase = new Purchase();
+        purchaseItems = new List<PurchaseItems>();
+        restrictCashBox = false;
+        CustomerSearch = "";
+        VehicleSearch = "";
+        SelectedCustomer = "No Customer Selected";
+        StateHasChanged();
+    }
+    public async Task NecessaryData()
+    {
+        string customerQuery = @"SELECT * FROM Suppliers";
+        string productsQuery = @"SELECT * FROM Product";
+
+        var res1 = await DatabaseHandler.ExecuteQueryAsync(customerQuery);
+        var res4 = await DatabaseHandler.ExecuteQueryAsync(productsQuery);
+
+        suppliers = new List<Supplier>();
+
+        products = new List<ProductType>();
+
+        if (res1.Count > 0)
+        {
+            foreach (var row in res1)
+            {
+                suppliers.Add(new Supplier
+                    {
+                        SupplierID = row["CustomerID"].ToString() ?? "",
+                        Name = row["Name"].ToString() ?? "",
+                        Contact = row["Contact"].ToString() ?? "",
+                    });
+            }
+        }
+        if (res4.Count > 0)
+        {
+            foreach (var row in res4)
+            {
+                products.Add(new ProductType
+                    {
+                        ProductID = row["ProductID"].ToString() ?? "",
+                        Brand = row["Brand"].ToString() ?? "",
+                        Size = row["Size"].ToString() ?? "",
+                        Pattern = row["Pattern"].ToString() ?? "",
+                        TubeOrTubeless = row["TubeOrTubeless"].ToString() ?? "",
+                        Price = Double.Parse(row["Price"].ToString() ?? "0"),
+                    });
+            }
+        }
+    }
+
+    private void AddNewItem()
+    {
+        purchaseItems.Add(new PurchaseItems());
+    }
+
+    private void RemoveItem(PurchaseItems item)
+    {
+        purchaseItems.Remove(item);
+    }
+
+    public async void OnProductsSearch(ChangeEventArgs e)
+    {
+        string temp = e.Value.ToString() ?? "";
+        filteredProducts = products.Where(p => p.ProductID.Contains(temp,StringComparison.OrdinalIgnoreCase)||
+            p.Pattern.ToLower().Contains(temp,StringComparison.OrdinalIgnoreCase) ||
+            p.Size.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+            p.Brand.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) || 
+            p.BrandID.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase)
+        ).ToList();
+
+        showProductsSuggestion = filteredProducts.Any();
+        StateHasChanged();
+    }
+
+    public async void OnCustomerSearch(ChangeEventArgs e)
+    {
+        CustomerSearch = e.Value.ToString() ?? "";
+        CustomerSearch.Replace(" ", "").Replace(".", "");
+        SelectedCustomer = "No Customer Selected";
+        if (string.IsNullOrWhiteSpace(CustomerSearch))
+        {
+            ShowCustomerSuggestion = false;
+            filteredSuppliers.Clear();
+            return;
+        }
+
+        filteredSuppliers = suppliers
+            .Where(c => c.SupplierID.Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Replace(" ", "").Replace(".", "").Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase) ||
+                        c.Contact.Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        
+        ShowCustomerSuggestion = filteredSuppliers.Any();
+        if (ShowCustomerSuggestion == false)
+        {
+            showCustomerForm = true;
+            
+        }
+        else
+        {
+            showCustomerForm = false;
+        }
+    }
+
+    
+
+
+    private void SelectCustomer(Supplier supplier)
+    {
+        CustomerSearch = $"{supplier.SupplierID}";
+        SelectedCustomer = $"{supplier.Name}-{supplier.Contact}";
+        purchase.Supplier = supplier;
+        purchase.SupplierID = supplier.SupplierID;
+        ShowCustomerSuggestion = false;
+        showCustomerForm = false;
+        StateHasChanged();
+    }
+}

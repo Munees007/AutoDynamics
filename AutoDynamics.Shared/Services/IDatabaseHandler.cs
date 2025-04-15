@@ -16,6 +16,7 @@ namespace AutoDynamics.Shared.Services
         Task<List<Dictionary<string, object>>> ExecuteQueryAsync(string query, Dictionary<string, object>? parameters = null);
         Task<int[]> InsertBillAsync(Bill bill, List<BillItem> billItems, BillPayment billPayment,bool isUpdating);
         Task<List<BillDetails>> GetAllBillsAsync();
+        Task<List<BillDetails>> GetCustomerBillsAsync(string id);
         Task<string> GenerateID(string startsWith, int size, string tableName, string columnName);
     }
 }

@@ -10,7 +10,7 @@
 	ProductType data { set; get; } = new ProductType();
 	protected override void OnInitialized()
 	{
-		data = (ProductType)CurrentData.GetCurrentCustomer();
+		data = CurrentData.Get<ProductType>(CurrentType.Product) ?? new() ;
 		StateHasChanged();
 	}
 }

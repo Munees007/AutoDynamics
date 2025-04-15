@@ -10,7 +10,7 @@
 	private BillDetails updatingBill { set; get; } = new();
 	protected override void OnInitialized()
 	{
-		updatingBill = (BillDetails)CurrentCustomer.GetCurrentCustomer();
+		updatingBill = CurrentCustomer.Get<BillDetails>(CurrentType.Bill) ?? new();
 	}
 }
 

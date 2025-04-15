@@ -37,7 +37,7 @@
     UserModal customer { set; get; } = new UserModal();
     public void ViewCustomer()
     {
-        CurrentData.SetCurrentCustomer(customer);
+        CurrentData.Set(CurrentType.Customer,customer);
         Navigation.NavigateTo($"/customer/details");
     }
     protected override async Task OnInitializedAsync()
@@ -46,7 +46,7 @@
     }
     public async Task FetchData()
     {
-        vehicle = (VehicleType)CurrentData.GetCurrentCustomer();
+        vehicle = CurrentData.Get<VehicleType>(CurrentType.Vehicle) ?? new();
         string vehicleQuery = $"SELECT * FROM Customers WHERE CustomerID = '{vehicle.CustomerID}'";
         
         var result = await DatabaseHandler.ExecuteQueryAsync(vehicleQuery);

@@ -91,14 +91,14 @@
         customerListRef?.HandleKeyDown(e);
     }
 
-	private void HandleVehicleModelKey(KeyboardEventArgs e)
-	{
-		vehicleModelListRef?.HandleKeyDown(e);
-	}
-	private void HandleVehicleMakeKey(KeyboardEventArgs e)
-	{
-		vechicleMakeListRef?.HandleKeyDown(e);
-	}
+    private void HandleVehicleModelKey(KeyboardEventArgs e)
+    {
+        vehicleModelListRef?.HandleKeyDown(e);
+    }
+    private void HandleVehicleMakeKey(KeyboardEventArgs e)
+    {
+        vechicleMakeListRef?.HandleKeyDown(e);
+    }
     void KeyHandler(KeyboardEventArgs args)
     {
         if (args.Key == "Enter")
@@ -123,6 +123,8 @@
             vehicle = updateData;
             previousVehicleNo = updateData.VehicleNo;
             search = vehicle.CustomerID;
+            makeSearch = vehicle.VehicleMake;
+            modelSearch = vehicle.ModelName;
             StateHasChanged();
         }
     }
@@ -194,17 +196,17 @@
     {
         List<string> errors = new List<string>();
 
-        if (!customers.Any(c => c.CustomerId == search))
+        if (!customers.Any(c => c.CustomerId == vehicle.CustomerID))
         {
             errors.Add("Customer ID is invalid.");
         }
 
-        if (!vehicleMakes.Any(vm => vm.Vehicle_Make == makeSearch))
+        if (!vehicleMakes.Any(vm => vm.Vehicle_Make == vehicle.VehicleMake))
         {
             errors.Add("Vehicle make is invalid.");
         }
 
-        if (!vehicleModels.Any(vem => vem.VehicelModel == modelSearch))
+        if (!vehicleModels.Any(vem => vem.VehicelModel == vehicle.ModelName))
         {
             errors.Add("Vehicle model is invalid.");
         }
@@ -290,7 +292,7 @@
     {
         List<VehicleType> temp = new();
         string tempStr = e.Value.ToString() ?? "";
-        
+
 
         var filteredVehicles = Vehicles
             .Where(v => v.VehicleNo == tempStr)
@@ -300,7 +302,6 @@
     }
     private void OnInput(ChangeEventArgs e)
     {
-        Debug.Write("OnChange Triggered");
         search = e.Value.ToString() ?? "";
         if (string.IsNullOrWhiteSpace(search))
         {
@@ -325,13 +326,18 @@
         {
             showCustomerForm = false;
         }
+
+        StateHasChanged();
     }
 
     private void SelectCustomer(UserModal customer)
     {
-        search = $"{customer.CustomerId}";
+
         vehicle.CustomerID = customer.CustomerId;
+        search = customer.CustomerId;
         showSuggestions = false;
+        Debug.WriteLine(search);
+        StateHasChanged();
     }
 
     private void FilterVehicleMakes(ChangeEventArgs e)
@@ -360,6 +366,7 @@
         // Filter models based on selected make
         filteredModels = vehicleModels.Where(m => m.VehicleMakeID == make.VehicleMakeID).ToList();
         showModelSuggestions = filteredModels.Any();
+        StateHasChanged();
     }
 
     private void FilterVehicleModels(ChangeEventArgs e)
@@ -393,6 +400,7 @@
             vehicle.VehicleMake = make.Vehicle_Make;
             makeSearch = make.Vehicle_Make;
         }
+        StateHasChanged();
     }
 }
 

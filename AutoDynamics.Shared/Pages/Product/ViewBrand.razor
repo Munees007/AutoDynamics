@@ -79,7 +79,7 @@
 
     public void UpdateProduct(BrandType data)
     {
-        CurrentData.SetCurrentCustomer(data);
+        CurrentData.Set(CurrentType.Brand,data);
         Navigation.NavigateTo("/brand/update");
     }
 

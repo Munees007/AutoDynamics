@@ -132,7 +132,7 @@
 
     private void ViewCustomer(UserModal user)
     {
-        CurrentData.SetCurrentCustomer(user);
+        CurrentData.Set(CurrentType.Customer,user);
         Navigation.NavigateTo($"/customer/details");
     }
 
@@ -147,7 +147,7 @@
 
     private void UpdateCustomer(UserModal user)
     {
-        CurrentData.SetCurrentCustomer(user);
+        CurrentData.Set(CurrentType.Customer,user);
         Navigation.NavigateTo($"/customer/update");
     }
 }

@@ -144,13 +144,13 @@
 
     public void ViewVehicle(VehicleType data)
     {
-        CurrentData.SetCurrentCustomer(data);
+        CurrentData.Set(CurrentType.Vehicle,data);
         Navigation.NavigateTo("/vehicle/view");
     }
 
     public void UpdateVehicle(VehicleType data)
     {
-        CurrentData.SetCurrentCustomer(data);
+        CurrentData.Set(CurrentType.Vehicle,data);
         Navigation.NavigateTo("/vehicle/update");
     }
 

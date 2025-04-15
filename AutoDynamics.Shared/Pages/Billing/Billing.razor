@@ -155,7 +155,7 @@
                                 <option>Select a Product</option>
                                 @foreach (ProductType product in products)
                                 {
-                                    <option value="@product.Brand">@product.Brand</option>
+                                    <option value="@product.ProductID">@product.Brand</option>
                                 }
                             </select>
                         </td>
@@ -166,7 +166,7 @@
                     @* Tax Calculation *@
                     @{
                         var total = item.Quantity * item.UnitPrice;
-                        item.TaxableValue = Math.Round(total / 1.18m,2);
+                        item.TaxableValue = item.ItemType == "SERVICE" ? Math.Round(total / 1.18m, 2) : Math.Round(total / 1.28m, 2);
                         var cgst = item.ItemType == "SERVICE" ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
                         var sgst = item.ItemType == "SERVICE" ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
                         item.TotalPrice = Math.Round(item.TaxableValue + cgst + sgst);
@@ -383,13 +383,14 @@
         billPayment.CashAmount = CashAmount;
         billPayment.BankAmount = BankAmount;
         billPayment.UPIAmount = UPIAmount;
-        bill.CustomerID = CustomerSearch;
-        bill.VehicleNo = VehicleSearch;
+        
         bill.Branch = SelectedBranch;
         bill.BillingYear = DateTime.Now.Year;
         bill.Discount = Discount;
         bill.TotalAmount = TotalAmount;
         bill.GrandTotal = GrandTotal;
+
+        
 
 
         BillDetails finalBill = new BillDetails
