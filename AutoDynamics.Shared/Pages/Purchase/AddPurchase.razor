@@ -11,167 +11,192 @@
 @inject IPDFGenerator PDFGenerator
 @inject IFormFactor FormFactor
 @inject IJSRuntime JS
-<h3 class="text-primary">Purchase</h3>
+@inject IDatabaseHandler DatabaseHandler
+<div class="position-absolute" style="max-width:100%">
+    <h3 class="text-primary">Purchase</h3>
 
-<div class="container m-3 position-relative">
+    <div class="container w-100">
 
-    <!-- Bill Details -->
-    <div class="row">
-        <div class="col-md-4">
-            <label class="form-label">Date</label>
-            <input disabled="@isViewing" type="date" id="UsageReading"  class="form-control" placeholder="Enter Usage Reading" required>
-        </div>
-
-        <!-- Customer Field -->
-        <div class="col-md-4">
-            <label class="form-label">Supplier</label>
-
-            <div class="input-group">
-                <input disabled="@isViewing" @onkeydown="HandleCustomerKey" autocomplete="off" type="text" id="Customer" @bind="CustomerSearch" @oninput="OnCustomerSearch" class="form-control" placeholder="Search by ID, Name, or Contact" required>
-                <button type="button" class="btn btn-outline-secondary" @onclick="NecessaryData">
-                    🔄
-                </button>
+        <!-- Bill Details -->
+        <div class="row">
+            <div class="col-md-4">
+                <label class="form-label">Date</label>
+                <InputDate disabled="@isViewing"  id="Date"  class="form-control" @bind-value="purchase.PurchaseDate" required/>
             </div>
-            <SearchSelect @ref="customerListRef" Items="filteredSuppliers" OnSelect="@(c=> SelectCustomer(c))" T="Supplier" showSuggestions="ShowCustomerSuggestion" ShowSuggestionsChanged="@((bool val) => ShowCustomerSuggestion = val)">
-                <ItemTemplate Context="cust">
-                    <div>@cust.SupplierID - @cust.Name - @cust.Contact</div>
-                </ItemTemplate>
-            </SearchSelect>
-            @* <ul class="list-group position-absolute mt-1" style="z-index:1000;" hidden="@(!ShowCustomerSuggestion)"> *@
-            @*     @foreach (var customer in filteredCustomers) *@
-            @*     { *@
-            @*         <li style="cursor:pointer" class="list-group-item list-group-item-action" @onclick="() => SelectCustomer(customer)"> *@
-            @*             @customer.CustomerId - @customer.Name - @customer.Contact *@
-            @*         </li> *@
-            @*     } *@
-            @* </ul> *@
-            <p>@SelectedCustomer</p>
+
+            <!-- Customer Field -->
+            <div class="col-md-4">
+                <label class="form-label">Supplier</label>
+
+                <div class="input-group">
+                    <input disabled="@isViewing" @onkeydown="HandleCustomerKey" autocomplete="off" type="text" id="Customer" @bind="CustomerSearch" @oninput="OnCustomerSearch" class="form-control" placeholder="Search by ID, Name, or Contact" required>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="NecessaryData">
+                        🔄
+                    </button>
+                </div>
+                <SearchSelect @ref="customerListRef" Items="filteredSuppliers" OnSelect="@(c=> SelectCustomer(c))" T="Supplier" showSuggestions="ShowCustomerSuggestion" ShowSuggestionsChanged="@((bool val) => ShowCustomerSuggestion = val)">
+                    <ItemTemplate Context="cust">
+                        <div>@cust.SupplierID - @cust.Name - @cust.Contact</div>
+                    </ItemTemplate>
+                </SearchSelect>
+                @* <ul class="list-group position-absolute mt-1" style="z-index:1000;" hidden="@(!ShowCustomerSuggestion)"> *@
+                @*     @foreach (var customer in filteredCustomers) *@
+                @*     { *@
+                @*         <li style="cursor:pointer" class="list-group-item list-group-item-action" @onclick="() => SelectCustomer(customer)"> *@
+                @*             @customer.CustomerId - @customer.Name - @customer.Contact *@
+                @*         </li> *@
+                @*     } *@
+                @* </ul> *@
+                <p>@SelectedCustomer</p>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Payment Type</label>
+                <select disabled="@isViewing" @bind="purchase.type" class="form-select" style="width:fit-content">
+                    <option value="@PaymentType.CASH">CASH</option>
+                    <option value="@PaymentType.CREDIT">CREDIT</option>
+                </select>
+            </div>
+
         </div>
 
 
-    </div>
+        @if (showCustomerForm)
+        {
+            <div class="mt-4 p-3">
+                <h1 class="text-black">Add Customer</h1>
+                <SupplierForm isUpdating=false  isBilling=true />
+            </div>
+        }
 
+        <hr />
 
-    @if (showCustomerForm)
-    {
-        <div class="mt-4 p-3">
-            <h1 class="text-black">Add Customer</h1>
-            <SupplierForm isUpdating=false  isBilling=true />
-        </div>
-    }
+        <!-- Product Items (Product) -->
+        <h5>Product Items</h5>
+        <button disabled="@isViewing" class="btn btn-success btn-sm mb-2" @onclick="AddNewItem">Add Item</button>
 
-    <hr />
-
-    <!-- Product Items (Product) -->
-    <h5>Product Items</h5>
-    <button disabled="@isViewing" class="btn btn-success btn-sm mb-2" @onclick="AddNewItem">Add Item</button>
-
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>Item Name</th>
-                <th>Quantity</th>
-                <th>Unit Price</th>
-                <th>Discount Type</th>
-                <th>Discount Value</th>
-                <th>Apply On</th>
-                <th>Taxable Value</th>
-                <th>CGST</th>
-                <th>SGST</th>
-                <th>Total Price</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var item in purchaseItems)
-            {
-                <tr>
-                    <td style="min-width:140px">
-                        <input disabled="@isViewing" @bind-value="item.ProductName" @onkeydown="HandleProductKey"  autocomplete="off" type="text"   @oninput="OnProductsSearch" class="form-control " placeholder="Search by ID, Name" required>
-                        <SearchSelect @ref="productListRef" Items="filteredProducts" OnSelect="@(c=> {
+        <div class="" style="overflow-x:auto;">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th style="min-width:300px">Item Name</th>
+                        <th style="min-width:100px">Quantity</th>
+                        <th style="min-width:200px">Unit Price</th>
+                        <th style="min-width:50px">Discount Type</th>
+                        <th style="min-width:100px">Discount Value</th>
+                        <th style="min-width:100px">Apply On</th>
+                        <th style="min-width:80px">Tax Rate</th>
+                        <th style="min-width:150px">Taxable Value</th>
+                        <th style="min-width:100px">CGST</th>
+                        <th style="min-width:100px">SGST</th>
+                        <th style="min-width:150px">Total Price</th>
+                        <th style="min-width:100px">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in purchaseItems)
+                    {
+                        <tr>
+                            <td style="min-width:140px">
+                                <input disabled="@isViewing" @bind-value="item.ProductName" @onkeydown="HandleProductKey"  autocomplete="off" type="text"   @oninput="OnProductsSearch" class="form-control " placeholder="Search by ID, Name" required>
+                                <SearchSelect @ref="productListRef" Items="filteredProducts" OnSelect="@(c=> {
                                                                                                         item.ProductID = c.ProductID;ProductSearch = $"{c.Brand} - {c.Size} - {c.Pattern} ({c.TubeOrTubeless})";item.ProductName = $"{c.Brand} - {c.Size} - {c.Pattern} ({c.TubeOrTubeless})";item.Product = c;
                                                                                                         showProductsSuggestion = false; StateHasChanged();
                                                                                                  })" T="ProductType" showSuggestions="showProductsSuggestion" ShowSuggestionsChanged="@((bool val) => showProductsSuggestion = val)">
-                            <ItemTemplate Context="cust">
-                                <div>@cust.Brand - @cust.Size - @cust.Pattern (@cust.TubeOrTubeless)</div>
-                            </ItemTemplate>
-                        </SearchSelect>
-                    </td>
-                    <td><input disabled="@isViewing" autocomplete="off" type="number" class="form-control" @bind="item.Quantity" min="1"></td>
-                    <td style="min-width:120px"><input disabled="@isViewing" autocomplete="off" type="number" class="form-control" @bind="item.UnitPrice" min="0" step="0.01"></td>
+                                    <ItemTemplate Context="cust">
+                                        <div>@cust.Brand - @cust.Size - @cust.Pattern (@cust.TubeOrTubeless)</div>
+                                    </ItemTemplate>
+                                </SearchSelect>
+                            </td>
+                            <td><input disabled="@isViewing" autocomplete="off" type="number" class="form-control" @bind="item.Quantity" min="1"></td>
+                            <td style="min-width:120px"><input disabled="@isViewing" autocomplete="off" type="number" class="form-control" @bind="item.UnitPrice" min="0" step="0.01"></td>
 
-                    <!-- New Discount UI Fields -->
-                    <td >
-                        <select disabled="@isViewing" @bind="item.DiscountType" class="form-select" style="width:fit-content" >
-                            <option value="@DiscountType.AMOUNT">₹</option>
-                            <option value="@DiscountType.PERCENT">%</option>
-                        </select>
-                    </td>
-                    <td>
-                        <input disabled="@isViewing" @bind="item.DiscountValue" type="number" class="form-control"  min="0" step="0.01" />
-                    </td>
-                    <td>
-                        <select disabled="@isViewing" @bind="item.DiscountScope" class="form-select" style="width:fit-content" >
-                            <option value="@DiscountScope.PER_UNIT">Per Unit</option>
-                            <option value="@DiscountScope.TOTAL">All Quantity</option>
-                        </select>
-                    </td>
+                            <!-- New Discount UI Fields -->
+                            <td >
+                                <select disabled="@isViewing" @bind="item.DiscountType" class="form-select" style="width:fit-content" >
+                                    <option value="@DiscountType.AMOUNT">₹</option>
+                                    <option value="@DiscountType.PERCENT">%</option>
+                                </select>
+                            </td>
+                            <td>
+                                <input disabled="@isViewing" @bind="item.DiscountValue" type="number" class="form-control"  min="0" step="0.01" />
+                            </td>
+                            <td>
+                                <select disabled="@isViewing" @bind="item.DiscountScope" class="form-select" style="width:fit-content" >
+                                    <option value="@DiscountScope.PER_UNIT">Per Unit</option>
+                                    <option value="@DiscountScope.TOTAL">All Quantity</option>
+                                </select>
+                            </td>
+                            <td>
+                                <select disabled="@isViewing" @bind="item.TaxRate" class="form-select" style="width:fit-content">
+                                    <option value="@TaxRate.TAX_28">28%</option>
+                                    <option value="@TaxRate.TAX_18">18%</option>
+                                </select>
+                            </td>
+                            @* Tax Calculation *@
+                            @{
 
-                    @* Tax Calculation *@
-                    @{
+                                var subTotal = item.Quantity * item.UnitPrice;
+                                decimal discount = 0;
 
-                        var subTotal = item.Quantity * item.UnitPrice;
-                        decimal discount = 0;
+                                if (item.DiscountType == DiscountType.AMOUNT)
+                                {
+                                    discount = item.DiscountScope == DiscountScope.PER_UNIT
+                                    ? item.DiscountValue * item.Quantity
+                                    : item.DiscountValue;
+                                }
+                                else if (item.DiscountType == DiscountType.PERCENT)
+                                {
+                                    discount = item.DiscountScope == DiscountScope.PER_UNIT
+                                    ? (item.UnitPrice * item.DiscountValue / 100m) * item.Quantity
+                                    : (subTotal * item.DiscountValue / 100m);
+                                }
 
-                        if (item.DiscountType == DiscountType.AMOUNT)
-                        {
-                            discount = item.DiscountScope == DiscountScope.PER_UNIT
-                            ? item.DiscountValue * item.Quantity
-                            : item.DiscountValue;
-                        }
-                        else if (item.DiscountType == DiscountType.PERCENT)
-                        {
-                            discount = item.DiscountScope == DiscountScope.PER_UNIT
-                            ? (item.UnitPrice * item.DiscountValue / 100m) * item.Quantity
-                            : (subTotal * item.DiscountValue / 100m);
-                        }
 
-                        var total = subTotal - discount;
+                                purchase.DiscountAmount += discount;
+                                var total = subTotal - discount;
+                                var cgst = 0m;
+                                var sgst =0m;
+                                if(item.Product != null)
+                                {
+                                    item.TaxableValue = item.TaxRate == TaxRate.TAX_18 ? Math.Round(total / 1.18m, 2) : Math.Round(total / 1.28m, 2);
+                                    cgst = item.TaxRate == TaxRate.TAX_18 ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
+                                    sgst = item.TaxRate == TaxRate.TAX_18 ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
+                                    item.TotalPrice = Math.Round(item.TaxableValue + cgst + sgst);
+                                }
 
-                        item.TaxableValue = item.Product.Brand == "TUBE" ? Math.Round(total / 1.18m, 2) : Math.Round(total / 1.28m, 2);
-                        var cgst = item.Product.Brand == "TUBE" ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
-                        var sgst = item.Product.Brand == "TUBE" ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
-                        item.TotalPrice = Math.Round(item.TaxableValue + cgst + sgst);
+                            }
+
+                            <td>@item.TaxableValue</td>
+                            <td>@cgst.ToString("F2")</td>
+                            <td>@sgst.ToString("F2")</td>
+                            <td>@item.TotalPrice</td>
+
+                            <td>
+                                <button disabled="@isViewing" class="btn btn-danger btn-sm" @onclick="() => RemoveItem(item)">Remove</button>
+                            </td>
+                        </tr>
                     }
-                    <td>@item.TaxableValue</td>
-                    <td>@cgst.ToString("F2")</td>
-                    <td>@sgst.ToString("F2")</td>
-                    <td>@item.TotalPrice</td>
+                </tbody>
 
-                    <td>
-                        <button disabled="@isViewing" class="btn btn-danger btn-sm" @onclick="() => RemoveItem(item)">Remove</button>
-                    </td>
-                </tr>
-            }
-        </tbody>
-
-    </table>
-    <hr />
-    <!-- Total and Submit -->
-    <div class="row">
-
-        <div class="col-md-6">
-            <h4>Total: ₹@TotalAmount</h4>
+            </table>
         </div>
-        <div class="col-md-6 text-end">
-            <button disabled="true" class="btn btn-primary" @onclick="HandleSubmit">Add Purchase</button>
+        <hr />
+        <!-- Total and Submit -->
+        <div class="row">
+
+            <div class="col-md-6">
+                <h4>Total: ₹@TotalAmount</h4>
+            </div>
+            <div class="col-md-6 text-end">
+                <button  class="btn btn-primary" @onclick="HandleSubmit">Add Purchase</button>
+            </div>
         </div>
+        @if (isProcessing)
+        {
+            <Loader />
+
+        }
     </div>
-    @if (isProcessing)
-    {
-        <Loader />
-
-    }
 </div>
 
 @code {
@@ -191,7 +216,7 @@
     private decimal TotalAmount => purchaseItems.Sum(x => x.TotalPrice);
     private decimal Discount = 0;
     private bool restrictCashBox = false;
-    private decimal GrandTotal => TotalAmount * (1 - Discount / 100);
+    private decimal GrandTotal => TotalAmount * (1 - purchase.DiscountAmount / 100);
     private decimal CashAmount = 0, BankAmount = 0, CardAmount = 0, UPIAmount = 0;
     private bool showCustomerForm = false;
     private bool showVehicleForm = false;
@@ -298,6 +323,131 @@
         }
         StateHasChanged();
     }
+    public async Task<int> InsertPurchaseBillAsync(Purchase purchaseBill, List<PurchaseItems> purchaseItems, bool isUpdating)
+    {
+        int newBillNo = 1; // Default if no previous bills exist
+        int purchaseBillId = 0; // Stores the newly inserted PurchaseBillID
+
+        string insertPurchaseBillQuery = @"
+    INSERT INTO PurchaseBills (Branch, BillingYear, BillNo, SupplierID,PaymentType, PurchaseDate, TotalAmount, DiscountAmount, GrandTotal, Notes)
+    VALUES (@Branch, @BillingYear, @BillNo, @SupplierID,@PaymentType,  @PurchaseDate, @TotalAmount, @DiscountAmount, @GrandTotal, @Notes);
+    SELECT LAST_INSERT_ID();";
+
+        try
+        {
+            // 1. Get new BillNo if inserting
+            if (!isUpdating)
+            {
+                string getLatestBillNoQuery = @"
+            SELECT MAX(BillNo) FROM PurchaseBills
+            WHERE Branch = @Branch AND BillingYear = @BillingYear";
+
+                var parameters = new Dictionary<string, object>
+            {
+                { "@Branch", purchaseBill.Branch },
+                { "@BillingYear", purchaseBill.BillingYear }
+            };
+
+                var result = await DatabaseHandler.ExecuteQueryAsync(getLatestBillNoQuery, parameters);
+                var maxBillValue = result[0]["MAX(BillNo)"];
+
+                if (maxBillValue == DBNull.Value || maxBillValue == null)
+                {
+                    newBillNo = 1;
+                }
+                else
+                {
+                    newBillNo = Convert.ToInt32(maxBillValue) + 1;
+                }
+            }
+
+            // 2. Insert or update Purchase Bill
+            var billParams = new Dictionary<string, object>
+        {
+            { "@Branch", purchaseBill.Branch },
+            { "@BillingYear", purchaseBill.BillingYear },
+            { "@BillNo", newBillNo },
+            { "@SupplierID", purchaseBill.SupplierID },
+            {"@PaymentType",purchaseBill.type.ToString() },
+            { "@PurchaseDate", purchaseBill.PurchaseDate },
+            { "@TotalAmount", purchaseBill.TotalAmount },
+            { "@DiscountAmount", purchaseBill.DiscountAmount },
+            { "@GrandTotal", purchaseBill.GrandTotal },
+            { "@Notes", purchaseBill.Notes }
+        };
+
+            if (isUpdating)
+            {
+                string updatePurchaseBillQuery = @"
+            UPDATE PurchaseBills
+            SET Branch = @Branch,
+                BillingYear = @BillingYear,
+                SupplierID = @SupplierID,
+                PaymentType = @PaymentType,
+                PurchaseDate = @PurchaseDate,
+                TotalAmount = @TotalAmount,
+                DiscountAmount = @DiscountAmount,
+                GrandTotal = @GrandTotal,
+                Notes = @Notes
+            WHERE PurchaseBillID = @PurchaseBillID";
+
+                billParams.Add("@PurchaseBillID", purchaseBill.PurchaseBillID);
+                await DatabaseHandler.ExecuteNonQueryAsync(updatePurchaseBillQuery, billParams);
+            }
+            else
+            {
+                var billResult = await DatabaseHandler.ExecuteQueryAsync(insertPurchaseBillQuery, billParams);
+                purchaseBillId = Convert.ToInt32(billResult[0]["LAST_INSERT_ID()"]);
+            }
+
+            // 3. Insert Purchase Items and update Stock
+            foreach (var item in purchaseItems)
+            {
+                var insertItemQuery = @"
+            INSERT INTO PurchaseItems (PurchaseBillID, ProductID, ItemName, Quantity,DiscountType,DiscountValue,DiscountScope,TaxRate, UnitPrice, TotalPrice)
+            VALUES (@PurchaseBillID, @ProductID, @ItemName, @Quantity,@DiscountType,@DiscountValue,@DiscountScope,@TaxRate, @UnitPrice, @TotalPrice)";
+
+                var itemParams = new Dictionary<string, object>
+            {
+                { "@PurchaseBillID", purchaseBillId },
+                { "@ProductID", item.ProductID },
+                { "@ItemName", item.ProductName },
+                { "@Quantity", item.Quantity },
+                { "@DiscountType", item.DiscountType.ToString() },
+                { "@DiscountValue", item.DiscountValue },
+                { "@DiscountScope", item.DiscountScope.ToString() },
+                { "@TaxRate", item.TaxRate.ToString() },
+                { "@UnitPrice", item.UnitPrice },
+                { "@TotalPrice", item.TotalPrice }
+            };
+
+                await DatabaseHandler.ExecuteNonQueryAsync(insertItemQuery, itemParams);
+
+                // Update Stock
+                var updateStockQuery = @"INSERT INTO Stock (ProductID, Branch, AvailableQuantity)
+VALUES (@ProductID, @Branch, @AvailableQuantity)
+ON DUPLICATE KEY UPDATE
+    AvailableQuantity = AvailableQuantity + @AvailableQuantity;
+";
+
+                var stockParams = new Dictionary<string, object>
+            {
+                { "@ProductID", item.ProductID },
+                { "@AvailableQuantity", item.Quantity },
+                { "@Branch", purchaseBill.Branch },
+            };
+
+                await DatabaseHandler.ExecuteNonQueryAsync(updateStockQuery, stockParams);
+            }
+
+            return purchaseBillId;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error: " + ex.Message);
+            throw;
+        }
+    }
     public async void HandleSubmit()
     {
         Debug.WriteLine(SelectedBranch);
@@ -308,13 +458,14 @@
         }
         manageCredit();
 
-        purchase.SupplierID = CustomerSearch;
+        
 
         purchase.Branch = SelectedBranch;
         purchase.BillingYear = DateTime.Now.Year;
-        purchase.DiscountAmount = Discount;
+        
         purchase.TotalAmount = TotalAmount;
-        purchase.GrandTotal = GrandTotal;
+        
+        
 
 
         PurchaseDetails finalBill = new PurchaseDetails
@@ -328,11 +479,8 @@
         }
         else
         {
-            // int[] data = await DatabaseHandler.InsertBillAsync(bill, BillItems, billPayment, false);
-            // bill.BillID = data[0];
-            // finalBill.Bill.BillID = data[0];
-            // bill.BillNo = data[1];
-            // finalBill.Bill.BillNo = data[1];
+            
+            await InsertPurchaseBillAsync(finalBill.purchase, finalBill.purchaseItems, false);
         }
 
         if (FormFactor.GetFormFactor() == "Web")
@@ -354,6 +502,7 @@
         SelectedCustomer = "No Customer Selected";
         StateHasChanged();
     }
+
     public async Task NecessaryData()
     {
         string customerQuery = @"SELECT * FROM Suppliers";
@@ -372,7 +521,7 @@
             {
                 suppliers.Add(new Supplier
                     {
-                        SupplierID = row["CustomerID"].ToString() ?? "",
+                        SupplierID = row["SupplierID"].ToString() ?? "",
                         Name = row["Name"].ToString() ?? "",
                         Contact = row["Contact"].ToString() ?? "",
                     });

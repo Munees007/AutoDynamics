@@ -225,10 +225,6 @@
                 PinCode = @pinCode,
                 Nationality = @nationality,
                 Email = @email,
-                Website = @website,
-                IsSMSAllowed = @isSMSAllowed,
-                IsEmailAllowed = @isEmailAllowed,
-                IsWhatsAppAllowed = @isWhatsAppAllowed,
                 LastUpdatedBy = @lastUpdatedBy
                     WHERE
                 SupplierID = @supplierID;";
@@ -277,16 +273,16 @@
             //     return false;
             // }
             // Generate unique CustomerID
-            string newID = await DatabaseHandler.GenerateID("AD", 10, "Suppliers", "SupplierID");
+            string newID = await DatabaseHandler.GenerateID("SP", 10, "Suppliers", "SupplierID");
 
             string query = @"
         INSERT INTO Suppliers (
             SupplierID, Contact, Name, GSTIN, Address, Area, City, Country, State, District, PinCode, Nationality,
-             Email, Website, IsSMSAllowed, IsEmailAllowed, IsWhatsAppAllowed,
+             Email,
             CreatedBy, LastUpdatedBy
         ) VALUES (
             @supplierID, @contact, @name,@gstIn, @address, @area, @city, @country, @state, @district, @pinCode, @nationality,
-             @email, @website, @isSMSAllowed, @isEmailAllowed, @isWhatsAppAllowed,
+             @email,
             @createdBy, @lastUpdatedBy
         )";
 
