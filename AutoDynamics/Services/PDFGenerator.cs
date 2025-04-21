@@ -5,7 +5,9 @@ using iTextSharp.text;
 using iTextSharp.text.pdf;
 using System.Text;
 using Microsoft.JSInterop;
+using AutoDynamics.Shared.Modals.PurchaseTypes;
 namespace AutoDynamics.Services
+
 {
     public class PDFGenerator : IPDFGenerator
     {
@@ -192,8 +194,8 @@ namespace AutoDynamics.Services
                     // ✅ Table Items (Existing logic preserved)
                     foreach (var item in billDetails.BillItems)
                     {
-                        var cgstRate = item.ItemType == "SERVICE" ? 9 : 14;
-                        var sgstRate = item.ItemType == "SERVICE" ? 9 : 14;
+                        var cgstRate = item.ItemType == "SERVICE" ? 9 : (item.TaxRate == TaxRate.TAX_18 ? 9 : 14);
+                        var sgstRate = item.ItemType == "SERVICE" ? 9 : (item.TaxRate == TaxRate.TAX_18 ? 9 : 14);
                         var cgstAmt = Math.Round(item.TaxableValue * (cgstRate / 100m), 2);
                         var sgstAmt = Math.Round(item.TaxableValue * (sgstRate / 100m), 2);
 
@@ -201,9 +203,9 @@ namespace AutoDynamics.Services
                         totalSGST += sgstAmt;
                         totalQuantity += item.Quantity;
                         totalTaxableAmount += item.TaxableValue;
-                        //var hsnCode = item.ItemType == "SERVICE" ? "998729" : "";
+                        var hsnCode = item.ItemType == "SERVICE" ? "998729" : item.HSNCode;
                         table.AddCell(new PdfPCell(new Phrase(item.ItemName, normalFont)));
-                        table.AddCell(new PdfPCell(new Phrase("998729", normalFont)) { HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(hsnCode, normalFont)) { HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER });
                         table.AddCell(new PdfPCell(new Phrase(item.Quantity.ToString(), normalFont)) { HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER });
                         table.AddCell(new PdfPCell(new Phrase(item.TaxableValue.ToString("F2"), normalFont)) { HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
 

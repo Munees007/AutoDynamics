@@ -1,4 +1,6 @@
-﻿namespace AutoDynamics.Shared.Modals
+﻿using AutoDynamics.Shared.Modals.PurchaseTypes;
+
+namespace AutoDynamics.Shared.Modals
 {
     public class ProductType
     {
@@ -14,5 +16,9 @@
         public string  CreatedBy {set;get;} = "";
         public string  LastUpdatedBy {set;get;} = "";
         public string  LastUpdatedAt {set;get;} = "";
+        public int AvailableQuantity { get; set; } = 0;
+        public string Branch { get; set; } = "";
+        public TaxRate TaxRate { get; set; } = TaxRate.TAX_28;
+
     }
 }

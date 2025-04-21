@@ -424,8 +424,8 @@
                 await DatabaseHandler.ExecuteNonQueryAsync(insertItemQuery, itemParams);
 
                 // Update Stock
-                var updateStockQuery = @"INSERT INTO Stock (ProductID, Branch, AvailableQuantity)
-VALUES (@ProductID, @Branch, @AvailableQuantity)
+                var updateStockQuery = @"INSERT INTO Stock (ProductID, Branch, AvailableQuantity,TaxRate)
+VALUES (@ProductID, @Branch, @AvailableQuantity, @TaxRate)
 ON DUPLICATE KEY UPDATE
     AvailableQuantity = AvailableQuantity + @AvailableQuantity;
 ";
@@ -435,6 +435,7 @@ ON DUPLICATE KEY UPDATE
                 { "@ProductID", item.ProductID },
                 { "@AvailableQuantity", item.Quantity },
                 { "@Branch", purchaseBill.Branch },
+				{"@TaxRate", item.TaxRate.ToString() }
             };
 
                 await DatabaseHandler.ExecuteNonQueryAsync(updateStockQuery, stockParams);

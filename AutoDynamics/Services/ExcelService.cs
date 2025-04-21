@@ -1,4 +1,5 @@
 ﻿using AutoDynamics.Shared.Modals;
+using AutoDynamics.Shared.Modals.PurchaseTypes;
 using AutoDynamics.Shared.Services;
 using ClosedXML.Excel;
 using DocumentFormat.OpenXml.Spreadsheet;
@@ -33,27 +34,77 @@ namespace AutoDynamics.Services
             ws.Cell(1, 13).Value = "TOTAL";
             var headerRow = ws.Row(1);
             headerRow.Style.Font.FontColor = XLColor.Red;
-            for (int row=0;row<bills.Length;row++)
+            int excelRow = 2; // Start writing from Excel row 2
+
+            for (int row = 0; row < bills.Length; row++)
             {
-                var taxableValue = Math.Round(bills[row].Bill.TotalAmount / 1.18m, 2);
-                var cgst = Math.Round(taxableValue * (9 / 100m), 2);
-                var sgst = Math.Round(taxableValue * (9 / 100m), 2);
-                var roundingDiffRaw = bills[row].Bill.TotalAmount - (taxableValue + cgst + sgst);
-                var roundingDiff = roundingDiffRaw > 0 ? Math.Round(roundingDiffRaw, 2) : 0m;
-                string billID = bills[row].Bill.Branch == "Sivakasi" ? "SFR" + bills[row].Bill.BillNo.ToString().PadLeft(4, '0') : "BPR" + bills[row].Bill.BillNo.ToString().PadLeft(4, '0');
-                ws.Cell(row + 2, 1).Value = bills[row].Bill.BillDate.ToString("dd-MM-yyyy");
-                ws.Cell(row + 2, 2).Value = 998729;
-                ws.Cell(row + 2, 3).Value = billID;
-                ws.Cell(row + 2, 4).Value = bills[row].customer.Name;
-                ws.Cell(row + 2, 5).Value = bills[row].Bill.VehicleNo;
-                ws.Cell(row + 2, 6).Value = bills[row].Bill.Vehicle.ModelName;
-                ws.Cell(row + 2, 7).Value = bills[row].customer.GSTIN;
-                ws.Cell(row + 2, 8).Value = 18;
-                ws.Cell(row + 2, 9).Value = taxableValue;
-                ws.Cell(row + 2, 10).Value = cgst;
-                ws.Cell(row + 2, 11).Value = sgst;
-                ws.Cell(row + 2, 12).Value = roundingDiff;
-                ws.Cell(row + 2, 13).Value = bills[row].Bill.TotalAmount;
+                var bill = bills[row].Bill;
+                var customer = bills[row].customer;
+                string billID = bill.Branch == "Sivakasi"
+                    ? "SFR" + bill.BillNo.ToString().PadLeft(4, '0')
+                    : "BPR" + bill.BillNo.ToString().PadLeft(4, '0');
+
+                // --- SERVICE ITEMS (Tax 18%) ---
+                var serviceItems = bill.BillItems
+                    .Where(i => i.ItemType == "SERVICE")
+                    .ToList();
+
+                if (serviceItems.Any())
+                {
+                    decimal serviceTotal = serviceItems.Sum(i => i.TotalPrice);
+                    var taxableValue = Math.Round(serviceTotal / 1.18m, 2);
+                    var cgst = Math.Round(taxableValue * 0.09m, 2);
+                    var sgst = Math.Round(taxableValue * 0.09m, 2);
+                    var roundingDiffRaw = serviceTotal - (taxableValue + cgst + sgst);
+                    var roundingDiff = roundingDiffRaw > 0 ? Math.Round(roundingDiffRaw, 2) : 0m;
+
+                    ws.Cell(excelRow, 1).Value = bill.BillDate.ToString("dd-MM-yyyy");
+                    ws.Cell(excelRow, 2).Value = 998729; // Fixed SAC Code for service
+                    ws.Cell(excelRow, 3).Value = billID;
+                    ws.Cell(excelRow, 4).Value = customer.Name;
+                    ws.Cell(excelRow, 5).Value = bill.VehicleNo;
+                    ws.Cell(excelRow, 6).Value = bill.Vehicle.ModelName;
+                    ws.Cell(excelRow, 7).Value = customer.GSTIN;
+                    ws.Cell(excelRow, 8).Value = 18;
+                    ws.Cell(excelRow, 9).Value = taxableValue;
+                    ws.Cell(excelRow, 10).Value = cgst;
+                    ws.Cell(excelRow, 11).Value = sgst;
+                    ws.Cell(excelRow, 12).Value = roundingDiff;
+                    ws.Cell(excelRow, 13).Value = serviceTotal;
+                    excelRow++;
+                }
+
+                // --- PRODUCT ITEMS with TaxRate.TAX_28 ---
+                var productItems = bill.BillItems
+                    .Where(i => i.ItemType == "PRODUCT" && i.TaxRate == TaxRate.TAX_28)
+                    .GroupBy(i => i.HSNCode); // Group by HSN if multiple
+
+                foreach (var hsnGroup in productItems)
+                {
+                    decimal productTotal = hsnGroup.Sum(i => i.TotalPrice);
+                    var taxableValue = Math.Round(productTotal / 1.28m, 2);
+                    var cgst = Math.Round(taxableValue * 0.14m, 2);
+                    var sgst = Math.Round(taxableValue * 0.14m, 2);
+                    var roundingDiffRaw = productTotal - (taxableValue + cgst + sgst);
+                    var roundingDiff = roundingDiffRaw > 0 ? Math.Round(roundingDiffRaw, 2) : 0m;
+
+                    string hsnCode = hsnGroup.Key;
+
+                    ws.Cell(excelRow, 1).Value = bill.BillDate.ToString("dd-MM-yyyy");
+                    ws.Cell(excelRow, 2).Value = hsnCode; // HSN code from item
+                    ws.Cell(excelRow, 3).Value = billID;
+                    ws.Cell(excelRow, 4).Value = customer.Name;
+                    ws.Cell(excelRow, 5).Value = bill.VehicleNo;
+                    ws.Cell(excelRow, 6).Value = bill.Vehicle.ModelName;
+                    ws.Cell(excelRow, 7).Value = customer.GSTIN;
+                    ws.Cell(excelRow, 8).Value = 28;
+                    ws.Cell(excelRow, 9).Value = taxableValue;
+                    ws.Cell(excelRow, 10).Value = cgst;
+                    ws.Cell(excelRow, 11).Value = sgst;
+                    ws.Cell(excelRow, 12).Value = roundingDiff;
+                    ws.Cell(excelRow, 13).Value = productTotal;
+                    excelRow++;
+                }
             }
             using var ms = new MemoryStream();
             workBook.SaveAs(ms);

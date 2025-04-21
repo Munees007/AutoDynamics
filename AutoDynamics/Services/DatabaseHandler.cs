@@ -3,6 +3,7 @@ using System.Data;
 using MySqlConnector;
 using AutoDynamics.Shared.Modals;
 using System.Diagnostics;
+using AutoDynamics.Shared.Modals.PurchaseTypes;
 
 namespace AutoDynamics.Services
 {
@@ -113,8 +114,8 @@ namespace AutoDynamics.Services
                     }
 
                     string insertItemQuery = @"
-        INSERT INTO BillItems (BillID, ItemType, ItemName, Quantity, UnitPrice, TotalPrice, TaxableValue) 
-        VALUES (@BillID, @ItemType, @ItemName, @Quantity, @UnitPrice, @TotalPrice, @TaxableValue)";
+        INSERT INTO BillItems (BillID, ItemType,TaxRate,ItemID, ItemName, Quantity, UnitPrice, TotalPrice, TaxableValue) 
+        VALUES (@BillID, @ItemType,@TaxRate,@ItemID, @ItemName, @Quantity, @UnitPrice, @TotalPrice, @TaxableValue)";
 
                     foreach (var item in billItems)
                     {
@@ -122,6 +123,8 @@ namespace AutoDynamics.Services
                         {
                             command.Parameters.AddWithValue("@BillID", bill.BillID);
                             command.Parameters.AddWithValue("@ItemType", item.ItemType);
+                            command.Parameters.AddWithValue("@TaxRate", item.TaxRate.ToString());
+                            command.Parameters.AddWithValue("@ItemID", item.ItemID);
                             command.Parameters.AddWithValue("@ItemName", item.ItemName);
                             command.Parameters.AddWithValue("@Quantity", item.Quantity);
                             command.Parameters.AddWithValue("@UnitPrice", item.UnitPrice);
@@ -263,8 +266,8 @@ namespace AutoDynamics.Services
 
                     // 3. Insert into BillItems using BillID
                     string insertItemQuery = @"
-            INSERT INTO BillItems (BillID, ItemType, ItemName, Quantity, UnitPrice, TotalPrice, TaxableValue) 
-            VALUES (@BillID, @ItemType, @ItemName, @Quantity, @UnitPrice, @TotalPrice, @TaxableValue)";
+            INSERT INTO BillItems (BillID, ItemType,TaxRate,ItemID, ItemName, Quantity, UnitPrice, TotalPrice, TaxableValue) 
+            VALUES (@BillID, @ItemType,@TaxRate,@ItemID, @ItemName, @Quantity, @UnitPrice, @TotalPrice, @TaxableValue)";
 
                     foreach (var item in billItems)
                     {
@@ -272,6 +275,8 @@ namespace AutoDynamics.Services
                         {
                             command.Parameters.AddWithValue("@BillID", billId);
                             command.Parameters.AddWithValue("@ItemType", item.ItemType);
+                            command.Parameters.AddWithValue("@TaxRate", item.TaxRate.ToString());
+                            command.Parameters.AddWithValue("@ItemID", item.ItemID);
                             command.Parameters.AddWithValue("@ItemName", item.ItemName);
                             command.Parameters.AddWithValue("@Quantity", item.Quantity);
                             command.Parameters.AddWithValue("@UnitPrice", item.UnitPrice);
@@ -279,8 +284,29 @@ namespace AutoDynamics.Services
                             command.Parameters.AddWithValue("@TaxableValue", item.TaxableValue);
                             await command.ExecuteNonQueryAsync();
                         }
-                    }
 
+                        
+                    }
+                    // Update Stock
+                    foreach(var billItem in billItems)
+                    {
+                        if (billItem.ItemType == "PRODUCT")
+                        {
+
+                            string updateStockQuery = @"UPDATE STOCK 
+SET AvailableQuantity = AvailableQuantity - @Quantity 
+WHERE ProductID = @ProductID AND Branch = @Branch
+                   
+                                                        ";
+                            using(var command = new MySqlCommand(updateStockQuery, connection, (MySqlTransaction)transaction))
+                            {
+                                command.Parameters.AddWithValue("@Quantity", billItem.Quantity);
+                                command.Parameters.AddWithValue("@ProductID", billItem.ItemID);
+                                command.Parameters.AddWithValue("@Branch", billItem.Branch);
+                                await command.ExecuteNonQueryAsync();
+                            }
+                        }
+                    }
                     // 4. Insert into BillPayments using BillID
                     string insertPaymentQuery = @"
             INSERT INTO BillPayments (BillID, CashAmount, BankAmount, CardAmount, UPIAmount) 
@@ -386,11 +412,46 @@ LEFT JOIN Vehicle v ON b.VehicleNo = v.VehicleNo;";
                 int billId = billItemReader.GetInt32("BillID");
                 if (billDictionary.ContainsKey(billId))
                 {
+                    TaxRate taxRate;
+                    string? taxRateStr = billItemReader.IsDBNull("TaxRate") ? null : billItemReader.GetString("TaxRate");
+
+                    if (!string.IsNullOrEmpty(taxRateStr) && Enum.TryParse<TaxRate>(taxRateStr, out var parsedTaxRate))
+                    {
+                        taxRate = parsedTaxRate;
+                    }
+                    else
+                    {
+                        taxRate = TaxRate.TAX_28; // default fallback
+                    }
+
+                    string itemType = billItemReader.GetString("ItemType");
+                    string hsnCode = "";
+                    if (itemType == "PRODUCT")
+                    {
+                        using var productConnection = new MySqlConnection(_connectionString);
+                        await productConnection.OpenAsync();
+                        string productQuery = @"SELECT * FROM Product WHERE ProductID = @ProductID";
+                        using var productCommand = new MySqlCommand(productQuery, productConnection);
+                        productCommand.Parameters.AddWithValue("@ProductID", billItemReader.GetString("ItemID"));
+                        using var productReader = await productCommand.ExecuteReaderAsync();
+                        if (await productReader.ReadAsync())
+                        {
+                            hsnCode = productReader.IsDBNull("HSNCode") ? "" : productReader.GetString("HSNCode");
+
+                        }
+                        await productReader.CloseAsync(); // ✅ Explicit close
+                        await productConnection.CloseAsync(); // ✅ Explicit close (optional, but clean)
+
+                    }
+
                     billDictionary[billId].BillItems.Add(new BillItem
                     {
                         BillID = billId,
                         ItemType = billItemReader.GetString("ItemType"),
                         ItemName = billItemReader.GetString("ItemName"),
+                        TaxRate = taxRate,
+                        HSNCode = hsnCode,
+                        ItemID = billItemReader.IsDBNull("ItemID") ? "" : billItemReader.GetString("ItemID"),
                         Quantity = billItemReader.GetInt32("Quantity"),
                         TaxableValue = billItemReader.GetDecimal("TaxableValue"),
                         UnitPrice = billItemReader.GetDecimal("UnitPrice"),
@@ -400,6 +461,7 @@ LEFT JOIN Vehicle v ON b.VehicleNo = v.VehicleNo;";
             }
 
             await billItemReader.CloseAsync();
+            
 
             // Fetch BillPayments
             string billPaymentQuery = "SELECT * FROM BillPayments";
@@ -504,11 +566,44 @@ LEFT JOIN Vehicle v ON b.VehicleNo = v.VehicleNo;";
                 int billId = billItemReader.GetInt32("BillID");
                 if (billDictionary.ContainsKey(billId))
                 {
+                    TaxRate taxRate;
+                    string? taxRateStr = billItemReader.IsDBNull("TaxRate") ? null : billItemReader.GetString("TaxRate");
+
+                    if (!string.IsNullOrEmpty(taxRateStr) && Enum.TryParse<TaxRate>(taxRateStr, out var parsedTaxRate))
+                    {
+                        taxRate = parsedTaxRate;
+                    }
+                    else
+                    {
+                        taxRate = TaxRate.TAX_28; // default fallback
+                    }
+                    string itemType = billItemReader.GetString("ItemType");
+                    string hsnCode = "";
+                    if (itemType == "PRODUCT")
+                    {
+                        using var productConnection = new MySqlConnection(connection.ConnectionString);
+                        await productConnection.OpenAsync();
+                        string productQuery = @"SELECT * FROM Product WHERE ProductID = @ProductID";
+                        using var productCommand = new MySqlCommand(productQuery, productConnection);
+                        productCommand.Parameters.AddWithValue("@ProductID", billItemReader.GetString("ItemID"));
+                        using var productReader = await productCommand.ExecuteReaderAsync();
+                        if (await productReader.ReadAsync())
+                        {
+                            hsnCode = productReader.IsDBNull("HSNCode") ? "" : productReader.GetString("HSNCode");
+
+                        }
+                        await productReader.CloseAsync(); // ✅ Explicit close
+                        await productConnection.CloseAsync(); // ✅ Explicit close (optional, but clean)
+
+                    }
                     billDictionary[billId].BillItems.Add(new BillItem
                     {
                         BillID = billId,
                         ItemType = billItemReader.GetString("ItemType"),
                         ItemName = billItemReader.GetString("ItemName"),
+                        TaxRate = taxRate,
+                        HSNCode = hsnCode,
+                        ItemID = billItemReader.IsDBNull("ItemID") ? "" : billItemReader.GetString("ItemID"),
                         Quantity = billItemReader.GetInt32("Quantity"),
                         TaxableValue = billItemReader.GetDecimal("TaxableValue"),
                         UnitPrice = billItemReader.GetDecimal("UnitPrice"),

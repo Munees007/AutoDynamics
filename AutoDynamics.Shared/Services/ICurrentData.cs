@@ -10,6 +10,7 @@ namespace AutoDynamics.Shared.Services
     public enum CurrentType
     {
         Customer,
+        Supplier,
         Vehicle,
         Bill,
         CreditRecord,

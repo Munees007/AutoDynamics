@@ -28,6 +28,7 @@
   <ItemGroup>
     <Folder Include="Pages\Credit\" />
     <Folder Include="Pages\Components\" />
+    <Folder Include="Pages\Stock\" />
     <Folder Include="Pages\Product\" />
     <Folder Include="Pages\Purchase\" />
   </ItemGroup>

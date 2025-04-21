@@ -1,0 +1,220 @@
+@page "/stock"
+@using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Modals.PurchaseTypes
+@using AutoDynamics.Shared.Services
+@using System.Diagnostics
+@inject IDatabaseHandler DatabaseHandler
+@inject IAlertService AlertService
+@inject IPDFGenerator PDFGenerator
+@inject IMyLocalStorageService MyLocalStorageService
+@inject NavigationManager Navigation
+@inject ICurrentData CurrentData
+@inject IJSRuntime JS
+@inject IFormFactor FormFactor
+<h3 class="text-center mb-4">Stock Details</h3>
+
+<div class="mb-3">
+    <input type="text" @oninput="(e)=>{FilterStock(e);}" class="form-control" placeholder="Search by Product Id, Name" />
+</div>
+
+<div class="mb-3">
+
+    @if (selectedSortOption == "range")
+    {
+        <input type="date" @bind="startDate" class="form-control mt-2" />
+        <input type="date" @bind="endDate" class="form-control mt-2" />
+    }
+</div>
+<div class="w-100 d-flex justify-content-between align-items-md-center">
+
+
+</div>
+@if (stockDetails == null || !stockDetails.Any())
+{
+    <div class="alert alert-warning text-center">No billing records found.</div>
+}
+else
+{
+    <div class="col">
+        @if (showSivakasi)
+        {
+            <div class="col-md-6 w-100">
+                <div class="card shadow-lg">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Sivakasi Branch</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (sivakasiStocks.Any())
+                        {
+                            int sno = 1;
+                            <table class="table table-bordered table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>S. No.</th>
+                                        <th>Product ID</th>
+                                        <th>Product Name</th>
+                                        <th>Available Quantity</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+
+                                    @foreach (var stock in filteredSivakasiStocks)
+                                    {
+
+                                        <tr>
+                                            <td style="cursor:pointer;">@(sno++)</td>
+                                            <td>@stock.ProductID</td>
+                                            <td>@stock.Product.Brand - @stock.Product.Size @stock.Product.Pattern (@stock.Product.TubeOrTubeless)</td>
+                                            <td>@stock.AvailableQuantity</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center">No records for Sivakasi.</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+        @if (showByPass)
+        {
+            <div class="col-md-6 mt-5 w-100">
+                <div class="card shadow-lg">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Bypass Branch</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (bypassStocks.Any())
+                        {
+                            int sno = 0;
+                            <table class="table table-bordered table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>S. No.</th>
+                                        <th>Product ID</th>
+                                        <th>Product Name</th>
+                                        <th>Available Quantity</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var stock in filteredBypassStocks)
+                                    {
+
+                                        <tr>
+                                            <td style="cursor:pointer;">@(sno++)</td>
+                                            <td>@stock.ProductID</td>
+                                            <td>@stock.Product.Brand - @stock.Product.Size @stock.Product.Pattern (@stock.Product.TubeOrTubeless)</td>
+                                            <td>@stock.AvailableQuantity</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center">No records for Bypass.</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    List<StockType> stockDetails = new();
+    List<StockType> sivakasiStocks = new();
+    List<StockType> bypassStocks = new();
+    List<StockType> filteredSivakasiStocks = new();
+    List<StockType> filteredBypassStocks = new();
+
+    bool isAdmin = false;
+    string branch = "";
+    bool showSivakasi = false;
+    bool showByPass = false;
+    string searchQuery = "";
+    string selectedSortOption = "month";
+    DateTime? startDate;
+    DateTime? endDate;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (FormFactor.GetFormFactor() == "Web")
+        {
+            Debug.WriteLine("Web");
+        }
+        else
+        {
+            Debug.WriteLine("Desktop");
+        }
+        string query = @"SELECT s.*, p.* FROM Stock s JOIN Product p ON s.ProductID = p.ProductID";
+        var stocks = await DatabaseHandler.ExecuteQueryAsync(query);
+        if(stocks.Count > 0)
+        {
+            foreach(var row in stocks)
+            {
+                TaxRate taxRate;
+                if (!Enum.TryParse(row["TaxRate"].ToString(), out taxRate))
+                {
+                    taxRate = TaxRate.TAX_28; // or any default value
+                }
+                stockDetails.Add(new StockType
+                {
+                        ProductID = row["ProductID"].ToString() ?? "",
+                        Product = new ProductType
+                        {
+                            ProductID = row["ProductID"].ToString() ?? "",
+                            Brand = row["Brand"].ToString() ?? "",
+                            Size = row["Size"].ToString() ?? "",
+                            HSNCode = row["HSNCode"].ToString() ?? "",
+                            Pattern = row["Pattern"].ToString() ?? "",
+                            TubeOrTubeless = row["TubeOrTubeless"].ToString() ?? "",
+                            Price = Double.Parse(row["Price"].ToString() ?? "0"),
+                            AvailableQuantity = Int32.Parse(row["AvailableQuantity"].ToString() ?? "0"),
+                            Branch = row["Branch"].ToString() ?? "",
+                            TaxRate = taxRate,
+                        },
+                        AvailableQuantity = Int32.Parse(row["AvailableQuantity"].ToString() ?? "0"),
+                        Branch = row["Branch"].ToString() ??""
+
+                });
+            }
+            branch = await MyLocalStorageService.GetItemAsync("Branch") ?? "";
+            showSivakasi = branch == "Sivakasi";
+            showByPass = !showSivakasi;
+            sivakasiStocks = stockDetails.Where(b => b.Branch == "Sivakasi").ToList();
+            bypassStocks = stockDetails.Where(b => b.Branch == "ByPass").ToList();
+            filteredSivakasiStocks = sivakasiStocks;
+            filteredBypassStocks = bypassStocks;
+
+        }
+
+    }
+
+    void FilterStock(ChangeEventArgs e)
+    {
+        string temp = e.Value.ToString();
+
+        
+
+        filteredSivakasiStocks = sivakasiStocks.Where(s => s.ProductID.Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+            s.Product.Pattern.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+            s.Product.Size.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+            s.Product.Brand.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+            s.Product.BrandID.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        filteredBypassStocks = bypassStocks.Where(s => s.ProductID.Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+        s.Product.Pattern.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+        s.Product.Size.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+        s.Product.Brand.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+        s.Product.BrandID.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        StateHasChanged();
+    }
+
+
+}

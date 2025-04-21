@@ -3,6 +3,7 @@
 @using AutoDynamics.Shared.Modals
 @using AutoDynamics.Shared.Services
 @using AutoDynamics.Shared.Pages.Components
+@using AutoDynamics.Shared.Modals.PurchaseTypes
 @using System.Diagnostics
 @inject IDatabaseHandler DatabaseHandler
 @inject IAlertService AlertService
@@ -129,7 +130,8 @@
         <tbody>
             @foreach (var item in BillItems)
             {
-                <tr>
+
+                <tr style="@((item.itemOutOfStock) ? "background:red;" : "")">
                     <td>
                         <select disabled="@isViewing" autocomplete="off" class="form-select" @bind="item.ItemType">
                             <option value="SERVICE">Service</option>
@@ -150,25 +152,32 @@
                     }
                     else
                     {
-                        <td>
-                            <select disabled="@isViewing" autocomplete="off" class="form-select" @bind="item.ItemName">
-                                <option>Select a Product</option>
-                                @foreach (ProductType product in products)
-                                {
-                                    <option value="@product.ProductID">@product.Brand</option>
-                                }
-                            </select>
+                        <td style="min-width:140px">
+                            <input disabled="@isViewing" @bind-value="item.ItemName" @onkeydown="HandleProductKey" autocomplete="off" type="text" @oninput="OnProductsSearch" class="form-control " placeholder="Search by ID, Name" required>
+                            <SearchSelect @ref="productListRef" Items="filteredProducts" OnSelect="@(c=> {
+                                                                                                        item.ItemID = c.ProductID;ProductSearch = $"{c.Brand} - {c.Size} - {c.Pattern} ({c.TubeOrTubeless})";
+                                                                                                        item.ItemName = $"{c.Brand} - {c.Size} - {c.Pattern} ({c.TubeOrTubeless})";item.TaxRate = c.TaxRate;item.HSNCode = c.HSNCode;item.AvailableQuantity = c.AvailableQuantity;item.Branch=c.Branch;
+                                                                                                        item.isItemSelected = true;
+                                                                                                        showProductsSuggestion = false; StateHasChanged();
+                                                                                                 })" T="ProductType" showSuggestions="showProductsSuggestion" ShowSuggestionsChanged="@((bool val) => showProductsSuggestion = val)">
+                                <ItemTemplate Context="cust">
+                                    <div>@cust.Brand - @cust.Size - @cust.Pattern (@cust.TubeOrTubeless) - (Branch: @cust.Branch    PCS:@cust.AvailableQuantity)</div>
+                                </ItemTemplate>
+                            </SearchSelect>
                         </td>
                     }
-                    <td><input disabled="@isViewing" autocomplete="off" type="number" class="form-control" @bind="item.Quantity" min="1"></td>
+                    <td>
+                        <input disabled="@isViewing" @oninput="(e)=>{CheckStock(item,Int32.Parse(e.Value.ToString()));}" autocomplete="off" type="number" class="form-control" @bind="item.Quantity" min="1">
+                    </td>
                     <td><input disabled="@isViewing" autocomplete="off" type="number" class="form-control" @bind="item.UnitPrice" min="0" step="0.01"></td>
 
                     @* Tax Calculation *@
                     @{
+
                         var total = item.Quantity * item.UnitPrice;
-                        item.TaxableValue = item.ItemType == "SERVICE" ? Math.Round(total / 1.18m, 2) : Math.Round(total / 1.28m, 2);
-                        var cgst = item.ItemType == "SERVICE" ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
-                        var sgst = item.ItemType == "SERVICE" ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
+                        item.TaxableValue = item.ItemType == "SERVICE" ? Math.Round(total / 1.18m, 2) : (item.TaxRate == TaxRate.TAX_18 ? Math.Round(total / 1.18m, 2):  Math.Round(total / 1.28m, 2));
+                        var cgst = item.ItemType == "SERVICE" ? Math.Round(item.TaxableValue * (9 / 100m), 2) :(item.TaxRate == TaxRate.TAX_18 ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2));
+                        var sgst = item.ItemType == "SERVICE" ? Math.Round(item.TaxableValue * (9 / 100m), 2) :(item.TaxRate == TaxRate.TAX_18 ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2));
                         item.TotalPrice = Math.Round(item.TaxableValue + cgst + sgst);
                     }
                     <td>@item.TaxableValue</td>
@@ -232,7 +241,9 @@
     [Parameter] public bool isUpdating { set; get; } = false;
     [Parameter] public BillDetails updateData { set; get; } = new();
     [Parameter] public bool isViewing {set;get;} = false;
+
     private string CustomerSearch = "";
+    private string ProductSearch = "";
     private string SelectedCustomer = "No Customer Selected";
     private string SelectedVehicle = "No Vehicle Selected";
     private bool ShowCustomerSuggestion = false;
@@ -247,6 +258,7 @@
     private decimal CashAmount = 0, BankAmount = 0, CardAmount = 0, UPIAmount = 0;
     private bool showCustomerForm = false;
     private bool showVehicleForm = false;
+    private bool showProductsSuggestion = false;
     private bool isAdmin = false;
     private bool isProcessing = false;
     private Bill bill = new();
@@ -266,6 +278,18 @@
 
     private SearchSelect<UserModal> customerListRef;
     private SearchSelect<VehicleType> vehicleListRef;
+    private SearchSelect<ProductType> productListRef;
+
+    private void CheckStock(BillItem item,int quantity)
+    {
+        if (item.isItemSelected && item.ItemType == "PRODUCT")
+        {
+            item.itemOutOfStock = quantity > item.AvailableQuantity;
+            Debug.WriteLine($"Item Quantity = {quantity}");
+            Debug.WriteLine($"Available Quantity = {item.AvailableQuantity}");
+            StateHasChanged();
+        }
+    }
 
     public void HandleCustomerKey(KeyboardEventArgs e)
     {
@@ -275,6 +299,25 @@
     public void HandleVehicleKey(KeyboardEventArgs e)
     {
         vehicleListRef?.HandleKeyDown(e);
+    }
+
+    public void HandleProductKey(KeyboardEventArgs e)
+    {
+        productListRef?.HandleKeyDown(e);
+    }
+
+    public async void OnProductsSearch(ChangeEventArgs e)
+    {
+        string temp = e.Value.ToString() ?? "";
+        filteredProducts = products.Where(p => p.ProductID.Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+            p.Pattern.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+            p.Size.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+            p.Brand.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+            p.BrandID.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase)
+        ).ToList();
+
+        showProductsSuggestion = filteredProducts.Any();
+        StateHasChanged();
     }
 
     protected override async Task OnInitializedAsync()
@@ -383,14 +426,14 @@
         billPayment.CashAmount = CashAmount;
         billPayment.BankAmount = BankAmount;
         billPayment.UPIAmount = UPIAmount;
-        
+
         bill.Branch = SelectedBranch;
         bill.BillingYear = DateTime.Now.Year;
         bill.Discount = Discount;
         bill.TotalAmount = TotalAmount;
         bill.GrandTotal = GrandTotal;
 
-        
+
 
 
         BillDetails finalBill = new BillDetails
@@ -440,7 +483,7 @@
         string customerQuery = @"SELECT * FROM Customers";
         string vehicleQuery = @"SELECT * FROM Vehicle";
         string serviceQuery = @"SELECT * FROM Services";
-        string productsQuery = @"SELECT * FROM Product";
+        string productsQuery = @"SELECT s.*, p.* FROM Stock s JOIN Product p ON p.ProductID = s.ProductID";
 
         var res1 = await DatabaseHandler.ExecuteQueryAsync(customerQuery);
         var res2 = await DatabaseHandler.ExecuteQueryAsync(vehicleQuery);
@@ -493,14 +536,24 @@
         {
             foreach(var row in res4)
             {
+                TaxRate taxRate;
+                if (!Enum.TryParse(row["TaxRate"].ToString(), out taxRate))
+                {
+                    taxRate = TaxRate.TAX_28; // or any default value
+                }
+
                 products.Add(new ProductType
                 {
                     ProductID = row["ProductID"].ToString() ?? "",
                     Brand = row["Brand"].ToString() ?? "",
                     Size = row["Size"].ToString() ?? "",
+                    HSNCode = row["HSNCode"].ToString() ?? "",
                     Pattern = row["Pattern"].ToString() ?? "",
                     TubeOrTubeless = row["TubeOrTubeless"].ToString() ?? "",
                     Price = Double.Parse(row["Price"].ToString() ?? "0"),
+                    AvailableQuantity = Int32.Parse(row["AvailableQuantity"].ToString() ?? "0"),
+					Branch = row["Branch"].ToString() ?? "",
+					TaxRate =taxRate,
                 });
             }
         }

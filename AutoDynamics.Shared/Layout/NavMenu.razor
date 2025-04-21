@@ -83,15 +83,21 @@
                 new MenuType("View Purchase", "/purchase/view"),
             }
         }},
-        { 6, new MenuType("Suppliers", "#") {
+        { 6, new MenuType("Stock", "#") {
             SubMenus = new List<MenuType> {
-                new MenuType("Add Supplier", "/supplier/add"),
-                new MenuType("Manage Supplier", "/supplier/details"),
+                new MenuType("View Stock", "/stock"),
+               
             }
         }},
-        { 7, new MenuType("Services", "/services") {
+        { 7, new MenuType("Suppliers", "#") {
+            SubMenus = new List<MenuType> {
+                new MenuType("Add Supplier", "/supplier/add"),
+                new MenuType("Manage Supplier", "/supplier/manage"),
+            }
         }},
-        { 8, new MenuType("Credit Record", "/credit/details") {
+        { 8, new MenuType("Services", "/services") {
+        }},
+        { 9, new MenuType("Credit Record", "/credit/details") {
         }}
     };
 
