@@ -80,14 +80,11 @@
         { 5, new MenuType("Purchase", "#") {
             SubMenus = new List<MenuType> {
                 new MenuType("Add Purchase", "/purchase"),
-                new MenuType("View Purchase", "/purchase/view"),
+                new MenuType("View Purchase", "/list/purchaseBills"),
             }
         }},
-        { 6, new MenuType("Stock", "#") {
-            SubMenus = new List<MenuType> {
-                new MenuType("View Stock", "/stock"),
-               
-            }
+        { 6, new MenuType("Stock", "/stock") {
+            
         }},
         { 7, new MenuType("Suppliers", "#") {
             SubMenus = new List<MenuType> {

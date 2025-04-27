@@ -1,0 +1,27 @@
+@using AutoDynamics.Shared.Modals.ComponentsTypes
+
+@if (dialogBox.showDialog)
+{
+	<div class="d-flex flex-column justify-content-center align-items-center position-fixed top-50 start-50 translate-middle bg-white rounded shadow p-4" style="max-width: 500px; width: 100%; z-index: 1050;">
+		<div class="animate-zoom-in d-flex w-100 justify-content-between align-items-center border-bottom mb-3"> 
+			<h5 class="m-0">@dialogBox.Title</h5>
+			<button type="button" class="btn-close" aria-label="Close" @onclick="dialogBox.OnCloase"></button>
+		</div>
+		<div class="w-100 animate-zoom-in">
+			@dialogBox.body 
+		</div>
+		<div class="animate-zoom-in d-flex justify-content-end gap-2 mt-3">
+			@foreach (var footer in dialogBox.footers)
+			{
+				@footer.Button
+			}
+		</div>
+	</div>
+}
+
+
+@code{
+	[Parameter] public CustomDialogBox dialogBox {get;set;} = new();
+
+
+}

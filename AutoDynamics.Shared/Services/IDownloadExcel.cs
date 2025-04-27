@@ -9,6 +9,6 @@ namespace AutoDynamics.Shared.Services
 {
     public interface IDownloadExcel
     {
-        public string DownloadExcelToDevice(BillDetails[] data,string details);
+        public string DownloadExcelToDevice(BillDetails[] data,string details,string branch);
     }
 }

@@ -5,7 +5,20 @@
 @inject ICurrentData CurrentData
 @inject NavigationManager Navigation
 <h1 class="text-center mt-3">Product Deatils</h1>
+<div class="col-md-12 mb-3">
+    
+    <select class="form-select form-select-sm" @bind="selectedBrand">
+        <option value="">Select a Brand</option>
+        @foreach (var brand in Brands)
+        {
+            <option value="@brand.BrandName">@brand.BrandName</option>
+        }
+    </select>
+</div>
 
+<div class="col-md-12">
+    <input type="text" @oninput="(e)=>{FilterProduct(e);}" class="form-control" placeholder="Search by Product Id, Name" />
+</div>
 <div class="container mt-4">
     <div class="table-responsive">
         <table class="table table-striped table-bordered">
@@ -19,12 +32,12 @@
                     <th>Pattern</th>
                     <th>Tube or Tubeless</th>
                     <th>Price</th>
-                    
+
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                @if (products.Count == 0)
+                @if (filteredProducts.Count == 0)
                 {
                     <tr>
                         <td colspan="10" class="text-center text-muted">No customers found.</td>
@@ -32,7 +45,7 @@
                 }
                 else
                 {
-                    @foreach (var product in products)
+                    @foreach (var product in filteredProducts)
                     {
                         <tr>
                             <td>@product.ProductID</td>
@@ -43,7 +56,7 @@
                             <td>@product.Pattern</td>
                             <td>@product.TubeOrTubeless</td>
                             <td>@product.Price</td>
-                            
+
                             <td>
                                 <button class="btn btn-primary btn-sm" @onclick="() => ViewProduct(product)">View</button>
                                 <button class="btn btn-danger btn-sm" @onclick="() => UpdateProduct(product)">Update</button>
@@ -59,15 +72,37 @@
 @code {
     List<ProductType> products = new List<ProductType>();
 
+    List<ProductType> filteredProducts = new List<ProductType>();
+
+    List<BrandType> Brands = new List<BrandType>();
+    string selectedBrand = "";
+
     protected override async Task OnInitializedAsync()
     {
         await FetchData();
         StateHasChanged();
     }
+    void FilterProduct(ChangeEventArgs e)
+    {
+        string text = e.Value.ToString();
 
+        filteredProducts = products.Where(p =>
+    p.Brand == selectedBrand &&
+    (p.Size.Contains(text, StringComparison.OrdinalIgnoreCase) ||
+     p.Pattern.Contains(text, StringComparison.OrdinalIgnoreCase) ||
+     p.TubeOrTubeless.Contains(text, StringComparison.OrdinalIgnoreCase) ||
+     p.HSNCode.Contains(text, StringComparison.OrdinalIgnoreCase) ||
+     p.ProductID.Contains(text, StringComparison.OrdinalIgnoreCase)
+    )
+    ).ToList();
+
+
+        StateHasChanged();
+    }
     public async Task FetchData()
     {
         products.Clear();
+        filteredProducts.Clear();
         string fetchQuery = "SELECT * FROM Product";
 
         var result = await DatabaseHandler.ExecuteQueryAsync(fetchQuery);
@@ -90,8 +125,16 @@
                     LastUpdatedAt = row["LastUpdatedAt"].ToString() ?? "",
                     LastUpdatedBy = row["LastUpdatedBy"].ToString() ?? "",
                 });
+                Brands.Add(new BrandType
+                {
+                    BrandID = row["BrandID"].ToString() ?? "",
+                    BrandName = row["Brand"].ToString() ?? ""
+                });
             }
+            filteredProducts = products;
+            Brands = Brands.DistinctBy(b => b.BrandName).ToList();
         }
+        
 
     }
 

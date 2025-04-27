@@ -1,0 +1,227 @@
+@using AutoDynamics.Shared.Modals.ComponentsTypes
+@using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Pages.Components
+@using AutoDynamics.Shared.Services
+@inject IDatabaseHandler DatabaseHandler
+@inject IToastService ToastService
+@inject IMyLocalStorageService MyLocalStorageService
+<div class="container my-4">
+	<div class="row g-3 align-items-center">
+		@if (isAdmin)
+		{
+			<div class="col-md-4">
+				<label class="form-label fw-semibold">Branch</label>
+				<select autocomplete="off" class="form-select" @bind="selectedBranch">
+					<option value="">Select Branch</option>
+					<option value="Sivakasi">Sivakasi</option>
+					<option value="Bypass">Bypass</option>
+				</select>
+			</div>
+		}
+
+		<div class="col-md-4">
+			<label class="form-label fw-semibold">Search Brand</label>
+			<input @bind="searchBrand" @onkeydown="HandleBrandKey" @oninput="OnBrandsSearch"
+			autocomplete="off" type="text" class="form-control" placeholder="Search by ID, Name" />
+
+			<SearchSelect @ref="brandListRef" Items="filteredBrands" OnSelect="@(br =>
+            {
+                selectedBrand.BrandID = br.BrandID;
+                selectedBrand.BrandName = br.BrandName;
+				searchBrand = br.BrandName;
+                showBrandSuggestions = false;
+                StateHasChanged();
+            })" T="BrandType" showSuggestions="showBrandSuggestions" ShowSuggestionsChanged="@((bool val) => showBrandSuggestions = val)">
+				<ItemTemplate Context="brand">
+					<div class="dropdown-item">@brand.BrandName</div>
+				</ItemTemplate>
+			</SearchSelect>
+		</div>
+
+		<div class="col-md-4">
+			<label class="form-label fw-semibold">Search Product</label>
+			<input @bind="searchProduct" @onkeydown="HandleProductkey" @oninput="OnProductsSearch"
+			autocomplete="off" type="text" class="form-control" placeholder="Search by ID, Name" />
+
+			<SearchSelect @ref="productListRef" Items="filteredProducts" OnSelect="@(c =>
+            {
+                stock.ProductID = c.ProductID;
+                searchProduct = $"{c.Size} - {c.Pattern} ({c.TubeOrTubeless})";
+                showProductSuggestions = false;
+                StateHasChanged();
+            })" T="ProductType" showSuggestions="showProductSuggestions" ShowSuggestionsChanged="@((bool val) => showProductSuggestions = val)">
+				<ItemTemplate Context="cust">
+					<div class="dropdown-item">@cust.Size - @cust.Pattern (@cust.TubeOrTubeless)</div>
+				</ItemTemplate>
+			</SearchSelect>
+		</div>
+
+		<div class="col-md-4">
+			<label class="form-label fw-semibold">Available Quantity</label>
+			<input @bind="stock.AvailableQuantity" type="number" min="1" step="0.01" class="form-control" placeholder="Enter Quantity" />
+		</div>
+
+		<div class="col-12 d-flex justify-content-end mt-3">
+			<button class="btn btn-primary" @onclick="HandleSubmit">Submit</button>
+		</div>
+	</div>
+
+
+
+	@if (isLoading)
+	{
+		<div class="d-flex justify-content-center align-items-center mt-5">
+			<Loader />
+		</div>
+	}
+</div>
+
+@code
+{
+
+	public StockType stock { get; set; } = new();
+	public BrandType selectedBrand { get; set; } = new();
+
+	public bool isAdmin = false;
+	public string selectedBranch = "";
+
+	public List<BrandType> brands { get; set; } = new();
+	public List<ProductType> products { get; set; } = new();
+
+	public List<BrandType> filteredBrands { get; set; } = new();
+	public List<ProductType> filteredProducts { get; set; } = new();
+
+	public string searchBrand { get; set; } = string.Empty;
+	public string searchProduct { get; set; } = string.Empty;
+
+	public SearchSelect<BrandType> brandListRef { get; set; }
+	public SearchSelect<ProductType> productListRef { get; set; }
+
+	public bool showProductSuggestions = false;
+	public bool showBrandSuggestions = false;
+
+	public bool isLoading { get; set; } = true;
+
+	public void HandleBrandKey(KeyboardEventArgs e)
+	{
+		brandListRef?.HandleKeyDown(e);
+	}
+	public void HandleProductkey(KeyboardEventArgs e)
+	{
+		productListRef?.HandleKeyDown(e);
+	}
+	protected override async Task OnInitializedAsync()
+	{
+		isLoading = true;
+		isAdmin = await MyLocalStorageService.GetItemAsync("IsAdmin") == "true" ? true : false;
+
+		if (!isAdmin)
+		{
+			string branch = await MyLocalStorageService.GetItemAsync("Branch") ?? "";
+			selectedBranch = branch;
+		}
+		try
+		{
+			await LoadBrands();
+			await LoadProducts();
+		}
+		catch(Exception e)
+		{
+			ToastService.ShowToast(e.Message, ToastType.error);
+		}
+
+		isLoading = false;
+	}
+	public async Task HandleSubmit()
+	{
+		try
+		{
+			string query = "Insert into Stock (ProductID, Branch, AvailableQuantity) values (@ProductID, @Branch, @AvailableQuantity)";
+
+			var parameters = new Dictionary<string, object>
+			{
+				{ "@ProductID", stock.ProductID },
+				{ "@Branch", selectedBranch },
+				{ "@AvailableQuantity", stock.AvailableQuantity }
+			};
+
+			await DatabaseHandler.ExecuteNonQueryAsync(query, parameters);
+			searchBrand = "";
+			stock = new();
+			searchProduct = "";
+			ToastService.ShowToast("Stock Created Successfully", ToastType.sucess);
+		}
+		catch(Exception e)
+		{
+			ToastService.ShowToast(e.Message, ToastType.error);
+		}
+	}
+	private async Task LoadBrands()
+	{
+		
+		string query = "SELECT * FROM Brands";
+		var result = await DatabaseHandler.ExecuteQueryAsync(query);
+		if (result.Count > 0)
+		{
+			foreach(var row in result)
+			{
+				brands.Add(new BrandType
+				{
+					BrandID = row["BrandID"].ToString() ?? "",
+					BrandName = row["BrandName"].ToString() ?? "",
+					BrandShortForm = row["BrandShortForm"].ToString() ?? "",
+				});
+			}
+		}
+	}
+
+	private async Task LoadProducts()
+	{
+		string query = "SELECT * FROM Product";
+		var result = await DatabaseHandler.ExecuteQueryAsync(query);
+		foreach (var row in result)
+		{
+			products.Add(new ProductType
+				{
+					ProductID = row["ProductID"].ToString() ?? "",
+					Brand = row["Brand"].ToString() ?? "",
+					Size = row["Size"].ToString() ?? "",
+					Pattern = row["Pattern"].ToString() ?? "",
+					TubeOrTubeless = row["TubeOrTubeless"].ToString() ?? "",
+				});
+		}
+	}
+
+	public async void OnProductsSearch(ChangeEventArgs e)
+	{
+
+		string temp = e.Value.ToString() ?? "";
+		filteredProducts = products.Where(p =>
+	p.Brand == selectedBrand.BrandName &&
+	(p.ProductID.Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+		p.Pattern.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+		p.Size.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase))
+	).ToList();
+
+
+		showProductSuggestions = filteredProducts.Any();
+		StateHasChanged();
+	}
+
+	public async void OnBrandsSearch(ChangeEventArgs e)
+	{
+		string temp = e.Value.ToString() ?? "";
+		filteredBrands = brands.Where(b => b.BrandID.Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+			b.BrandName.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+			b.BrandShortForm.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase)
+
+		).ToList();
+
+		showBrandSuggestions = filteredBrands.Any();
+
+		StateHasChanged();
+	}
+
+
+
+}

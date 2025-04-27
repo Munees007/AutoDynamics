@@ -45,18 +45,34 @@ namespace AutoDynamics.Services
                     : "BPR" + bill.BillNo.ToString().PadLeft(4, '0');
 
                 // --- SERVICE ITEMS (Tax 18%) ---
-                var serviceItems = bill.BillItems
+                var serviceItems = bills[row].BillItems
                     .Where(i => i.ItemType == "SERVICE")
                     .ToList();
 
                 if (serviceItems.Any())
                 {
-                    decimal serviceTotal = serviceItems.Sum(i => i.TotalPrice);
-                    var taxableValue = Math.Round(serviceTotal / 1.18m, 2);
-                    var cgst = Math.Round(taxableValue * 0.09m, 2);
-                    var sgst = Math.Round(taxableValue * 0.09m, 2);
-                    var roundingDiffRaw = serviceTotal - (taxableValue + cgst + sgst);
-                    var roundingDiff = roundingDiffRaw > 0 ? Math.Round(roundingDiffRaw, 2) : 0m;
+                    var totalCGST = 0m;
+                    var totalSGST = 0m;
+                    var totalQuantity = 0;
+                    var totalTaxableAmount = 0m;
+                    foreach (var item in serviceItems)
+                    {
+                        var cgstRate =  9;
+                        var sgstRate =9;
+                        var cgstAmt = Math.Round(item.TaxableValue * (cgstRate / 100m), 2);
+                        var sgstAmt = Math.Round(item.TaxableValue * (sgstRate / 100m), 2);
+
+                        totalCGST += cgstAmt;
+                        totalSGST += sgstAmt;
+                        totalQuantity += item.Quantity;
+                        totalTaxableAmount += item.TaxableValue;
+                    }
+
+                    var computedTotal = totalTaxableAmount + totalCGST + totalSGST;
+
+                    // ✅ Rounding difference
+                    var roundingDiffRaw = bill.TotalAmount - computedTotal;
+                    var roundingDiff = Math.Round(roundingDiffRaw, 2);
 
                     ws.Cell(excelRow, 1).Value = bill.BillDate.ToString("dd-MM-yyyy");
                     ws.Cell(excelRow, 2).Value = 998729; // Fixed SAC Code for service
@@ -66,27 +82,46 @@ namespace AutoDynamics.Services
                     ws.Cell(excelRow, 6).Value = bill.Vehicle.ModelName;
                     ws.Cell(excelRow, 7).Value = customer.GSTIN;
                     ws.Cell(excelRow, 8).Value = 18;
-                    ws.Cell(excelRow, 9).Value = taxableValue;
-                    ws.Cell(excelRow, 10).Value = cgst;
-                    ws.Cell(excelRow, 11).Value = sgst;
+                    ws.Cell(excelRow, 9).Value = totalTaxableAmount;
+                    ws.Cell(excelRow, 9).Style.NumberFormat.Format = "0.00";
+                    ws.Cell(excelRow, 10).Value = totalCGST;
+                    ws.Cell(excelRow, 10).Style.NumberFormat.Format = "0.00";
+                    ws.Cell(excelRow, 11).Value = totalSGST;
+                    ws.Cell(excelRow, 11).Style.NumberFormat.Format = "0.00";
                     ws.Cell(excelRow, 12).Value = roundingDiff;
-                    ws.Cell(excelRow, 13).Value = serviceTotal;
+                    ws.Cell(excelRow, 13).Value = bill.TotalAmount;
                     excelRow++;
                 }
 
                 // --- PRODUCT ITEMS with TaxRate.TAX_28 ---
-                var productItems = bill.BillItems
+                var productItems = bills[row].BillItems
                     .Where(i => i.ItemType == "PRODUCT" && i.TaxRate == TaxRate.TAX_28)
                     .GroupBy(i => i.HSNCode); // Group by HSN if multiple
 
                 foreach (var hsnGroup in productItems)
                 {
-                    decimal productTotal = hsnGroup.Sum(i => i.TotalPrice);
-                    var taxableValue = Math.Round(productTotal / 1.28m, 2);
-                    var cgst = Math.Round(taxableValue * 0.14m, 2);
-                    var sgst = Math.Round(taxableValue * 0.14m, 2);
-                    var roundingDiffRaw = productTotal - (taxableValue + cgst + sgst);
-                    var roundingDiff = roundingDiffRaw > 0 ? Math.Round(roundingDiffRaw, 2) : 0m;
+                    var totalCGST = 0m;
+                    var totalSGST = 0m;
+                    var totalQuantity = 0;
+                    var totalTaxableAmount = 0m;
+                    foreach (var item in serviceItems)
+                    {
+                        var cgstRate = 14;
+                        var sgstRate = 14;
+                        var cgstAmt = Math.Round(item.TaxableValue * (cgstRate / 100m), 2);
+                        var sgstAmt = Math.Round(item.TaxableValue * (sgstRate / 100m), 2);
+
+                        totalCGST += cgstAmt;
+                        totalSGST += sgstAmt;
+                        totalQuantity += item.Quantity;
+                        totalTaxableAmount += item.TaxableValue;
+                    }
+
+                    var computedTotal = totalTaxableAmount + totalCGST + totalSGST;
+
+                    // ✅ Rounding difference
+                    var roundingDiffRaw = bill.TotalAmount - computedTotal;
+                    var roundingDiff = Math.Round(roundingDiffRaw, 2);
 
                     string hsnCode = hsnGroup.Key;
 
@@ -98,11 +133,14 @@ namespace AutoDynamics.Services
                     ws.Cell(excelRow, 6).Value = bill.Vehicle.ModelName;
                     ws.Cell(excelRow, 7).Value = customer.GSTIN;
                     ws.Cell(excelRow, 8).Value = 28;
-                    ws.Cell(excelRow, 9).Value = taxableValue;
-                    ws.Cell(excelRow, 10).Value = cgst;
-                    ws.Cell(excelRow, 11).Value = sgst;
+                    ws.Cell(excelRow, 9).Value = totalTaxableAmount;
+                    ws.Cell(excelRow, 9).Style.NumberFormat.Format = "0.00";
+                    ws.Cell(excelRow, 10).Value = totalCGST;
+                    ws.Cell(excelRow, 10).Style.NumberFormat.Format = "0.00";
+                    ws.Cell(excelRow, 11).Value = totalSGST;
+                    ws.Cell(excelRow, 11).Style.NumberFormat.Format = "0.00";
                     ws.Cell(excelRow, 12).Value = roundingDiff;
-                    ws.Cell(excelRow, 13).Value = productTotal;
+                    ws.Cell(excelRow, 13).Value = bill.TotalAmount;
                     excelRow++;
                 }
             }

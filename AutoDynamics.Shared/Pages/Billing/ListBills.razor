@@ -1,9 +1,12 @@
 ﻿@page "/bill/view"
 @using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Modals.ComponentsTypes
+@using AutoDynamics.Shared.Pages.Components
 @using AutoDynamics.Shared.Services
 @using System.Diagnostics
 @inject IDatabaseHandler DatabaseHandler
 @inject IAlertService AlertService
+@inject IToastService ToastService
 @inject IPDFGenerator PDFGenerator
 @inject IMyLocalStorageService MyLocalStorageService
 @inject NavigationManager Navigation
@@ -12,7 +15,7 @@
 @inject IFormFactor FormFactor
 @inject IDownloadExcel DownloadExcel
 <h3 class="text-center mb-4">Billing Details</h3>
-
+<DialoBox dialogBox="excelDialog"></DialoBox>
 <div class="mb-3">
     <input type="text" @bind="searchQuery" class="form-control" placeholder="Search by Bill No" />
 </div>
@@ -20,6 +23,7 @@
 <div class="mb-3">
     <label>Sort By: </label>
     <select @bind="selectedSortOption" class="form-control">
+        <option value="yesterday">Yesterday</option>
         <option value="date">Today</option>
         <option value="month">Month to Date</option>
         <option value="year">Year to Date</option>
@@ -34,7 +38,7 @@
 </div>
 <div class="w-100 d-flex justify-content-between align-items-md-center">
     <button class="btn btn-primary mb-3" @onclick="ApplyFilters">Apply Filters</button>
-    <button class="btn btn-success mb-3" @onclick="generateExcel">Download Excel</button>
+    <button class="btn btn-success mb-3" @onclick="()=>{excelDialog.showDialog = true;StateHasChanged();}">Download Excel</button>
 </div>
 @if (billDetails == null || !billDetails.Any())
 {
@@ -171,23 +175,35 @@ else
     bool showSivakasi = false;
     bool showByPass = false;
     string searchQuery = "";
-    string selectedSortOption = "month";
+    string selectedSortOption = "date";
     DateTime? startDate;
     DateTime? endDate;
 
+    string excelBranch = "";
+
+    CustomDialogBox excelDialog = new CustomDialogBox();
+
     public void generateExcel()
     {
-        var today = DateTime.Today;
-        var filtered = filteredSivakasiBills;
-        DateTime startOfMonth = new DateTime(today.Year, today.Month, 1);
+        try
+        {
+            var today = DateTime.Today;
+            var filtered = excelBranch == "Sivakasi" ? filteredSivakasiBills : filteredBypassBills;
+            DateTime startOfMonth = new DateTime(today.Year, today.Month, 1);
 
-        filtered = filtered
+            filtered = filtered
             .Where(b => b.Bill.BillDate.Date >= startOfMonth && b.Bill.BillDate.Date <= today.Date)
             .ToList();
 
-        string temp = $"{DateTime.Today:MMMM-yyyy}";
-        string savedPath = DownloadExcel.DownloadExcelToDevice(filtered.ToArray(),temp);
-        AlertService.ShowAlertAsync($"Excel Genration for the Month : {temp}", $"Saved at: {savedPath}", "Done");
+            string temp = $"{DateTime.Today:MMMM-yyyy}";
+            string savedPath = DownloadExcel.DownloadExcelToDevice(filtered.ToArray(), temp, excelBranch);
+            ToastService.ShowToast("Excel Genreated Successfully", ToastType.sucess);
+        }
+        catch(Exception e)
+        {
+            ToastService.ShowToast(e.Message, ToastType.error);
+        }
+
     }
 
     private void ViewBill(BillDetails bill)
@@ -203,27 +219,64 @@ else
     }
     async void DownloadBill(BillDetails data)
     {
-        if(FormFactor.GetFormFactor() == "Web")
+        try
         {
-            string path = await PDFGenerator.GeneratePdfAsync(data, JS);
-            await AlertService.ShowAlertAsync("Download PDF", path, "OK");
+            if (FormFactor.GetFormFactor() == "Web")
+            {
+                string path = await PDFGenerator.GeneratePdfAsync(data, JS);
+				ToastService.ShowToast("PDF Downloaded Successfully", ToastType.sucess);
+            }
+            else
+            {
+                string path = await PDFGenerator.GeneratePdfAsync(data, null);
+                ToastService.ShowToast("PDF Downloaded Successfully", ToastType.sucess);
+            }
         }
-        else
+        catch(Exception e)
         {
-            string path = await PDFGenerator.GeneratePdfAsync(data,null);
-            await AlertService.ShowAlertAsync("Download PDF", path, "OK");
+			ToastService.ShowToast(e.Message, ToastType.error);
         }
-
     }
     protected override async Task OnInitializedAsync()
     {
+        excelDialog = new CustomDialogBox
+        {
+            Title = "Download Excel",
+                    body = @<div class="mb-3">
+        <label for="branchSelect" class="form-label">Select Branch</label>
+        <select id="branchSelect" class="form-select" @bind="excelBranch">
+            <option value="Sivakasi">Sivakasi</option>
+            <option value="ByPass">ByPass</option>
+        </select>
+    </div>
+
+    ,
+            footers = new List<FooterBtn>
+            {
+                new FooterBtn
+                {
+                    Button = @<button class="btn btn-danger" @onclick="()=>{excelDialog.showDialog = false; StateHasChanged();}">CANCEL</button>
+                },
+                new FooterBtn
+                {
+                          Button = @<button class="btn btn-primary" @onclick="generateExcel">OK</button>
+	        	},
+            },
+            OnCloase = EventCallback.Factory.Create(this, async () =>
+            {
+                excelDialog.showDialog = false;
+                excelBranch = "";
+
+                StateHasChanged();
+            }),
+        };
         if(FormFactor.GetFormFactor() =="Web")
         {
             Debug.WriteLine("Web");
         }
         else
         {
-			Debug.WriteLine("Desktop");
+            Debug.WriteLine("Desktop");
         }
         billDetails = await DatabaseHandler.GetAllBillsAsync();
         isAdmin = await MyLocalStorageService.GetItemAsync("IsAdmin") == "true";
@@ -254,6 +307,11 @@ else
         if(selectedSortOption == "date")
         {
             filtered = filtered.Where(b => b.Bill.BillDate.Date == today.Date).ToList();
+        }
+
+        if(selectedSortOption == "yesterday")
+        {
+            filtered = filtered.Where(b => b.Bill.BillDate.Date == today.AddDays(-1)).ToList();
         }
 
         if (selectedSortOption == "month")

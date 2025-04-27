@@ -1,0 +1,39 @@
+/* Toast Container */
+.toast-success, .toast-warning, .toast-info, .toast-error {
+    padding: 1rem;
+    margin: 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    color: white;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    width: 300px;
+}
+
+/* Colors for Toast Types */
+.toast-success {
+    background-color: #28a745; /* Green */
+}
+
+.toast-warning {
+    background-color: #ffc107; /* Yellow */
+}
+
+.toast-info {
+    background-color: #17a2b8; /* Blue */
+}
+
+.toast-error {
+    background-color: #dc3545; /* Red */
+}
+
+/* Optional Close Button Styling */
+.btn-close {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 1rem;
+    margin-left: 1rem;
+}

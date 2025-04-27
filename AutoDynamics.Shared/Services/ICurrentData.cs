@@ -13,6 +13,7 @@ namespace AutoDynamics.Shared.Services
         Supplier,
         Vehicle,
         Bill,
+        Purchase,
         CreditRecord,
         Brand,
         Model,

@@ -1,0 +1,17 @@
+@page "/purchase/view";
+@using AutoDynamics.Shared.Pages
+@using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Modals.PurchaseTypes
+@using AutoDynamics.Shared.Services
+@inject ICurrentData CurrentData
+
+<AddPurchase isViewing="true" updateData="purchaseData"></AddPurchase>
+
+@code
+{
+	public PurchaseDetails purchaseData{ get; set; } = new PurchaseDetails();
+	protected override void OnInitialized()
+	{
+		purchaseData = CurrentData.Get<PurchaseDetails>(CurrentType.Purchase) ?? new();
+	}
+}

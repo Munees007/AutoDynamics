@@ -1,9 +1,28 @@
 ﻿using AutoDynamics.Shared.Modals.PurchaseTypes;
+using AutoDynamics.Shared.Pages.Components;
 
 namespace AutoDynamics.Shared.Modals
 {
     public class BillItem
     {
+
+        //field for PurchaseItems
+
+        public SearchSelect<ProductType> productListRef { set; get; }
+        public SearchSelect<BrandType> brandListRef { set; get; }
+        public int index { set; get; }
+        public bool showSuggestions { get; set; } = false;
+        public bool showBrandSuggestions { get; set; } = false;
+
+        public string ProductID { get; set; }     // Foreign key to Product table
+        public string ProductName { get; set; }
+        public string BrandName { get; set; }
+        public string BrandID { get; set; }
+        public ProductType Product { get; set; }  // Navigation property to the Product table
+        public BrandType Brand { get; set; }
+
+
+        //field for BillItem and Service
         public int BillItemID { get; set; }
         public int BillID { get; set; }
         public Bill Bill { get; set; } = null!;

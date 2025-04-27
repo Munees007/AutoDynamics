@@ -24,6 +24,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IPDFGenerator,PDFGenerator>();
         builder.Services.AddSingleton<IWhatsAppService,WhatsAppService>();
         builder.Services.AddSingleton<IDownloadExcel,DownloadExcel>();
+        builder.Services.AddSingleton<IToastService,ToastService>();
         builder.Services.AddScoped<IMyLocalStorageService, MyLocalStorageService>();
         builder.Services.AddScoped<IAlertService, AlertService>();
         

@@ -1,4 +1,5 @@
 ﻿using AutoDynamics.Shared.Modals;
+using AutoDynamics.Shared.Modals.PurchaseTypes;
 using AutoDynamics.Shared.Services;
 using MySql.Data.MySqlClient;
 using System.Data;
@@ -65,6 +66,187 @@ namespace AutoDynamics.Web.Services
             }
 
             return result;
+        }
+        public async Task<int> InsertPurchaseBillAsync(Purchase purchaseBill, List<PurchaseItems> purchaseItems, bool isUpdating)
+        {
+            int newBillNo = 1; // Default if no previous bills exist
+            int purchaseBillId = 0; // Stores the newly inserted PurchaseBillID
+
+            string insertPurchaseBillQuery = @"
+        INSERT INTO PurchaseBills (Branch, InvoiceNumber, BillingYear, BillNo, SupplierID, PaymentType, TaxType, PurchaseDate, TotalAmount, DiscountAmount, GrandTotal, Notes)
+        VALUES (@Branch, @InvoiceNumber, @BillingYear, @BillNo, @SupplierID, @PaymentType, @TaxType, @PurchaseDate, @TotalAmount, @DiscountAmount, @GrandTotal, @Notes);
+        SELECT LAST_INSERT_ID();";
+
+            using (var connection = new MySqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+
+                using (var transaction = await connection.BeginTransactionAsync())
+                {
+                    try
+                    {
+                        // 1. Get new BillNo if inserting (Transaction scoped)
+                        if (!isUpdating)
+                        {
+                            int currentYear = DateTime.Now.Year;
+                            int currentMonth = DateTime.Now.Month;
+                            int billingYear = (currentMonth >= 4) ? currentYear : currentYear - 1;  // If Apr-Dec -> Current Year, If Jan-Mar -> Previous Year
+                            purchaseBill.BillingYear = billingYear;
+
+                            string getLatestBillNoQuery = @"
+                        SELECT MAX(BillNo) FROM PurchaseBills
+                        WHERE Branch = @Branch AND BillingYear = @BillingYear";
+
+                            using (var command = new MySqlCommand(getLatestBillNoQuery, connection, (MySqlTransaction)transaction))
+                            {
+                                command.Parameters.AddWithValue("@Branch", purchaseBill.Branch);
+                                command.Parameters.AddWithValue("@BillingYear", purchaseBill.BillingYear);
+
+                                var result = await command.ExecuteScalarAsync();
+                                var maxBillValue = result;
+
+                                if (maxBillValue == DBNull.Value || maxBillValue == null)
+                                {
+                                    newBillNo = 1;
+                                }
+                                else
+                                {
+                                    newBillNo = Convert.ToInt32(maxBillValue) + 1;
+                                }
+                            }
+                        }
+
+                        // 2. Insert Purchase Bill
+                        using (var command = new MySqlCommand(insertPurchaseBillQuery, connection, (MySqlTransaction)transaction))
+                        {
+                            command.Parameters.AddWithValue("@Branch", purchaseBill.Branch);
+                            command.Parameters.AddWithValue("@InvoiceNumber", purchaseBill.InvoiceNumber);
+                            command.Parameters.AddWithValue("@BillingYear", purchaseBill.BillingYear);
+                            command.Parameters.AddWithValue("@BillNo", newBillNo);
+                            command.Parameters.AddWithValue("@SupplierID", purchaseBill.SupplierID);
+                            command.Parameters.AddWithValue("@PaymentType", purchaseBill.type.ToString());
+                            command.Parameters.AddWithValue("@TaxType", purchaseBill.taxType.ToString());
+                            command.Parameters.AddWithValue("@PurchaseDate", purchaseBill.PurchaseDate);
+                            command.Parameters.AddWithValue("@TotalAmount", purchaseBill.TotalAmount);
+                            command.Parameters.AddWithValue("@DiscountAmount", purchaseBill.DiscountAmount);
+                            command.Parameters.AddWithValue("@GrandTotal", purchaseBill.GrandTotal);
+                            command.Parameters.AddWithValue("@Notes", purchaseBill.Notes);
+
+                            if (isUpdating)
+                            {
+                                // Update existing purchase bill logic
+                                string updatePurchaseBillQuery = @"
+                            UPDATE PurchaseBills
+                            SET Branch = @Branch,
+                                InvoiceNumber = @InvoiceNumber,
+                                BillingYear = @BillingYear,
+                                SupplierID = @SupplierID,
+                                PaymentType = @PaymentType,
+                                TaxType = @TaxType,
+                                PurchaseDate = @PurchaseDate,
+                                TotalAmount = @TotalAmount,
+                                DiscountAmount = @DiscountAmount,
+                                GrandTotal = @GrandTotal,
+                                Notes = @Notes
+                            WHERE PurchaseBillID = @PurchaseBillID";
+
+                                command.CommandText = updatePurchaseBillQuery;
+                                command.Parameters.AddWithValue("@PurchaseBillID", purchaseBill.PurchaseBillID);
+
+                                await command.ExecuteNonQueryAsync();
+
+                                purchaseBillId = Convert.ToInt32(purchaseBill.PurchaseBillID); // use existing bill ID for update
+
+                                // Delete old purchase items linked to this bill
+                                var deleteItemsQuery = @"DELETE FROM PurchaseItems WHERE PurchaseBillID = @PurchaseBillID";
+                                using (var deleteCommand = new MySqlCommand(deleteItemsQuery, connection, (MySqlTransaction)transaction))
+                                {
+                                    deleteCommand.Parameters.AddWithValue("@PurchaseBillID", purchaseBillId);
+                                    await deleteCommand.ExecuteNonQueryAsync();
+                                }
+
+                                // Update stock for the purchase items
+                                foreach (var item in purchaseItems)
+                                {
+                                    string updateStockQuery = @"UPDATE Stock SET AvailableQuantity = AvailableQuantity - @Quantity WHERE ProductID = @ProductID AND Branch = @Branch";
+                                    using (var stockCommand = new MySqlCommand(updateStockQuery, connection, (MySqlTransaction)transaction))
+                                    {
+                                        stockCommand.Parameters.AddWithValue("@ProductID", item.ProductID);
+                                        stockCommand.Parameters.AddWithValue("@Quantity", item.Quantity);
+                                        stockCommand.Parameters.AddWithValue("@Branch", purchaseBill.Branch);
+                                        await stockCommand.ExecuteNonQueryAsync();
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                // Insert new purchase bill
+                                var result = await command.ExecuteScalarAsync();
+                                purchaseBillId = Convert.ToInt32(result);
+                                if (purchaseBillId <= 0)
+                                {
+                                    throw new Exception("Failed to insert Purchase Bill");
+                                }
+                            }
+                        }
+
+                        // 3. Insert Purchase Items and update Stock
+                        foreach (var item in purchaseItems)
+                        {
+                            string insertItemQuery = @"
+                        INSERT INTO PurchaseItems (PurchaseBillID, ProductID, ItemName, Quantity, DiscountType, DiscountValue, DiscountScope, TaxRate, Fright, UnitPrice, TotalPrice)
+                        VALUES (@PurchaseBillID, @ProductID, @ItemName, @Quantity, @DiscountType, @DiscountValue, @DiscountScope, @TaxRate, @Fright, @UnitPrice, @TotalPrice)";
+
+                            using (var itemCommand = new MySqlCommand(insertItemQuery, connection, (MySqlTransaction)transaction))
+                            {
+                                itemCommand.Parameters.AddWithValue("@PurchaseBillID", purchaseBillId);
+                                itemCommand.Parameters.AddWithValue("@ProductID", item.ProductID);
+                                itemCommand.Parameters.AddWithValue("@ItemName", item.ProductName);
+                                itemCommand.Parameters.AddWithValue("@Quantity", item.Quantity);
+                                itemCommand.Parameters.AddWithValue("@DiscountType", item.DiscountType.ToString());
+                                itemCommand.Parameters.AddWithValue("@DiscountValue", item.DiscountValue);
+                                itemCommand.Parameters.AddWithValue("@DiscountScope", item.DiscountScope.ToString());
+                                itemCommand.Parameters.AddWithValue("@TaxRate", item.TaxRate.ToString());
+                                itemCommand.Parameters.AddWithValue("@Fright", item.FrightValue);
+                                itemCommand.Parameters.AddWithValue("@UnitPrice", item.UnitPrice);
+                                itemCommand.Parameters.AddWithValue("@TotalPrice", item.TotalPrice);
+
+                                await itemCommand.ExecuteNonQueryAsync();
+
+                                // Update stock after each item insertion
+                                string updateStockQuery = @"
+                            INSERT INTO Stock (ProductID, Branch, AvailableQuantity, TaxRate)
+                            VALUES (@ProductID, @Branch, @AvailableQuantity, @TaxRate)
+                            ON DUPLICATE KEY UPDATE
+                                AvailableQuantity = AvailableQuantity + @AvailableQuantity";
+
+                                using (var stockCommand = new MySqlCommand(updateStockQuery, connection, (MySqlTransaction)transaction))
+                                {
+                                    stockCommand.Parameters.AddWithValue("@ProductID", item.ProductID);
+                                    stockCommand.Parameters.AddWithValue("@AvailableQuantity", item.Quantity);
+                                    stockCommand.Parameters.AddWithValue("@Branch", purchaseBill.Branch);
+                                    stockCommand.Parameters.AddWithValue("@TaxRate", item.TaxRate.ToString());
+
+                                    await stockCommand.ExecuteNonQueryAsync();
+                                }
+                            }
+                        }
+
+                        // Commit the transaction after all operations succeed
+                        await transaction.CommitAsync();
+                        //ToastService.ShowToast("Purchase Bill Added Successfully", ToastType.success);
+                        return purchaseBillId;
+                    }
+                    catch (Exception ex)
+                    {
+                        // Rollback the transaction in case of any error
+                        await transaction.RollbackAsync();
+                        Console.WriteLine("Error: " + ex.Message);
+                        //ToastService.ShowToast(ex.Message, ToastType.error);
+                        throw;
+                    }
+                }
+            }
         }
 
         public async Task<int[]> InsertBillAsync(Bill bill, List<BillItem> billItems, BillPayment billPayment, bool isUpdating)

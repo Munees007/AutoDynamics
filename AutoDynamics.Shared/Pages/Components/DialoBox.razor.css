@@ -1,0 +1,21 @@
+/* Overlay fade-in animation */
+@keyframes zoom-in {
+    from {
+        transform: scale(0);
+    }
+
+    to {
+        transform: scale(1);
+    }
+}
+
+
+
+/* Ensure animations do not block interaction */
+.animate-zoom-in {
+    transform:scale(0);
+    animation: zoom-in 1s ease-in-out forwards;
+}
+
+
+

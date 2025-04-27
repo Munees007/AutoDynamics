@@ -7,7 +7,7 @@ namespace AutoDynamics.Services
 {
     class DownloadExcel : IDownloadExcel
     {
-        public string DownloadExcelToDevice(BillDetails[] bills, string details)
+        public string DownloadExcelToDevice(BillDetails[] bills, string details,string branch)
         {
             ExcelService excelService = new ExcelService();
             string basePath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
@@ -18,8 +18,9 @@ namespace AutoDynamics.Services
             // Create the directory if it doesn't exist
             Directory.CreateDirectory(reportsPath);
 
+            string br = branch == "Sivakasi" ? "SFR" : "BPR";
             // Define the file path
-            string filePath = Path.Combine(reportsPath, $"{details}_Report.xlsx");
+            string filePath = Path.Combine(reportsPath, $"{details}_Report_{br}.xlsx");
             File.WriteAllBytes(filePath, excelService.GenerateExcel(bills,details));
 
             if(DeviceInfo.Platform == DevicePlatform.WinUI)

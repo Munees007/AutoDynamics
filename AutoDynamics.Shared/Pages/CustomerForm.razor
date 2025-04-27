@@ -23,7 +23,7 @@
 
         <div class="mb-3">
             <label for="gstIn" class="form-label">GSTIN:</label>
-            <input autocomplete="off" type="text" id="gstIn" class="form-control" maxlength="15" @bind="formData.GSTIN">
+            <input autocomplete="off"  type="text" id="gstIn" class="form-control" @bind="formData.GSTIN" @oninput="(e)=>{ValidateGSTIN(e);}">
         </div>
 
         <div class="mb-3">
@@ -159,6 +159,7 @@
     [Parameter] public EventCallback<UserModal> submitForm { get; set; }
     private List<UserModal> customers = new List<UserModal>();
     public bool ShowWarning = false;
+
     public IReadOnlyDictionary<string, object> additionalAttributes = new Dictionary<string, object>
     {
         {"autocomplete","off"}
@@ -179,6 +180,14 @@
             await FetchData();
         }
     }
+
+    private void ValidateGSTIN(ChangeEventArgs e)
+    {
+        // Remove any non-alphanumeric characters
+        var inputValue = e.Value.ToString().Trim();
+        formData.GSTIN = string.Concat(inputValue.Where(char.IsLetterOrDigit));
+    }
+
 
     public async Task FetchData()
     {
@@ -218,6 +227,18 @@
         if (data.Contact.Length != 10 || !data.Contact.All(char.IsDigit))
         {
             errors.Add("Contact must be exactly 10 digits and contain only numbers.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(data.GSTIN))
+        {
+            if (data.GSTIN.Trim().Length != 15)
+            {
+                errors.Add("GSTIN number must be 15 digits.");
+            }
+            else if (!data.GSTIN.Trim().All(char.IsDigit))
+            {
+                errors.Add("GSTIN must contain only digits.");
+            }
         }
         return errors;
     }

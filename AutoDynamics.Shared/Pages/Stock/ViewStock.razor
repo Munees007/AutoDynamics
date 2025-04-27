@@ -1,128 +1,161 @@
 @page "/stock"
 @using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Modals.ComponentsTypes
 @using AutoDynamics.Shared.Modals.PurchaseTypes
 @using AutoDynamics.Shared.Services
+@using AutoDynamics.Shared.Pages.Components
 @using System.Diagnostics
 @inject IDatabaseHandler DatabaseHandler
 @inject IAlertService AlertService
+@inject IToastService ToastService
 @inject IPDFGenerator PDFGenerator
 @inject IMyLocalStorageService MyLocalStorageService
 @inject NavigationManager Navigation
 @inject ICurrentData CurrentData
 @inject IJSRuntime JS
+@inject IToastService ToastService
 @inject IFormFactor FormFactor
-<h3 class="text-center mb-4">Stock Details</h3>
-
-<div class="mb-3">
-    <input type="text" @oninput="(e)=>{FilterStock(e);}" class="form-control" placeholder="Search by Product Id, Name" />
-</div>
-
-<div class="mb-3">
-
-    @if (selectedSortOption == "range")
-    {
-        <input type="date" @bind="startDate" class="form-control mt-2" />
-        <input type="date" @bind="endDate" class="form-control mt-2" />
-    }
-</div>
-<div class="w-100 d-flex justify-content-between align-items-md-center">
+<div>
+    <h3 class="text-center mb-4">Stock Details</h3>
+    <DialoBox dialogBox="addDialog"></DialoBox>
+    <div class="row mb-3">
+        <div class="col-md-10">
+            <input type="text" @oninput="(e)=>{FilterStock(e);}" class="form-control" placeholder="Search by Product Id, Name" />
+        </div>
+        <div class="col-md-2 d-flex align-items-center">
+            <button class="btn h-100 btn-success btn-sm w-100" @onclick="() => {addDialog.showDialog = true; StateHasChanged();}">
+                Add
+            </button>
+        </div>
+    </div>
 
 
-</div>
-@if (stockDetails == null || !stockDetails.Any())
-{
-    <div class="alert alert-warning text-center">No billing records found.</div>
-}
-else
-{
-    <div class="col">
-        @if (showSivakasi)
+    <div class="mb-3">
+
+        @if (selectedSortOption == "range")
         {
-            <div class="col-md-6 w-100">
-                <div class="card shadow-lg">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">Sivakasi Branch</h5>
-                    </div>
-                    <div class="card-body">
-                        @if (sivakasiStocks.Any())
-                        {
-                            int sno = 1;
-                            <table class="table table-bordered table-hover">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th>S. No.</th>
-                                        <th>Product ID</th>
-                                        <th>Product Name</th>
-                                        <th>Available Quantity</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-
-                                    @foreach (var stock in filteredSivakasiStocks)
-                                    {
-
-                                        <tr>
-                                            <td style="cursor:pointer;">@(sno++)</td>
-                                            <td>@stock.ProductID</td>
-                                            <td>@stock.Product.Brand - @stock.Product.Size @stock.Product.Pattern (@stock.Product.TubeOrTubeless)</td>
-                                            <td>@stock.AvailableQuantity</td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        }
-                        else
-                        {
-                            <p class="text-muted text-center">No records for Sivakasi.</p>
-                        }
-                    </div>
-                </div>
-            </div>
-        }
-        @if (showByPass)
-        {
-            <div class="col-md-6 mt-5 w-100">
-                <div class="card shadow-lg">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0">Bypass Branch</h5>
-                    </div>
-                    <div class="card-body">
-                        @if (bypassStocks.Any())
-                        {
-                            int sno = 0;
-                            <table class="table table-bordered table-hover">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th>S. No.</th>
-                                        <th>Product ID</th>
-                                        <th>Product Name</th>
-                                        <th>Available Quantity</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var stock in filteredBypassStocks)
-                                    {
-
-                                        <tr>
-                                            <td style="cursor:pointer;">@(sno++)</td>
-                                            <td>@stock.ProductID</td>
-                                            <td>@stock.Product.Brand - @stock.Product.Size @stock.Product.Pattern (@stock.Product.TubeOrTubeless)</td>
-                                            <td>@stock.AvailableQuantity</td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        }
-                        else
-                        {
-                            <p class="text-muted text-center">No records for Bypass.</p>
-                        }
-                    </div>
-                </div>
-            </div>
+            <input type="date" @bind="startDate" class="form-control mt-2" />
+            <input type="date" @bind="endDate" class="form-control mt-2" />
         }
     </div>
-}
+    <div class="w-100 d-flex justify-content-between align-items-md-center">
+
+
+    </div>
+    @if (stockDetails == null || !stockDetails.Any())
+    {
+        <div class="alert alert-warning text-center">No billing records found.</div>
+    }
+    else
+    {
+        <div class="col">
+            @if (showSivakasi)
+            {
+                <div class="col-md-6 w-100">
+                    <div class="card shadow-lg">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Sivakasi Branch</h5>
+                        </div>
+                        <div class="card-body">
+                            @if (sivakasiStocks.Any())
+                            {
+                                int sno = 1;
+                                <table class="table table-bordered table-hover">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>S. No.</th>
+                                            <th>Product ID</th>
+                                            <th>Brand</th>
+                                            <th>Size</th>
+                                            <th>Pattern</th>
+                                            <th>Type</th>
+                                            <th>Available Quantity</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+
+                                        @foreach (var stock in filteredSivakasiStocks)
+                                        {
+
+                                            <tr>
+                                                <td style="cursor:pointer;">@(sno++)</td>
+                                                <td>@stock.ProductID</td>
+                                                <td>@stock.Product.Brand</td>
+                                                <td>@stock.Product.Size</td>
+                                                <td>@stock.Product.Pattern</td>
+                                                <td>@stock.Product.TubeOrTubeless</td>
+                                                <td>@stock.AvailableQuantity</td>
+                                                <td><button class="btn btn-outline-success" @onclick="()=> {CurrentStock = stock;availabeStockPreviously = stock.AvailableQuantity; updateDialog.showDialog = true;StateHasChanged();}">CHANGE</button></td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                                <DialoBox dialogBox="updateDialog"></DialoBox>
+                            }
+                            else
+                            {
+                                <p class="text-muted text-center">No records for Sivakasi.</p>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+            @if (showByPass)
+            {
+                <div class="col-md-6 mt-5 w-100">
+                    <div class="card shadow-lg">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">Bypass Branch</h5>
+                        </div>
+                        <div class="card-body">
+                            @if (bypassStocks.Any())
+                            {
+                                int sno = 1;
+                                <table class="table table-bordered table-hover">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>S. No.</th>
+                                            <th>Product ID</th>
+                                            <th>Brand</th>
+                                            <th>Size</th>
+                                            <th>Pattern</th>
+                                            <th>Type</th>
+                                            <th>Available Quantity</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var stock in filteredBypassStocks)
+                                        {
+
+                                            <tr>
+                                                <td style="cursor:pointer;">@(sno++)</td>
+                                                <td>@stock.ProductID</td>
+                                                <td>@stock.Product.Brand</td>
+                                                <td>@stock.Product.Size</td>
+                                                <td>@stock.Product.Pattern</td>
+                                                <td>@stock.Product.TubeOrTubeless</td>
+                                                <td>@stock.AvailableQuantity</td>
+                                                <td><button class="btn btn-outline-success" @onclick="()=> {CurrentStock = stock;availabeStockPreviously = stock.AvailableQuantity; updateDialog.showDialog = true;StateHasChanged();}">CHANGE</button></td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                                <DialoBox dialogBox="updateDialog"></DialoBox>
+                            }
+                            else
+                            {
+                                <p class="text-muted text-center">No records for Bypass.</p>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
+        </div>
+    }
+</div>
 
 @code {
     List<StockType> stockDetails = new();
@@ -130,6 +163,12 @@ else
     List<StockType> bypassStocks = new();
     List<StockType> filteredSivakasiStocks = new();
     List<StockType> filteredBypassStocks = new();
+
+
+
+    StockType CurrentStock = new();
+
+    int availabeStockPreviously = 0;
 
     bool isAdmin = false;
     string branch = "";
@@ -141,8 +180,97 @@ else
     DateTime? endDate;
 
 
+    public CustomDialogBox updateDialog;
+    public CustomDialogBox addDialog;
+
+
+
+    private async Task HandleUpdateClick()
+    {
+
+        string UpdateQuery = @"UPDATE Stock Set AvailableQuantity = @AvailableQuantity WHERE ProductID = @ProductID";
+        Dictionary<string,object> param = new Dictionary<string, object>
+        {
+            {"@AvailableQuantity",CurrentStock.AvailableQuantity},
+            {"@ProductID",CurrentStock.ProductID}
+        };
+
+        await DatabaseHandler.ExecuteQueryAsync(UpdateQuery, param);
+        updateDialog.showDialog = false;
+        ToastService.ShowToast("Sucessfully Updated", ToastType.sucess);
+        // Add logic for what happens when the button is clicked.
+    }
     protected override async Task OnInitializedAsync()
     {
+        updateDialog = new CustomDialogBox
+	    {
+	    	Title = "Update Stock",
+	    	body = 
+    @<div class="container mt-4">
+        <div class="row justify-content-center">
+            <!-- Stock Details Card -->
+            <div class="col-lg-6 col-md-8 w-100">
+                <div class="card shadow-sm mb-4 w-100">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Stock Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2"><strong>Brand:</strong> @CurrentStock.Product.Brand</p>
+                        <p class="mb-2"><strong>Size:</strong> @CurrentStock.Product.Size</p>
+                        <p class="mb-2"><strong>Pattern:</strong> @CurrentStock.Product.Pattern</p>
+                        <p class="mb-2"><strong>Type:</strong> @CurrentStock.Product.TubeOrTubeless</p>
+                        <p class="mb-0"><strong>Available Stock:</strong> @CurrentStock.AvailableQuantity</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Buttons Section -->
+        <div class="row justify-content-center">
+            <div class="col-lg-6 col-md-8 text-center">
+                <div class="d-flex justify-content-around">
+                    <button class="btn btn-danger" @onclick="()=>{CurrentStock.AvailableQuantity--;StateHasChanged();}">-</button>
+                    <p class="my-auto">@CurrentStock.AvailableQuantity</p>
+                    <button class="btn btn-success" @onclick="()=>{CurrentStock.AvailableQuantity++;StateHasChanged();}">+</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    ,
+	    	footers = new List<FooterBtn>
+	        {
+                new FooterBtn
+                {
+                    Button = @<button class="btn btn-danger" @onclick="()=>{updateDialog.showDialog = false;CurrentStock.AvailableQuantity = availabeStockPreviously; StateHasChanged();}">CANCEL</button>
+                },
+	        	new FooterBtn
+	        	{
+                          Button = @<button class="btn btn-primary" @onclick="HandleUpdateClick">OK</button>
+	        	},
+
+	        },
+            OnCloase = EventCallback.Factory.Create(this, async () =>
+            {
+                updateDialog.showDialog = false;
+                CurrentStock.AvailableQuantity = availabeStockPreviously;
+
+                StateHasChanged();
+            }),
+
+	    };
+
+        addDialog = new CustomDialogBox
+        {
+            Title = "Create Stock",
+            body= @<CreateStock></CreateStock>, 
+            OnCloase = EventCallback.Factory.Create(this, async () =>
+            {
+                addDialog.showDialog = false;
+                await FetchData();
+                StateHasChanged();
+            }),
+        };
+
         if (FormFactor.GetFormFactor() == "Web")
         {
             Debug.WriteLine("Web");
@@ -151,11 +279,27 @@ else
         {
             Debug.WriteLine("Desktop");
         }
-        string query = @"SELECT s.*, p.* FROM Stock s JOIN Product p ON s.ProductID = p.ProductID";
-        var stocks = await DatabaseHandler.ExecuteQueryAsync(query);
-        if(stocks.Count > 0)
+        try
         {
-            foreach(var row in stocks)
+            await FetchData();
+        }
+        catch(Exception e)
+        {
+            ToastService.ShowToast(e.Message, ToastType.error);
+        }
+
+    }
+
+    async Task FetchData()
+    {
+        stockDetails.Clear();
+        string query = @"SELECT s.*, p.* FROM Stock s JOIN Product p ON p.ProductID = s.ProductID";
+
+        var stocks = await DatabaseHandler.ExecuteQueryAsync(query);
+        Debug.WriteLine(stocks.Count);
+        if (stocks.Count > 0)
+        {
+            foreach (var row in stocks)
             {
                 TaxRate taxRate;
                 if (!Enum.TryParse(row["TaxRate"].ToString(), out taxRate))
@@ -163,7 +307,7 @@ else
                     taxRate = TaxRate.TAX_28; // or any default value
                 }
                 stockDetails.Add(new StockType
-                {
+                    {
                         ProductID = row["ProductID"].ToString() ?? "",
                         Product = new ProductType
                         {
@@ -179,20 +323,19 @@ else
                             TaxRate = taxRate,
                         },
                         AvailableQuantity = Int32.Parse(row["AvailableQuantity"].ToString() ?? "0"),
-                        Branch = row["Branch"].ToString() ??""
+                        Branch = row["Branch"].ToString() ?? ""
 
-                });
+                    });
             }
-            branch = await MyLocalStorageService.GetItemAsync("Branch") ?? "";
-            showSivakasi = branch == "Sivakasi";
-            showByPass = !showSivakasi;
-            sivakasiStocks = stockDetails.Where(b => b.Branch == "Sivakasi").ToList();
-            bypassStocks = stockDetails.Where(b => b.Branch == "ByPass").ToList();
+            Debug.WriteLine(stockDetails.Count);
+            showSivakasi = true;
+            showByPass = true;
+            sivakasiStocks = stockDetails.Where(b => string.Equals(b.Branch, "Sivakasi", StringComparison.OrdinalIgnoreCase)).ToList();
+            bypassStocks = stockDetails.Where(b => string.Equals(b.Branch, "ByPass", StringComparison.OrdinalIgnoreCase)).ToList();
             filteredSivakasiStocks = sivakasiStocks;
             filteredBypassStocks = bypassStocks;
 
         }
-
     }
 
     void FilterStock(ChangeEventArgs e)

@@ -15,7 +15,9 @@ namespace AutoDynamics.Shared.Modals.PurchaseTypes
 
         public PaymentType type { get; set; } = PaymentType.CASH;
 
-        public string? InvoiceNumber { get; set; }
+        public TaxType taxType { get; set; } = TaxType.EXCLUSIVE_TAX;
+
+        public string InvoiceNumber { get; set; } = "";
 
         public string Branch { get; set; } = string.Empty;
         public int BillingYear { get; set; }
@@ -39,5 +41,11 @@ namespace AutoDynamics.Shared.Modals.PurchaseTypes
     {
         CASH,
         CREDIT
+    }
+
+    public enum TaxType
+    {
+        INCLUSIVE_TAX,
+        EXCLUSIVE_TAX
     }
 }

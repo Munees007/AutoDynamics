@@ -1,10 +1,12 @@
 ﻿
 @inherits LayoutComponentBase
+@using AutoDynamics.Shared.Pages.Components
 @inject NavigationManager Navigation
-
+@inject IToastService ToastService
 @using AutoDynamics.Shared.Services
 @inject IMyLocalStorageService MyLocalStorageService
 <div class="page" >
+    <CustomToast customToast="ToastService.toast" ></CustomToast>
     <div class="sidebar">
         <NavMenu />
     </div>
@@ -80,10 +82,19 @@
     protected override async Task OnInitializedAsync()
     {
 
-
+        ToastService.OnToastUpdated += RefreshToast;
         Navigation.LocationChanged += OnLocationChanged;
         history.Add(Navigation.Uri); // Store initial page
         historyIndex = 0;  
+    }
+
+    public void RefreshToast()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+    public void Dispose()
+    {
+        ToastService.OnToastUpdated -= RefreshToast;
     }
 
     protected override async void OnAfterRender(bool firstRender)

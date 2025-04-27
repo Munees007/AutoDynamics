@@ -1,6 +1,7 @@
 ﻿@page "/billing"
 @using System.Globalization
 @using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Modals.ComponentsTypes
 @using AutoDynamics.Shared.Services
 @using AutoDynamics.Shared.Pages.Components
 @using AutoDynamics.Shared.Modals.PurchaseTypes
@@ -11,6 +12,7 @@
 @inject IPDFGenerator PDFGenerator
 @inject IFormFactor FormFactor
 @inject IJSRuntime JS
+@inject IToastService ToastService
 <h3 class="text-primary">Billing</h3>
 
 <div class="container m-3 position-relative">
@@ -23,7 +25,7 @@
                 <select disabled="@isViewing" autocomplete="off" class="form-select" @bind="SelectedBranch">
                     <option value="">Select Branch</option>
                     <option value="Sivakasi">Sivakasi</option>
-                    <option value="Bypass">Bypass</option>
+                    <option value="ByPass">ByPass</option>
                 </select>
             </div>
         </div>
@@ -117,6 +119,7 @@
         <thead>
             <tr>
                 <th>Item Type</th>
+                <th>Brand</th>
                 <th>Item Name</th>
                 <th>Quantity</th>
                 <th>Unit Price</th>
@@ -128,9 +131,10 @@
             </tr>
         </thead>
         <tbody>
-            @foreach (var item in BillItems)
+            @for (int i=0;i<BillItems.Count;i++)
             {
-
+                var item = BillItems[i];
+                item.index = i;
                 <tr style="@((item.itemOutOfStock) ? "background:red;" : "")">
                     <td>
                         <select disabled="@isViewing" autocomplete="off" class="form-select" @bind="item.ItemType">
@@ -140,6 +144,9 @@
                     </td>
                     @if (item.ItemType == "SERVICE")
                     {
+                        <td>
+                            <input disabled="disabled"type="text">
+                        </td>
                         <td>
                             <select disabled="@isViewing" autocomplete="off" class="form-select" @bind="item.ItemName">
                                 <option>Select a Service</option>
@@ -153,15 +160,28 @@
                     else
                     {
                         <td style="min-width:140px">
-                            <input disabled="@isViewing" @bind-value="item.ItemName" @onkeydown="HandleProductKey" autocomplete="off" type="text" @oninput="OnProductsSearch" class="form-control " placeholder="Search by ID, Name" required>
-                            <SearchSelect @ref="productListRef" Items="filteredProducts" OnSelect="@(c=> {
+                            <input disabled="@isViewing" value="@item.BrandName" @onkeydown="(e)=>{HandleBrandKey(e,item.index);}" autocomplete="off" type="text" @oninput="(e)=>{OnBrandsSearch(e,item.index);}" class="form-control " placeholder="Search by ID, Name" required>
+                            <SearchSelect @ref="item.brandListRef" Items="filteredBrands" OnSelect="@(br=> {
+                                                                                                        item.BrandName = br.BrandName;
+                                                                                                        item.BrandID = br.BrandID;
+                                                                                                        item.showBrandSuggestions = false; StateHasChanged();
+                                                                                                 })" T="BrandType" showSuggestions="item.showBrandSuggestions" ShowSuggestionsChanged="@((bool val) => item.showBrandSuggestions = val)">
+                                <ItemTemplate Context="brand">
+                                    <div>@brand.BrandName</div>
+                                </ItemTemplate>
+                            </SearchSelect>
+                        </td>
+                        <td style="min-width:140px">
+                            <input disabled="@isViewing" value="@item.ProductName" @onkeydown="(e)=>{HandleProductKey(e,item.index);}" autocomplete="off" type="text" @oninput="(e)=>{OnProductsSearch(e,item.index);}" class="form-control " placeholder="Search by ID, Name" required>
+                            <SearchSelect @ref="item.productListRef" Items="filteredProducts" OnSelect="@(c=> {
                                                                                                         item.ItemID = c.ProductID;ProductSearch = $"{c.Brand} - {c.Size} - {c.Pattern} ({c.TubeOrTubeless})";
                                                                                                         item.ItemName = $"{c.Brand} - {c.Size} - {c.Pattern} ({c.TubeOrTubeless})";item.TaxRate = c.TaxRate;item.HSNCode = c.HSNCode;item.AvailableQuantity = c.AvailableQuantity;item.Branch=c.Branch;
                                                                                                         item.isItemSelected = true;
-                                                                                                        showProductsSuggestion = false; StateHasChanged();
-                                                                                                 })" T="ProductType" showSuggestions="showProductsSuggestion" ShowSuggestionsChanged="@((bool val) => showProductsSuggestion = val)">
+                                                                                                        item.ProductID = c.ProductID;ProductSearch = $"{c.Brand} {c.Size} - {c.Pattern} ({c.TubeOrTubeless})";item.ProductName = $"{c.Brand} {c.Size} - {c.Pattern} ({c.TubeOrTubeless})";item.Product = c;
+                                                                                                        item.showSuggestions = false; StateHasChanged();
+                                                                                                 })" T="ProductType" showSuggestions="item.showSuggestions" ShowSuggestionsChanged="@((bool val) => item.showSuggestions = val)">
                                 <ItemTemplate Context="cust">
-                                    <div>@cust.Brand - @cust.Size - @cust.Pattern (@cust.TubeOrTubeless) - (Branch: @cust.Branch    PCS:@cust.AvailableQuantity)</div>
+                                    <div>@cust.Size - @cust.Pattern (@cust.TubeOrTubeless) PCS:@cust.AvailableQuantity</div>
                                 </ItemTemplate>
                             </SearchSelect>
                         </td>
@@ -270,15 +290,59 @@
     private List<VehicleType> vehicles { set; get; } = new List<VehicleType>();
     private List<ServiceModal> services { set; get; } = new List<ServiceModal>();
     private List<ProductType> products { set; get; } = new List<ProductType>();
+    private List<BrandType> brands { set; get; } = new List<BrandType>();
 
     private List<UserModal> filteredCustomers { set; get; } = new List<UserModal>();
     private List<VehicleType> filteredVehicles { set; get; } = new List<VehicleType>();
     private List<ServiceModal> filteredServices { set; get; } = new List<ServiceModal>();
     private List<ProductType> filteredProducts { set; get; } = new List<ProductType>();
+    private List<BrandType> filteredBrands { set; get; } = new List<BrandType>();
 
     private SearchSelect<UserModal> customerListRef;
     private SearchSelect<VehicleType> vehicleListRef;
     private SearchSelect<ProductType> productListRef;
+
+    public void HandleProductKey(KeyboardEventArgs e, int index)
+    {
+        BillItems[index].productListRef?.HandleKeyDown(e);
+    }
+
+    public void HandleBrandKey(KeyboardEventArgs e, int index)
+    {
+        BillItems[index].brandListRef?.HandleKeyDown(e);
+    }
+
+
+    public async void OnProductsSearch(ChangeEventArgs e, int index)
+    {
+
+        string temp = e.Value.ToString() ?? "";
+        filteredProducts = products.Where(p =>
+    p.Brand == BillItems[index].BrandName &&
+    (p.ProductID.Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+     p.Pattern.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+     p.Size.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase))
+    ).ToList();
+
+
+        BillItems[index].showSuggestions = filteredProducts.Any();
+        StateHasChanged();
+    }
+
+    public async void OnBrandsSearch(ChangeEventArgs e, int index)
+    {
+        string temp = e.Value.ToString() ?? "";
+        filteredBrands = brands.Where(b => b.BrandID.Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+            b.BrandName.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+            b.BrandShortForm.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase)
+
+        ).ToList();
+
+        BillItems[index].showBrandSuggestions = filteredBrands.Any();
+
+        StateHasChanged();
+    }
+
 
     private void CheckStock(BillItem item,int quantity)
     {
@@ -442,29 +506,37 @@
                 BillItems = BillItems,
                 BillPayment = billPayment
             };
-        if(isUpdating)
+        try
         {
-            int[] temp = await DatabaseHandler.InsertBillAsync(bill, BillItems, billPayment, true);
-        }
-        else
-        {
-            int[] data = await DatabaseHandler.InsertBillAsync(bill, BillItems, billPayment, false);
-            bill.BillID = data[0];
-            finalBill.Bill.BillID = data[0];
-            bill.BillNo = data[1];
-            finalBill.Bill.BillNo = data[1];
-        }
+            if (isUpdating)
+            {
+                int[] temp = await DatabaseHandler.InsertBillAsync(bill, BillItems, billPayment, true);
+                ToastService.ShowToast("Bill Updated Successfully", ToastType.sucess);
+            }
+            else
+            {
+                int[] data = await DatabaseHandler.InsertBillAsync(bill, BillItems, billPayment, false);
+                bill.BillID = data[0];
+                finalBill.Bill.BillID = data[0];
+                bill.BillNo = data[1];
+                finalBill.Bill.BillNo = data[1];
+                ToastService.ShowToast("Bill Added Successfully", ToastType.sucess);
+            }
 
-        if (FormFactor.GetFormFactor() == "Web")
-        {
-            await PDFGenerator.GeneratePdfAsync(finalBill,JS);
+            if (FormFactor.GetFormFactor() == "Web")
+            {
+                await PDFGenerator.GeneratePdfAsync(finalBill, JS);
+            }
+            else
+            {
+                await PDFGenerator.GeneratePdfAsync(finalBill, null);
+            }
         }
-        else
+        catch (Exception e)
         {
-            await PDFGenerator.GeneratePdfAsync(finalBill,null);
+            ToastService.ShowToast(e.Message, ToastType.error);
         }
-
-        await AlertService.ShowAlertAsync("Billing", $"Bill Generated", "Done");
+       
         isProcessing = false;
         bill  = new Bill();
         BillItems = new List<BillItem>();
@@ -484,11 +556,13 @@
         string vehicleQuery = @"SELECT * FROM Vehicle";
         string serviceQuery = @"SELECT * FROM Services";
         string productsQuery = @"SELECT s.*, p.* FROM Stock s JOIN Product p ON p.ProductID = s.ProductID";
+        string brandsQuery = @"SELECT * FROM Brands";
 
         var res1 = await DatabaseHandler.ExecuteQueryAsync(customerQuery);
         var res2 = await DatabaseHandler.ExecuteQueryAsync(vehicleQuery);
         var res3 = await DatabaseHandler.ExecuteQueryAsync(serviceQuery);
         var res4 = await DatabaseHandler.ExecuteQueryAsync(productsQuery);
+        var res5 = await DatabaseHandler.ExecuteQueryAsync(brandsQuery);
 
         customers = new List<UserModal>();
         vehicles = new List<VehicleType>();
@@ -556,6 +630,20 @@
 					TaxRate =taxRate,
                 });
             }
+
+			products = products.Where(p => string.Equals(p.Branch ,SelectedBranch,StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+        if(res5.Count>0)
+        {
+            foreach(var row in res5)
+            {
+				brands.Add(new BrandType
+				{
+					BrandID = row["BrandID"].ToString() ?? "",
+					BrandName = row["BrandName"].ToString() ?? "",
+					BrandShortForm = row["BrandShortForm"].ToString() ?? "",
+				});
+            }
         }
     }
 
@@ -573,7 +661,7 @@
     {
         VehicleSearch = e.Value.ToString() ?? "";
 
-        VehicleSearch.Replace(" ", "").Replace(".", "");
+        // VehicleSearch.Replace(" ", "").Replace(".", "");
         SelectedVehicle = "No Vehicle Selected";
         if(string.IsNullOrWhiteSpace(VehicleSearch))
         {
@@ -584,8 +672,8 @@
         }
 
         filteredVehicles = vehicles.Where(v => 
-             v.CustomerID.Replace(" ", "").Replace(".", "").Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase) &&
-             v.VehicleNo.Replace(" ","").Replace(".","").Contains(VehicleSearch,StringComparison.OrdinalIgnoreCase)
+             v.CustomerID.Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase) &&
+             v.VehicleNo.Contains(VehicleSearch,StringComparison.OrdinalIgnoreCase)
          ).ToList();
 
 
@@ -607,7 +695,7 @@
     public async void OnCustomerSearch(ChangeEventArgs e)
     {
         CustomerSearch = e.Value.ToString() ?? "";
-        CustomerSearch.Replace(" ", "").Replace(".", "");
+        // CustomerSearch.Replace(" ", "").Replace(".", "");
         SelectedCustomer = "No Customer Selected";
         if(string.IsNullOrWhiteSpace(CustomerSearch))
         {
@@ -618,15 +706,15 @@
 
         filteredCustomers = customers
             .Where(c => c.CustomerId.Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase) ||
-                        c.Name.Replace(" ", "").Replace(".", "").Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase) ||
                         c.Contact.Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         if(VehicleSearch !="")
         {
             filteredVehicles = vehicles.Where(v =>
-             v.CustomerID.Replace(" ", "").Replace(".", "").Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase) &&
-             v.VehicleNo.Replace(" ", "").Replace(".", "").Contains(VehicleSearch, StringComparison.OrdinalIgnoreCase)
+             v.CustomerID.Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase) &&
+             v.VehicleNo.Contains(VehicleSearch, StringComparison.OrdinalIgnoreCase)
                 ).ToList();
 
             if(filteredVehicles.Any())

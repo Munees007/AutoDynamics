@@ -1,6 +1,7 @@
 ﻿@page "/purchase"
 @using System.Globalization
 @using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Modals.ComponentsTypes
 @using AutoDynamics.Shared.Modals.PurchaseTypes
 @using AutoDynamics.Shared.Services
 @using AutoDynamics.Shared.Pages.Components
@@ -10,13 +11,26 @@
 @inject IMyLocalStorageService MyLocalStorageService
 @inject IPDFGenerator PDFGenerator
 @inject IFormFactor FormFactor
+@inject IToastService ToastService
 @inject IJSRuntime JS
 @inject IDatabaseHandler DatabaseHandler
 <div class="position-absolute" style="max-width:100%">
     <h3 class="text-primary">Purchase</h3>
 
     <div class="container w-100">
-
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <label class="form-label">Invoice No:</label>
+                <input disabled="@isViewing" autocomplete="off" type="text" class="form-control" @bind="purchase.InvoiceNumber" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Tax Type:</label>
+                <select disabled="@isViewing" @bind="purchase.taxType" class="form-select" style="width:fit-content">
+                    <option value="@TaxType.INCLUSIVE_TAX">INCLUSIVE</option>
+                    <option value="@TaxType.EXCLUSIVE_TAX">EXCLUSIVE</option>
+                </select>
+            </div>
+        </div>
         <!-- Bill Details -->
         <div class="row">
             <div class="col-md-4">
@@ -39,14 +53,6 @@
                         <div>@cust.SupplierID - @cust.Name - @cust.Contact</div>
                     </ItemTemplate>
                 </SearchSelect>
-                @* <ul class="list-group position-absolute mt-1" style="z-index:1000;" hidden="@(!ShowCustomerSuggestion)"> *@
-                @*     @foreach (var customer in filteredCustomers) *@
-                @*     { *@
-                @*         <li style="cursor:pointer" class="list-group-item list-group-item-action" @onclick="() => SelectCustomer(customer)"> *@
-                @*             @customer.CustomerId - @customer.Name - @customer.Contact *@
-                @*         </li> *@
-                @*     } *@
-                @* </ul> *@
                 <p>@SelectedCustomer</p>
             </div>
             <div class="col-md-4">
@@ -78,13 +84,15 @@
             <table class="table table-bordered">
                 <thead>
                     <tr>
-                        <th style="min-width:300px">Item Name</th>
+                        <th style="min-width:100px">Brand</th>
+                        <th style="min-width:200px">Item</th>
                         <th style="min-width:100px">Quantity</th>
                         <th style="min-width:200px">Unit Price</th>
                         <th style="min-width:50px">Discount Type</th>
                         <th style="min-width:100px">Discount Value</th>
                         <th style="min-width:100px">Apply On</th>
                         <th style="min-width:80px">Tax Rate</th>
+                        <th style="min-width:80px">Fright</th>
                         <th style="min-width:150px">Taxable Value</th>
                         <th style="min-width:100px">CGST</th>
                         <th style="min-width:100px">SGST</th>
@@ -93,17 +101,33 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var item in purchaseItems)
+                    @for(int i=0;i<purchaseItems.Count;i++)
                     {
+                        var item = purchaseItems[i];
+                        item.index = i;
+
                         <tr>
                             <td style="min-width:140px">
-                                <input disabled="@isViewing" @bind-value="item.ProductName" @onkeydown="HandleProductKey"  autocomplete="off" type="text"   @oninput="OnProductsSearch" class="form-control " placeholder="Search by ID, Name" required>
-                                <SearchSelect @ref="productListRef" Items="filteredProducts" OnSelect="@(c=> {
-                                                                                                        item.ProductID = c.ProductID;ProductSearch = $"{c.Brand} - {c.Size} - {c.Pattern} ({c.TubeOrTubeless})";item.ProductName = $"{c.Brand} - {c.Size} - {c.Pattern} ({c.TubeOrTubeless})";item.Product = c;
-                                                                                                        showProductsSuggestion = false; StateHasChanged();
-                                                                                                 })" T="ProductType" showSuggestions="showProductsSuggestion" ShowSuggestionsChanged="@((bool val) => showProductsSuggestion = val)">
+                                <input disabled="@isViewing" value="@item.BrandName" @onkeydown="(e)=>{HandleBrandKey(e,item.index);}" autocomplete="off" type="text" @oninput="(e)=>{OnBrandsSearch(e,item.index);}" class="form-control " placeholder="Search by ID, Name" required>
+                                <SearchSelect @ref="item.brandListRef" Items="filteredBrands" OnSelect="@(br=> {
+                                                                                                        item.BrandName = br.BrandName;
+                                                                                                        item.BrandID = br.BrandID;
+                                                                                                        item.showBrandSuggestions = false; StateHasChanged();
+                                                                                                 })" T="BrandType" showSuggestions="item.showBrandSuggestions" ShowSuggestionsChanged="@((bool val) => item.showBrandSuggestions = val)">
+                                    <ItemTemplate Context="brand">
+                                        <div>@brand.BrandName</div>
+                                    </ItemTemplate>
+                                </SearchSelect>
+                            </td>
+                            <td style="min-width:140px">
+                                <input disabled="@isViewing" value="@item.ProductName" @onkeydown="(e)=>{HandleProductKey(e,item.index);}"  autocomplete="off" type="text"   @oninput="(e)=>{OnProductsSearch(e,item.index);}" class="form-control " placeholder="Search by ID, Name" required>
+                                <SearchSelect @ref="item.productListRef" Items="filteredProducts" OnSelect="@(c=> {
+
+                                                                                                        item.ProductID = c.ProductID;ProductSearch = $"{c.Brand} {c.Size} - {c.Pattern} ({c.TubeOrTubeless})";item.ProductName = $"{c.Brand} {c.Size} - {c.Pattern} ({c.TubeOrTubeless})";item.Product = c;
+                                                                                                        item.showSuggestions = false; StateHasChanged();
+                                                                                                 })" T="ProductType" showSuggestions="item.showSuggestions" ShowSuggestionsChanged="@((bool val) => item.showSuggestions = val)">
                                     <ItemTemplate Context="cust">
-                                        <div>@cust.Brand - @cust.Size - @cust.Pattern (@cust.TubeOrTubeless)</div>
+                                        <div>@cust.Size - @cust.Pattern (@cust.TubeOrTubeless)</div>
                                     </ItemTemplate>
                                 </SearchSelect>
                             </td>
@@ -132,6 +156,9 @@
                                     <option value="@TaxRate.TAX_18">18%</option>
                                 </select>
                             </td>
+                            <td>
+                                <input disabled="@isViewing" @bind="item.FrightValue" type="number" class="form-control" min="0" step="0.01" />
+                            </td>
                             @* Tax Calculation *@
                             @{
 
@@ -153,12 +180,12 @@
 
 
                                 purchase.DiscountAmount += discount;
-                                var total = subTotal - discount;
+                                var total = (subTotal - discount) + item.FrightValue;
                                 var cgst = 0m;
                                 var sgst =0m;
-                                if(item.Product != null)
+                                if(item != null)
                                 {
-                                    item.TaxableValue = item.TaxRate == TaxRate.TAX_18 ? Math.Round(total / 1.18m, 2) : Math.Round(total / 1.28m, 2);
+                                    item.TaxableValue = purchase.taxType == TaxType.INCLUSIVE_TAX ? (item.TaxRate == TaxRate.TAX_18 ? Math.Round(total / 1.18m, 2) : Math.Round(total / 1.28m, 2)) : total;
                                     cgst = item.TaxRate == TaxRate.TAX_18 ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
                                     sgst = item.TaxRate == TaxRate.TAX_18 ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
                                     item.TotalPrice = Math.Round(item.TaxableValue + cgst + sgst);
@@ -188,7 +215,7 @@
                 <h4>Total: ₹@TotalAmount</h4>
             </div>
             <div class="col-md-6 text-end">
-                <button  class="btn btn-primary" @onclick="HandleSubmit">Add Purchase</button>
+                <button  class="btn btn-primary" @onclick="HandleSubmit">Submit Purchase</button>
             </div>
         </div>
         @if (isProcessing)
@@ -197,20 +224,23 @@
 
         }
     </div>
+
 </div>
 
 @code {
     [Parameter] public bool isUpdating { set; get; } = false;
     [Parameter] public PurchaseDetails updateData { set; get; } = new();
     [Parameter] public bool isViewing { set; get; } = false;
+
     private string CustomerSearch = "";
     private string ProductSearch = "";
+
     private string SelectedCustomer = "No Supplier Selected";
     private string SelectedVehicle = "No Vehicle Selected";
     private bool ShowCustomerSuggestion = false;
     private bool showProductsSuggestion = false;
-    private string VehicleSearch = "";
-    private bool ShowVehicleSuggestion = false;
+    private string BrandSearch = "";
+    private bool ShowBrandSuggestion = false;
     private string SelectedBranch = "Sivakasi";
     private string CustomerId = "";
     private decimal TotalAmount => purchaseItems.Sum(x => x.TotalPrice);
@@ -224,28 +254,36 @@
     private bool isProcessing = false;
     private Purchase purchase = new();
 
+    private List<PurchaseItems> oldpurchaseItems = new();
+
 
     private List<PurchaseItems> purchaseItems = new();
 
     private List<Supplier> suppliers { set; get; } = new List<Supplier>();
     private List<ProductType> products { set; get; } = new List<ProductType>();
+    private List<BrandType> brands { set; get; } = new List<BrandType>();
 
     private List<Supplier> filteredSuppliers { set; get; } = new List<Supplier>();
     private List<ProductType> filteredProducts { set; get; } = new List<ProductType>();
+    private List<BrandType> filteredBrands { set; get; } = new List<BrandType>();
 
     private SearchSelect<Supplier> customerListRef;
-    private SearchSelect<ProductType> productListRef;
 
+    private SearchSelect<BrandType> brandListRef;
     public void HandleCustomerKey(KeyboardEventArgs e)
     {
         customerListRef?.HandleKeyDown(e);
     }
 
-    public void HandleProductKey(KeyboardEventArgs e)
+    public void HandleProductKey(KeyboardEventArgs e,int index)
     {
-        productListRef?.HandleKeyDown(e);
+        purchaseItems[index].productListRef?.HandleKeyDown(e);
     }
 
+    public void HandleBrandKey(KeyboardEventArgs e, int index)
+    {
+        purchaseItems[index].brandListRef?.HandleKeyDown(e);
+    }
 
 
     protected override async Task OnInitializedAsync()
@@ -255,10 +293,17 @@
         {
             purchase = updateData.purchase;
             purchaseItems = updateData.purchaseItems;
+            oldpurchaseItems = updateData.purchaseItems.Select(data => new PurchaseItems
+            {
+                Quantity = data.Quantity,
+                ProductID = data.ProductID,
+                Product = data.Product
+            }).ToList();
 
             CustomerSearch = updateData.purchase.SupplierID;
             SelectCustomer(updateData.purchase.Supplier);
             SelectedBranch = updateData.purchase.Branch;
+
             StateHasChanged();
         }
         if (!isAdmin)
@@ -275,6 +320,8 @@
             purchaseItems = updateData.purchaseItems;
 
             CustomerSearch = updateData.purchase.SupplierID;
+            Debug.WriteLine("CustomerSearch = " + CustomerSearch);
+            Debug.WriteLine("SupplierID = " + updateData.purchase.SupplierID);
             SelectCustomer(updateData.purchase.Supplier);
             SelectedBranch = updateData.purchase.Branch;
             StateHasChanged();
@@ -323,132 +370,7 @@
         }
         StateHasChanged();
     }
-    public async Task<int> InsertPurchaseBillAsync(Purchase purchaseBill, List<PurchaseItems> purchaseItems, bool isUpdating)
-    {
-        int newBillNo = 1; // Default if no previous bills exist
-        int purchaseBillId = 0; // Stores the newly inserted PurchaseBillID
 
-        string insertPurchaseBillQuery = @"
-    INSERT INTO PurchaseBills (Branch, BillingYear, BillNo, SupplierID,PaymentType, PurchaseDate, TotalAmount, DiscountAmount, GrandTotal, Notes)
-    VALUES (@Branch, @BillingYear, @BillNo, @SupplierID,@PaymentType,  @PurchaseDate, @TotalAmount, @DiscountAmount, @GrandTotal, @Notes);
-    SELECT LAST_INSERT_ID();";
-
-        try
-        {
-            // 1. Get new BillNo if inserting
-            if (!isUpdating)
-            {
-                string getLatestBillNoQuery = @"
-            SELECT MAX(BillNo) FROM PurchaseBills
-            WHERE Branch = @Branch AND BillingYear = @BillingYear";
-
-                var parameters = new Dictionary<string, object>
-            {
-                { "@Branch", purchaseBill.Branch },
-                { "@BillingYear", purchaseBill.BillingYear }
-            };
-
-                var result = await DatabaseHandler.ExecuteQueryAsync(getLatestBillNoQuery, parameters);
-                var maxBillValue = result[0]["MAX(BillNo)"];
-
-                if (maxBillValue == DBNull.Value || maxBillValue == null)
-                {
-                    newBillNo = 1;
-                }
-                else
-                {
-                    newBillNo = Convert.ToInt32(maxBillValue) + 1;
-                }
-            }
-
-            // 2. Insert or update Purchase Bill
-            var billParams = new Dictionary<string, object>
-        {
-            { "@Branch", purchaseBill.Branch },
-            { "@BillingYear", purchaseBill.BillingYear },
-            { "@BillNo", newBillNo },
-            { "@SupplierID", purchaseBill.SupplierID },
-            {"@PaymentType",purchaseBill.type.ToString() },
-            { "@PurchaseDate", purchaseBill.PurchaseDate },
-            { "@TotalAmount", purchaseBill.TotalAmount },
-            { "@DiscountAmount", purchaseBill.DiscountAmount },
-            { "@GrandTotal", purchaseBill.GrandTotal },
-            { "@Notes", purchaseBill.Notes }
-        };
-
-            if (isUpdating)
-            {
-                string updatePurchaseBillQuery = @"
-            UPDATE PurchaseBills
-            SET Branch = @Branch,
-                BillingYear = @BillingYear,
-                SupplierID = @SupplierID,
-                PaymentType = @PaymentType,
-                PurchaseDate = @PurchaseDate,
-                TotalAmount = @TotalAmount,
-                DiscountAmount = @DiscountAmount,
-                GrandTotal = @GrandTotal,
-                Notes = @Notes
-            WHERE PurchaseBillID = @PurchaseBillID";
-
-                billParams.Add("@PurchaseBillID", purchaseBill.PurchaseBillID);
-                await DatabaseHandler.ExecuteNonQueryAsync(updatePurchaseBillQuery, billParams);
-            }
-            else
-            {
-                var billResult = await DatabaseHandler.ExecuteQueryAsync(insertPurchaseBillQuery, billParams);
-                purchaseBillId = Convert.ToInt32(billResult[0]["LAST_INSERT_ID()"]);
-            }
-
-            // 3. Insert Purchase Items and update Stock
-            foreach (var item in purchaseItems)
-            {
-                var insertItemQuery = @"
-            INSERT INTO PurchaseItems (PurchaseBillID, ProductID, ItemName, Quantity,DiscountType,DiscountValue,DiscountScope,TaxRate, UnitPrice, TotalPrice)
-            VALUES (@PurchaseBillID, @ProductID, @ItemName, @Quantity,@DiscountType,@DiscountValue,@DiscountScope,@TaxRate, @UnitPrice, @TotalPrice)";
-
-                var itemParams = new Dictionary<string, object>
-            {
-                { "@PurchaseBillID", purchaseBillId },
-                { "@ProductID", item.ProductID },
-                { "@ItemName", item.ProductName },
-                { "@Quantity", item.Quantity },
-                { "@DiscountType", item.DiscountType.ToString() },
-                { "@DiscountValue", item.DiscountValue },
-                { "@DiscountScope", item.DiscountScope.ToString() },
-                { "@TaxRate", item.TaxRate.ToString() },
-                { "@UnitPrice", item.UnitPrice },
-                { "@TotalPrice", item.TotalPrice }
-            };
-
-                await DatabaseHandler.ExecuteNonQueryAsync(insertItemQuery, itemParams);
-
-                // Update Stock
-                var updateStockQuery = @"INSERT INTO Stock (ProductID, Branch, AvailableQuantity,TaxRate)
-VALUES (@ProductID, @Branch, @AvailableQuantity, @TaxRate)
-ON DUPLICATE KEY UPDATE
-    AvailableQuantity = AvailableQuantity + @AvailableQuantity;
-";
-
-                var stockParams = new Dictionary<string, object>
-            {
-                { "@ProductID", item.ProductID },
-                { "@AvailableQuantity", item.Quantity },
-                { "@Branch", purchaseBill.Branch },
-				{"@TaxRate", item.TaxRate.ToString() }
-            };
-
-                await DatabaseHandler.ExecuteNonQueryAsync(updateStockQuery, stockParams);
-            }
-
-            return purchaseBillId;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Error: " + ex.Message);
-            throw;
-        }
-    }
     public async void HandleSubmit()
     {
         Debug.WriteLine(SelectedBranch);
@@ -459,14 +381,14 @@ ON DUPLICATE KEY UPDATE
         }
         manageCredit();
 
-        
+
 
         purchase.Branch = SelectedBranch;
         purchase.BillingYear = DateTime.Now.Year;
-        
+
         purchase.TotalAmount = TotalAmount;
-        
-        
+
+
 
 
         PurchaseDetails finalBill = new PurchaseDetails
@@ -474,15 +396,25 @@ ON DUPLICATE KEY UPDATE
                 purchase = purchase,
                 purchaseItems = purchaseItems,
             };
-        if (isUpdating)
+        try
         {
-            //int[] temp = await DatabaseHandler.InsertBillAsync(bill, BillItems, billPayment, true);
-        }
-        else
-        {
+            if (isUpdating)
+            {
+                await DatabaseHandler.InsertPurchaseBillAsync(finalBill.purchase, finalBill.purchaseItems, true);
+                ToastService.ShowToast("Purchase added successfully", ToastType.sucess);
+            }
+            else
+            {
+                await DatabaseHandler.InsertPurchaseBillAsync(finalBill.purchase, finalBill.purchaseItems, false);
+                ToastService.ShowToast("Purchase updated successfully", ToastType.sucess);
+            }
             
-            await InsertPurchaseBillAsync(finalBill.purchase, finalBill.purchaseItems, false);
         }
+        catch(Exception e)
+        {
+            ToastService.ShowToast(e.Message, ToastType.error);
+        }
+
 
         if (FormFactor.GetFormFactor() == "Web")
         {
@@ -493,13 +425,13 @@ ON DUPLICATE KEY UPDATE
             //await PDFGenerator.GeneratePdfAsync(finalBill, null);
         }
 
-        await AlertService.ShowAlertAsync("Billing", $"Bill Generated", "Done");
+        
         isProcessing = false;
         purchase = new Purchase();
         purchaseItems = new List<PurchaseItems>();
         restrictCashBox = false;
         CustomerSearch = "";
-        VehicleSearch = "";
+        BrandSearch = "";
         SelectedCustomer = "No Customer Selected";
         StateHasChanged();
     }
@@ -507,7 +439,7 @@ ON DUPLICATE KEY UPDATE
     public async Task NecessaryData()
     {
         string customerQuery = @"SELECT * FROM Suppliers";
-        string productsQuery = @"SELECT * FROM Product";
+        string productsQuery = @"SELECT * FROM Product p JOIN Brands b ON b.BrandID = p.BrandID";
 
         var res1 = await DatabaseHandler.ExecuteQueryAsync(customerQuery);
         var res4 = await DatabaseHandler.ExecuteQueryAsync(productsQuery);
@@ -536,12 +468,21 @@ ON DUPLICATE KEY UPDATE
                     {
                         ProductID = row["ProductID"].ToString() ?? "",
                         Brand = row["Brand"].ToString() ?? "",
+
                         Size = row["Size"].ToString() ?? "",
                         Pattern = row["Pattern"].ToString() ?? "",
                         TubeOrTubeless = row["TubeOrTubeless"].ToString() ?? "",
                         Price = Double.Parse(row["Price"].ToString() ?? "0"),
                     });
+
+                brands.Add(new BrandType
+                {
+                    BrandID = row["BrandID"].ToString() ?? "",
+                    BrandName = row["BrandName"].ToString() ?? "",
+                    BrandShortForm = row["BrandShortForm"].ToString() ?? ""
+                });
             }
+            brands = brands.DistinctBy(brand => brand.BrandName ).ToList();
         }
     }
 
@@ -555,24 +496,40 @@ ON DUPLICATE KEY UPDATE
         purchaseItems.Remove(item);
     }
 
-    public async void OnProductsSearch(ChangeEventArgs e)
+    public async void OnProductsSearch(ChangeEventArgs e,int index)
+    {
+        
+        string temp = e.Value.ToString() ?? "";
+        filteredProducts = products.Where(p =>
+    p.Brand == purchaseItems[index].BrandName &&
+    (p.ProductID.Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+     p.Pattern.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+     p.Size.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase))
+    ).ToList();
+
+        
+        purchaseItems[index].showSuggestions = filteredProducts.Any();
+        StateHasChanged();
+    }
+
+    public async void OnBrandsSearch(ChangeEventArgs e, int index)
     {
         string temp = e.Value.ToString() ?? "";
-        filteredProducts = products.Where(p => p.ProductID.Contains(temp,StringComparison.OrdinalIgnoreCase)||
-            p.Pattern.ToLower().Contains(temp,StringComparison.OrdinalIgnoreCase) ||
-            p.Size.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
-            p.Brand.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) || 
-            p.BrandID.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase)
+        filteredBrands = brands.Where(b => b.BrandID.Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+            b.BrandName.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+            b.BrandShortForm.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase)
+            
         ).ToList();
+        
+        purchaseItems[index].showBrandSuggestions = filteredBrands.Any();
 
-        showProductsSuggestion = filteredProducts.Any();
         StateHasChanged();
     }
 
     public async void OnCustomerSearch(ChangeEventArgs e)
     {
         CustomerSearch = e.Value.ToString() ?? "";
-        CustomerSearch.Replace(" ", "").Replace(".", "");
+        // CustomerSearch.Replace(" ", "").Replace(".", "");
         SelectedCustomer = "No Customer Selected";
         if (string.IsNullOrWhiteSpace(CustomerSearch))
         {
@@ -583,7 +540,7 @@ ON DUPLICATE KEY UPDATE
 
         filteredSuppliers = suppliers
             .Where(c => c.SupplierID.Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase) ||
-                        c.Name.Replace(" ", "").Replace(".", "").Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase) ||
                         c.Contact.Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
