@@ -217,18 +217,18 @@ namespace AutoDynamics.Services
                                 }
 
 
-                                // Update stock for the purchase items
-                                foreach (var item in purchaseItems)
-                                {
-                                    string updateStockQuery = @"UPDATE Stock SET AvailableQuantity = AvailableQuantity - @Quantity WHERE ProductID = @ProductID AND Branch = @Branch";
-                                    using (var stockCommand = new MySqlCommand(updateStockQuery, connection, (MySqlTransaction)transaction))
-                                    {
-                                        stockCommand.Parameters.AddWithValue("@ProductID", item.ProductID);
-                                        stockCommand.Parameters.AddWithValue("@Quantity", item.Quantity);
-                                        stockCommand.Parameters.AddWithValue("@Branch", purchaseBill.Branch);
-                                        await stockCommand.ExecuteNonQueryAsync();
-                                    }
-                                }
+                                //// Update stock for the purchase items
+                                //foreach (var item in purchaseItems)
+                                //{
+                                //    string updateStockQuery = @"UPDATE Stock SET AvailableQuantity = AvailableQuantity - @Quantity WHERE ProductID = @ProductID AND Branch = @Branch";
+                                //    using (var stockCommand = new MySqlCommand(updateStockQuery, connection, (MySqlTransaction)transaction))
+                                //    {
+                                //        stockCommand.Parameters.AddWithValue("@ProductID", item.ProductID);
+                                //        stockCommand.Parameters.AddWithValue("@Quantity", item.Quantity);
+                                //        stockCommand.Parameters.AddWithValue("@Branch", purchaseBill.Branch);
+                                //        await stockCommand.ExecuteNonQueryAsync();
+                                //    }
+                                //}
                             }
                             else
                             {

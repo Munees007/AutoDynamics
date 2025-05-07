@@ -180,7 +180,9 @@ else
     DateTime? startDate;
     DateTime? endDate;
 
-    string excelBranch = "";
+    string excelBranch = "Sivakasi";
+    int excelMonth = 1;
+    int excelYear = 2025;
 
     CustomDialogBox excelDialog = new CustomDialogBox();
 
@@ -188,21 +190,17 @@ else
     {
         try
         {
-            var today = DateTime.Today;
-            var filtered = excelBranch == "Sivakasi" ? filteredSivakasiBills : filteredBypassBills;
+            var filtered = excelBranch == "Sivakasi" ? sivakasiBills : bypassBills;
 
-            int previousMonth = today.Month - 1;
-            int year = today.Year;
+            // Parse selected month and year from dropdown (assuming excelMonth and excelYear are integers)
+            int selectedMonth = excelMonth;
+            int selectedYear = excelYear;
 
-            // Handle January (month = 1) case by adjusting year and month
-            if (previousMonth == 0)
-            {
-                previousMonth = 12;
-                year -= 1;
-            }
+            DateTime startOfMonth = new DateTime(selectedYear, selectedMonth, 1);
+            DateTime endOfMonth = new DateTime(selectedYear, selectedMonth, DateTime.DaysInMonth(selectedYear, selectedMonth));
 
-            DateTime startOfMonth = new DateTime(year, previousMonth, 1);
-            DateTime endOfMonth = new DateTime(year, previousMonth, DateTime.DaysInMonth(year, previousMonth));
+            Debug.WriteLine(startOfMonth);
+            Debug.WriteLine(endOfMonth);
 
             filtered = filtered
             .Where(b => b.Bill.BillDate.Date >= startOfMonth && b.Bill.BillDate.Date <= endOfMonth)
@@ -256,12 +254,38 @@ else
         {
             Title = "Download Excel",
                     body = @<div class="mb-3">
-        <label for="branchSelect" class="form-label">Select Branch</label>
-        <select id="branchSelect" class="form-select" @bind="excelBranch">
-            <option value="Sivakasi">Sivakasi</option>
-            <option value="ByPass">ByPass</option>
-        </select>
+        <label class="form-label">Select Branch, Month, and Year</label>
+
+        <div class="d-flex gap-3">
+            <select id="branchSelect" class="form-select" @bind="excelBranch">
+                <option value="Sivakasi">Sivakasi</option>
+                <option value="ByPass">ByPass</option>
+            </select>
+
+            <select id="monthSelect" class="form-select" @bind="excelMonth">
+                <option value="1">January</option>
+                <option value="2">February</option>
+                <option value="3">March</option>
+                <option value="4">April</option>
+                <option value="5">May</option>
+                <option value="6">June</option>
+                <option value="7">July</option>
+                <option value="8">August</option>
+                <option value="9">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+            </select>
+
+            <select id="yearSelect" class="form-select" @bind="excelYear">
+                @for (int year = DateTime.Now.Year - 5; year <= DateTime.Now.Year + 1; year++)
+            {
+                <option value="@year">@year</option>
+            }
+            </select>
+        </div>
     </div>
+
 
     ,
             footers = new List<FooterBtn>

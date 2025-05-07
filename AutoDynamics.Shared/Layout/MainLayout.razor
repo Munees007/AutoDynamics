@@ -27,12 +27,13 @@
 @* </div> *@
 <div class="page" >
     <CustomToast customToast="ToastService.toast" ></CustomToast>
-    <div class="sidebar" >
+    <div class="sidebar" style="display:@(showNavbar ? "block" : "none")">
         <NavMenu />
     </div>
 
 
-
+    <!-- From Uiverse.io by Nawsome -->
+    
 
     <main>
         <div class="top-row px-4 d-flex gap-2">
@@ -70,10 +71,10 @@
             @* { *@
             @*     <div style="display:@(tab == TabService.Selected ? "block" : "none")"> *@
             @*         @tab.Content *@
-                    
+
             @*     </div> *@
             @* } *@
-            
+
             @Body
         </article>
 
@@ -100,13 +101,19 @@
 
     private bool showDropdown = false;
 
-    
+    private bool showNavbar = true;
+
+
 
     private void ToggleDropdown()
     {
         showDropdown = !showDropdown;
     }
-
+    private void ToggleNavbar()
+    {
+        showNavbar = !showNavbar;
+        StateHasChanged();
+    }
     public void CloseDropdown()
     {
         showDropdown = false;

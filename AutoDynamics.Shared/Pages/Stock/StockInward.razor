@@ -8,58 +8,116 @@
 @inject IDatabaseHandler DatabaseHandler
 @inject IToastService ToastService
 @inject IMyLocalStorageService MyLocalStorageService
-
 <div class="container my-4">
-    <h1 class="mb-4">Stock Inwards</h1>
-    <DialoBox dialogBox="itemsDialogBox"/>
-    <!-- Table for displaying stock inwards -->
-    <table class="table table-striped table-hover table-bordered align-middle">
-        <thead class="table-dark">
-            <tr>
-                <th>From</th>
-                <th>To</th>
-                <th>Received By</th>
-                <th>Received Date</th>
-                <th>Status</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var inward in stockInwards)
-            {
+
+    <div class="d-flex justify-content-between align-items-center">
+        <h2 class="mb-4 text-primary">
+            <i class="bi bi-hourglass-split me-2"></i>Stock Inwards
+        </h2>
+        <select class="form-select" @bind="filterStatus">
+            <option value="Pending">Pending</option>
+            <option value="Received">Received</option>
+        </select>
+
+    </div>
+
+
+    @if (filterInwards.Count == 0)
+    {
+        <div class="alert alert-warning text-center">No stock inwards pending.</div>
+    }
+    else
+    {
+        <table class="table table-bordered table-hover align-middle shadow-sm">
+            <thead class="table-primary text-center">
                 <tr>
-                    <td>@inward.SourceLocation</td>
-                    <td>@inward.DestinationLocation</td>
-                    <td>@inward.ReceivedBy</td>
-                    <td>@inward.ReceivedData.ToString("yyyy-MM-dd")</td>
-                    <td>@inward.status</td>
-                    <td>
-                        <button class="btn btn-secondary btn-sm me-1"
-                        @onclick="()=>{currentInward = inward; itemsDialogBox.showDialog = true;StateHasChanged();}">
-                            View
-                        </button>
-                        <button class="btn btn-primary btn-sm" @onclick="()=> Accept(inward)">Accept</button>
-                    </td>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>Received By</th>
+                    <th>Received Date</th>
+                    <th>Status</th>
+                    <th>Action</th>
                 </tr>
-            }
-        </tbody>
-    </table>
-
-
+            </thead>
+            <tbody>
+                @foreach (var inward in filterInwards)
+                {
+                    <tr>
+                        <td>@inward.SourceLocation</td>
+                        <td>@inward.DestinationLocation</td>
+                        <td>@inward.ReceivedBy</td>
+                        <td>@inward.ReceivedData.ToString("yyyy-MM-dd")</td>
+                        <td>
+                            <span class="badge bg-warning text-dark">@inward.status</span>
+                        </td>
+                        <td>
+                            <button class="btn btn-outline-info btn-sm me-2"
+                            @onclick="()=>{currentInward = inward; itemsDialogBox.showDialog = true; StateHasChanged();}">
+                                <i class="bi bi-eye"></i> View
+                            </button>
+                            @if(filterStatus == Status.Pending)
+                            {
+                                <button class="btn btn-outline-success btn-sm"
+                                        @onclick="()=> Accept(inward)">
+                                    <i class="bi bi-check-circle"></i> Accept
+                                </button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
 </div>
+
+
+<DialoBox dialogBox="itemsDialogBox" />
+
 
 @code{
     List<StockInwardType> stockInwards { set; get; } = new();
+
+    List<StockInwardType> pendingInwards { set; get; } = new();
+    List<StockInwardType> receivedInwards { set; get; } = new();
+
+    List<StockInwardType> filterInwards { get; set; } = new();
+
+    //Status filterStatus = Status.Pending;
+    private Status _filterStatus;
+    private Status filterStatus
+    {
+        get => _filterStatus;
+        set
+        {
+            if (_filterStatus != value)
+            {
+                _filterStatus = value;
+                Debug.WriteLine("Changed");
+                Debug.WriteLine(filterStatus);
+                // Perform your logic here when the value changes
+                filterInwards = filterStatus == Status.Pending ? pendingInwards : receivedInwards;
+                StateHasChanged();
+            }
+        }
+    }
 
     StockInwardType currentInward = new();
 
     CustomDialogBox itemsDialogBox;
 
     string currentBranch = "";
+    string userName = "";
+
+    private void OnStatusChanged(ChangeEventArgs e)
+    {
+        // Since @bind already updates filterStatus, just use it here
+        filterInwards = filterStatus == Status.Pending ? pendingInwards : receivedInwards;
+    }
 
     protected override async Task OnInitializedAsync()
     {
         currentBranch = await MyLocalStorageService.GetItemAsync("Branch");
+        userName = await MyLocalStorageService.GetItemAsync("Username");
         itemsDialogBox = new CustomDialogBox
         {
                     body = @<table class="table table-striped table-hover table-bordered align-middle">
@@ -92,7 +150,10 @@
         try
         {
             stockInwards = await DatabaseHandler.GetStockInwards();
-			stockInwards = stockInwards.Where(x => x.DestinationLocation == currentBranch).ToList();
+            stockInwards = stockInwards.Where(x => x.DestinationLocation == currentBranch).ToList();
+
+            pendingInwards = stockInwards.Where(s=> s.status == Status.Pending).ToList(); ;
+            receivedInwards = stockInwards.Where(s => s.status == Status.Received).ToList();
             Debug.WriteLine(stockInwards[0].SourceLocation);
         }
         catch(Exception e)
@@ -107,6 +168,7 @@
     {
         try
         {
+            inward.ReceivedBy = userName;
             await DatabaseHandler.AcceptInward(inward);
             ToastService.ShowToast("Accepted", ToastType.sucess);
         }

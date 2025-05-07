@@ -137,7 +137,7 @@
     bool isProcessing = false;
 
     string selectedBranch = "";
-
+    string userName = "";
     public void HandleProductKey(KeyboardEventArgs e, int index)
     {
         stockOutward.Outwards[index].ProductListRef?.HandleKeyDown(e);
@@ -230,6 +230,7 @@
         {
             if(CanSubmitForm())
             {
+                stockOutward.CreatedBy = userName;
                 if (isUpdating)
                 {
                     await DatabaseHandler.UpdateStockOutwardAsync(stockOutward.Id, stockOutward, stockOutward.Outwards);
@@ -313,6 +314,7 @@
     protected override async Task OnInitializedAsync()
     {
         selectedBranch = await MyLocalStorageService.GetItemAsync("Branch") ?? "";
+        userName = await MyLocalStorageService.GetItemAsync("Username") ?? "";
         stockOutward.From = selectedBranch;
         stockOutward.To = selectedBranch == "Sivakasi" ? "ByPass" : "Sivakasi";
         await NecessaryData();
