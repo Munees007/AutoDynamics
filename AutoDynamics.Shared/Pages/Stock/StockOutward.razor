@@ -1,0 +1,321 @@
+@page "/stock/outward"
+@using AutoDynamics.Shared.Services
+@using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Modals.ComponentsTypes
+@using AutoDynamics.Shared.Pages.Components
+@using AutoDynamics.Shared.Modals.PurchaseTypes
+@using System.Diagnostics
+@inject IDatabaseHandler DatabaseHandler
+@inject IMyLocalStorageService MyLocalStorageService
+@inject IToastService ToastService
+<div class="position-relative">
+    <div class="container mt-4">
+        <div class="mb-3">
+            <p><strong>From:</strong> @stockOutward.From</p>
+            <p><strong>To:</strong> @stockOutward.To</p>
+        </div>
+
+        <div class="mb-3">
+            <button class="btn btn-success btn-sm" @onclick="AddNewItem">Add Item</button>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th style="min-width: 160px;">Brand</th>
+                        <th style="min-width: 200px;">Product</th>
+                        <th style="min-width: 100px;">Quantity</th>
+                        <th style="min-width: 80px;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var outward in stockOutward.Outwards)
+                    {
+                        <tr class="@((outward.itemOutOfStock) ? "table-danger" : "")">
+                            <td>
+                                <input value="@outward.BrandName"
+                                @onkeydown="(e)=>{HandleBrandKey(e,outward.index);}"
+                                @oninput="(e)=>{OnBrandsSearch(e,outward.index);}"
+                                autocomplete="off"
+                                type="text"
+                                class="form-control"
+                                placeholder="Search by ID, Name"
+                                required />
+
+                                <SearchSelect @ref="outward.BrandListRef"
+                                Items="filteredBrands"
+                                OnSelect="@(br=> {
+                                              outward.BrandName = br.BrandName;
+                                              outward.BrandID = br.BrandID;
+                                              outward.showBrandSuggestions = false;
+                                              StateHasChanged();
+                                          })"
+                                T="BrandType"
+                                showSuggestions="outward.showBrandSuggestions"
+                                ShowSuggestionsChanged="@((bool val) => outward.showBrandSuggestions = val)">
+                                    <ItemTemplate Context="brand">
+                                        <div>@brand.BrandName</div>
+                                    </ItemTemplate>
+                                </SearchSelect>
+                            </td>
+
+                            <td>
+                                <input value="@outward.ProductName"
+                                @onkeydown="(e)=>{HandleProductKey(e,outward.index);}"
+                                @oninput="(e)=>{OnProductsSearch(e,outward.index);}"
+                                autocomplete="off"
+                                type="text"
+                                class="form-control @(outward.ProductIDValid ? "" : "is-invalid")"
+                                placeholder="Search by ID, Name"
+                                required />
+
+                                <SearchSelect @ref="outward.ProductListRef"
+                                Items="filteredProducts"
+                                OnSelect="@(c=> {
+                                              outward.ProductIDValid = true;
+                                              outward.ProductName = $"{c.Brand} {c.Size} - {c.Pattern} ({c.TubeOrTubeless})";
+                                              outward.Product.TaxRate = c.TaxRate;
+                                              outward.Product.HSNCode = c.HSNCode;
+                                              outward.Product.AvailableQuantity = c.AvailableQuantity;
+                                              outward.Product.Branch = c.Branch;
+                                              outward.isItemSelected = true;
+                                              outward.ProductID = c.ProductID;
+                                              outward.Product = c;
+                                              outward.showProductSuggestions = false;
+                                              StateHasChanged();
+                                          })"
+                                T="ProductType"
+                                showSuggestions="outward.showProductSuggestions"
+                                ShowSuggestionsChanged="@((bool val) => outward.showProductSuggestions = val)">
+                                    <ItemTemplate Context="cust">
+                                        <div>
+                                            @cust.Size - @cust.Pattern (@cust.TubeOrTubeless) |
+                                            <span class="text-muted">PCS: @cust.AvailableQuantity</span>
+                                        </div>
+                                    </ItemTemplate>
+                                </SearchSelect>
+                            </td>
+
+                            <td>
+                                <input @oninput="(e)=>{CheckStock(outward,e);}"
+                                autocomplete="off"
+                                type="number"
+                                min="1"
+                                class="form-control"
+                                @bind="outward.Quantity" />
+                            </td>
+
+                            <td>
+                                <button class="btn btn-danger btn-sm" @onclick="() => RemoveItem(outward)">Remove</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="d-flex w-100 justify-content-end">
+            <button class="btn btn-primary" @onclick="HandleSubmit">
+                Submit
+            </button>
+        </div>
+    </div>
+
+    @if(isProcessing)
+    {
+        <Loader/>
+    }
+</div>
+@code{
+    [Parameter] public StockOutwardType stockOutward { set; get; } = new StockOutwardType();
+    [Parameter] public bool isUpdating { get; set; } = false;
+    List<ProductType> products { set; get; } = new List<ProductType>();
+    List<BrandType> brands { set; get; } = new List<BrandType>();
+    List<ProductType> filteredProducts { set; get; } = new List<ProductType>();
+    List<BrandType> filteredBrands { set; get; } = new List<BrandType>();
+
+    bool isProcessing = false;
+
+    string selectedBranch = "";
+
+    public void HandleProductKey(KeyboardEventArgs e, int index)
+    {
+        stockOutward.Outwards[index].ProductListRef?.HandleKeyDown(e);
+    }
+
+    public void HandleBrandKey(KeyboardEventArgs e, int index)
+    {
+        stockOutward.Outwards[index].BrandListRef?.HandleKeyDown(e);
+    }
+
+    private void CheckStock(Outward item, ChangeEventArgs e)
+    {
+        if (item.isItemSelected)
+        {
+            string value = e.Value.ToString();
+            int quantity = 0;
+            if (!string.IsNullOrEmpty(value) && !string.IsNullOrWhiteSpace(value) && int.TryParse(value, out quantity))
+            {
+                // quantity is already parsed safely
+            }
+            if(quantity <=0)
+            {
+                item.itemOutOfStock = true;
+            }
+            else
+            {
+                item.itemOutOfStock = quantity > item.Product.AvailableQuantity;
+            }
+
+            Debug.WriteLine($"Item Quantity = {quantity}");
+            Debug.WriteLine($"Available Quantity = {item.Product.AvailableQuantity}");
+            StateHasChanged();
+        }
+    }
+
+    public async void OnProductsSearch(ChangeEventArgs e, int index)
+    {
+        Debug.WriteLine(stockOutward.Outwards[index].BrandName);
+        string temp = e.Value.ToString() ?? "";
+        filteredProducts = products.Where(p =>
+    p.Brand == stockOutward.Outwards[index].BrandName &&
+    (p.ProductID.Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+     p.Pattern.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+     p.Size.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase))
+    ).ToList();
+
+
+        stockOutward.Outwards[index].showProductSuggestions = filteredProducts.Any();
+        stockOutward.Outwards[index].ProductIDValid = false;
+        StateHasChanged();
+    }
+
+    public async void OnBrandsSearch(ChangeEventArgs e, int index)
+    {
+        string temp = e.Value.ToString() ?? "";
+        filteredBrands = brands.Where(b => b.BrandID.Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+            b.BrandName.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+            b.BrandShortForm.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase)
+
+        ).ToList();
+
+        stockOutward.Outwards[index].showBrandSuggestions = filteredBrands.Any();
+
+        StateHasChanged();
+    }
+    void AddNewItem()
+    {
+        stockOutward.Outwards.Add(new Outward());
+    }
+    void RemoveItem(Outward outward)
+    {
+        stockOutward.Outwards.Remove(outward);
+    }
+
+    bool CanSubmitForm()
+    {
+        foreach(var outward in stockOutward.Outwards)
+        {
+            if(outward.itemOutOfStock || !outward.ProductIDValid)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+    public async Task HandleSubmit()
+    {
+        isProcessing = true;
+        try
+        {
+            if(CanSubmitForm())
+            {
+                if (isUpdating)
+                {
+                    await DatabaseHandler.UpdateStockOutwardAsync(stockOutward.Id, stockOutward, stockOutward.Outwards);
+                    ToastService.ShowToast("StockOutward Update Successful", ToastType.sucess);
+                }
+                else
+                {
+                    await DatabaseHandler.InsertStockOutwardAsync(stockOutward, stockOutward.Outwards);
+                    ToastService.ShowToast("StockOutward Create Successful", ToastType.sucess);
+                }
+            }
+            else
+            {
+                throw new Exception("Invalid Product or Out of Stock");
+            }
+
+        }
+        catch(Exception e)
+        {
+            ToastService.ShowToast(e.Message, ToastType.error);
+        }
+        isProcessing = false;
+        StateHasChanged();
+    }
+    public async Task NecessaryData()
+    {
+        products = new List<ProductType>();
+        brands = new List<BrandType>();
+        string productsQuery = @"SELECT s.*, p.* FROM Stock s JOIN Product p ON p.ProductID = s.ProductID";
+        string brandsQuery = @"SELECT * FROM Brands";
+
+
+        var res1 = await DatabaseHandler.ExecuteQueryAsync(productsQuery);
+        var res2 = await DatabaseHandler.ExecuteQueryAsync(brandsQuery);
+
+
+
+
+
+        if (res1.Count > 0)
+        {
+            foreach (var row in res1)
+            {
+                TaxRate taxRate;
+                if (!Enum.TryParse(row["TaxRate"].ToString(), out taxRate))
+                {
+                    taxRate = TaxRate.TAX_28; // or any default value
+                }
+
+                products.Add(new ProductType
+                    {
+                        ProductID = row["ProductID"].ToString() ?? "",
+                        Brand = row["Brand"].ToString() ?? "",
+                        Size = row["Size"].ToString() ?? "",
+                        HSNCode = row["HSNCode"].ToString() ?? "",
+                        Pattern = row["Pattern"].ToString() ?? "",
+                        TubeOrTubeless = row["TubeOrTubeless"].ToString() ?? "",
+                        Price = Double.Parse(row["Price"].ToString() ?? "0"),
+                        AvailableQuantity = Int32.Parse(row["AvailableQuantity"].ToString() ?? "0"),
+                        Branch = row["Branch"].ToString() ?? "",
+                        TaxRate = taxRate,
+                    });
+            }
+
+            products = products.Where(p => string.Equals(p.Branch, selectedBranch, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+        if (res2.Count > 0)
+        {
+            foreach (var row in res2)
+            {
+                brands.Add(new BrandType
+                    {
+                        BrandID = row["BrandID"].ToString() ?? "",
+                        BrandName = row["BrandName"].ToString() ?? "",
+                        BrandShortForm = row["BrandShortForm"].ToString() ?? "",
+                    });
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        selectedBranch = await MyLocalStorageService.GetItemAsync("Branch") ?? "";
+        stockOutward.From = selectedBranch;
+        stockOutward.To = selectedBranch == "Sivakasi" ? "ByPass" : "Sivakasi";
+        await NecessaryData();
+        StateHasChanged();
+    }
+}

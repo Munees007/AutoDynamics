@@ -14,6 +14,7 @@
 @inject IJSRuntime JS
 @inject IFormFactor FormFactor
 @inject IDownloadExcel DownloadExcel
+@inject ITabService TabService
 <h3 class="text-center mb-4">Billing Details</h3>
 <DialoBox dialogBox="excelDialog"></DialoBox>
 <div class="mb-3">
@@ -189,10 +190,22 @@ else
         {
             var today = DateTime.Today;
             var filtered = excelBranch == "Sivakasi" ? filteredSivakasiBills : filteredBypassBills;
-            DateTime startOfMonth = new DateTime(today.Year, today.Month, 1);
+
+            int previousMonth = today.Month - 1;
+            int year = today.Year;
+
+            // Handle January (month = 1) case by adjusting year and month
+            if (previousMonth == 0)
+            {
+                previousMonth = 12;
+                year -= 1;
+            }
+
+            DateTime startOfMonth = new DateTime(year, previousMonth, 1);
+            DateTime endOfMonth = new DateTime(year, previousMonth, DateTime.DaysInMonth(year, previousMonth));
 
             filtered = filtered
-            .Where(b => b.Bill.BillDate.Date >= startOfMonth && b.Bill.BillDate.Date <= today.Date)
+            .Where(b => b.Bill.BillDate.Date >= startOfMonth && b.Bill.BillDate.Date <= endOfMonth)
             .ToList();
 
             string temp = $"{DateTime.Today:MMMM-yyyy}";

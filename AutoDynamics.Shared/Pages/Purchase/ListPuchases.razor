@@ -9,7 +9,7 @@
 @inject ICurrentData CurrentData
 @inject IFormFactor FormFactor
 
-<h3 class="text-center mb-4">Billing Details</h3>
+<h3 class="text-center mb-4">Purchase Details</h3>
 
 <div class="mb-3">
     <input type="text" @bind="searchQuery" class="form-control" placeholder="Search by Bill No" />
@@ -70,7 +70,7 @@ else
                                     @foreach (var bill in filteredSivakasiBills)
                                     {
                                         <tr>
-                                            <td style="cursor:pointer;" @onclick="()=>ViewBill(bill)">@("SFR" + (bill.purchase.BillNo.ToString().PadLeft(4, '0')))</td>
+                                            <td style="cursor:pointer;" @onclick="()=>ViewBill(bill)">@("SFRP" + (bill.purchase.BillNo.ToString().PadLeft(4, '0')))</td>
                                             <td>@bill.purchase.InvoiceNumber</td>
                                             <td>@bill.purchase.Supplier.Name</td>
                                             <td>@bill.purchase.Supplier.Contact</td>
@@ -127,7 +127,7 @@ else
                                     @foreach (var bill in filteredBypassBills)
                                     {
                                         <tr>
-                                            <td style="cursor:pointer;" @onclick="()=>ViewBill(bill)">@("BPR" + (bill.purchase.BillNo.ToString().PadLeft(4, '0')))</td>
+                                            <td style="cursor:pointer;" @onclick="()=>ViewBill(bill)">@("BPRP" + (bill.purchase.BillNo.ToString().PadLeft(4, '0')))</td>
                                             <td>@bill.purchase.InvoiceNumber</td>
                                             <td>@bill.purchase.Supplier.Name</td>
                                             <td>@bill.purchase.Supplier.Contact</td>

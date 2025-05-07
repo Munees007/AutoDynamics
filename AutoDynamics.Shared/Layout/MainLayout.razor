@@ -4,12 +4,35 @@
 @inject NavigationManager Navigation
 @inject IToastService ToastService
 @using AutoDynamics.Shared.Services
+@using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Pages
+@inject ITabService TabService
 @inject IMyLocalStorageService MyLocalStorageService
+
+@* <div class="tab-header bg-light border-bottom px-3 py-2 d-flex visually-hidden gap-2 align-items-center"> *@
+@*     @foreach (var tab in TabService.Tabs) *@
+@*     { *@
+@*         <div class="tab-item d-flex align-items-center bg-white border rounded px-2 py-1 me-1" *@
+@*         style="cursor: pointer; @((tab == TabService.Selected) ? "font-weight: bold;" : "")" *@
+@*         @onclick="@(() => TabService.SelectTab(tab))"> *@
+@*             @tab.Title *@
+@*             @if (tab.IsClosable) *@
+@*             { *@
+@*                 <button class="btn btn-sm btn-link text-danger ms-2" @onclick="@(() => TabService.CloseTab(tab))"> *@
+@*                     &times; *@
+@*                 </button> *@
+@*             } *@
+@*         </div> *@
+@*     } *@
+@* </div> *@
 <div class="page" >
     <CustomToast customToast="ToastService.toast" ></CustomToast>
-    <div class="sidebar">
+    <div class="sidebar" >
         <NavMenu />
     </div>
+
+
+
 
     <main>
         <div class="top-row px-4 d-flex gap-2">
@@ -43,8 +66,17 @@
 
 
         <article class="content px-4">
+            @* @foreach (var tab in TabService.Tabs) *@
+            @* { *@
+            @*     <div style="display:@(tab == TabService.Selected ? "block" : "none")"> *@
+            @*         @tab.Content *@
+                    
+            @*     </div> *@
+            @* } *@
+            
             @Body
         </article>
+
     </main>
 </div>
 
@@ -68,6 +100,8 @@
 
     private bool showDropdown = false;
 
+    
+
     private void ToggleDropdown()
     {
         showDropdown = !showDropdown;
@@ -81,7 +115,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-
+		//TabService.OpenTab("Home", typeof(Home));
+        TabService.OnChange += StateHasChanged;
         ToastService.OnToastUpdated += RefreshToast;
         Navigation.LocationChanged += OnLocationChanged;
         history.Add(Navigation.Uri); // Store initial page
@@ -94,6 +129,7 @@
     }
     public void Dispose()
     {
+		TabService.OnChange -= StateHasChanged;
         ToastService.OnToastUpdated -= RefreshToast;
     }
 

@@ -16,6 +16,8 @@ public static class MauiProgram
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
             });
 
+        
+
         // Add device-specific services used by the AutoDynamics.Shared project
         builder.Services.AddSingleton<IFormFactor, FormFactor>();
         builder.Services.AddSingleton<IFileHelper, FileHelper>();
@@ -25,6 +27,8 @@ public static class MauiProgram
         builder.Services.AddSingleton<IWhatsAppService,WhatsAppService>();
         builder.Services.AddSingleton<IDownloadExcel,DownloadExcel>();
         builder.Services.AddSingleton<IToastService,ToastService>();
+        builder.Services.AddSingleton<IMultiWindowService, MultiWindowService>();
+        builder.Services.AddSingleton<ITabService,TabService>();
         builder.Services.AddScoped<IMyLocalStorageService, MyLocalStorageService>();
         builder.Services.AddScoped<IAlertService, AlertService>();
         
@@ -37,4 +41,6 @@ public static class MauiProgram
 
         return builder.Build();
     }
+
+    
 }

@@ -135,7 +135,7 @@
             {
                 var item = BillItems[i];
                 item.index = i;
-                <tr style="@((item.itemOutOfStock) ? "background:red;" : "")">
+                <tr style="@((item.itemOutOfStock) ? "background:lightcoral;" : "")">
                     <td>
                         <select disabled="@isViewing" autocomplete="off" class="form-select" @bind="item.ItemType">
                             <option value="SERVICE">Service</option>
@@ -160,7 +160,7 @@
                     else
                     {
                         <td style="min-width:140px">
-                            <input disabled="@isViewing" value="@item.BrandName" @onkeydown="(e)=>{HandleBrandKey(e,item.index);}" autocomplete="off" type="text" @oninput="(e)=>{OnBrandsSearch(e,item.index);}" class="form-control " placeholder="Search by ID, Name" required>
+                            <input disabled="@isViewing" value="@item.BrandName" @onkeydown="(e)=>{HandleBrandKey(e,item.index);}" autocomplete="off" type="text" @oninput="(e)=>{OnBrandsSearch(e,item.index);}" class="form-control"  placeholder="Search by ID, Name" required>
                             <SearchSelect @ref="item.brandListRef" Items="filteredBrands" OnSelect="@(br=> {
                                                                                                         item.BrandName = br.BrandName;
                                                                                                         item.BrandID = br.BrandID;
@@ -172,8 +172,9 @@
                             </SearchSelect>
                         </td>
                         <td style="min-width:140px">
-                            <input disabled="@isViewing" value="@item.ProductName" @onkeydown="(e)=>{HandleProductKey(e,item.index);}" autocomplete="off" type="text" @oninput="(e)=>{OnProductsSearch(e,item.index);}" class="form-control " placeholder="Search by ID, Name" required>
+                            <input disabled="@isViewing" value="@item.ProductName" @onkeydown="(e)=>{HandleProductKey(e,item.index);}" autocomplete="off" type="text" @oninput="(e)=>{OnProductsSearch(e,item.index);}" class="form-control " style=@(!item.ProductIDValid ? "border: 1px solid red;" : "") placeholder="Search by ID, Name" required>
                             <SearchSelect @ref="item.productListRef" Items="filteredProducts" OnSelect="@(c=> {
+                                                                                                        item.ProductIDValid = true;
                                                                                                         item.ItemID = c.ProductID;ProductSearch = $"{c.Brand} - {c.Size} - {c.Pattern} ({c.TubeOrTubeless})";
                                                                                                         item.ItemName = $"{c.Brand} - {c.Size} - {c.Pattern} ({c.TubeOrTubeless})";item.TaxRate = c.TaxRate;item.HSNCode = c.HSNCode;item.AvailableQuantity = c.AvailableQuantity;item.Branch=c.Branch;
                                                                                                         item.isItemSelected = true;
@@ -187,7 +188,7 @@
                         </td>
                     }
                     <td>
-                        <input disabled="@isViewing" @oninput="(e)=>{CheckStock(item,Int32.Parse(e.Value.ToString()));}" autocomplete="off" type="number" class="form-control" @bind="item.Quantity" min="1">
+                        <input disabled="@isViewing" @oninput="(e)=>{CheckStock(item,e);}" autocomplete="off" type="number" class="form-control" @bind="item.Quantity" min="1">
                     </td>
                     <td><input disabled="@isViewing" autocomplete="off" type="number" class="form-control" @bind="item.UnitPrice" min="0" step="0.01"></td>
 
@@ -241,15 +242,19 @@
 
     <hr />
     <!-- Total and Submit -->
-    <div class="row">
-
+    <div class="row align-items-center">
         <div class="col-md-6">
-            <h4>Total: ₹@TotalAmount</h4>
+            <h4 class="mb-0">Total: ₹@TotalAmount</h4>
         </div>
         <div class="col-md-6 text-end">
-            <button disabled="@isViewing" class="btn btn-primary" @onclick="HandleSubmit">Submit Bill</button>
+            <div class="d-inline-flex gap-2">
+                <button disabled="@(isViewing)" class="btn btn-primary" @onclick="HandleSubmit">
+                    Submit Bill
+                </button>
+            </div>
         </div>
     </div>
+
     @if (isProcessing)
     {
         <Loader/>
@@ -261,6 +266,8 @@
     [Parameter] public bool isUpdating { set; get; } = false;
     [Parameter] public BillDetails updateData { set; get; } = new();
     [Parameter] public bool isViewing {set;get;} = false;
+
+
 
     private string CustomerSearch = "";
     private string ProductSearch = "";
@@ -312,6 +319,29 @@
         BillItems[index].brandListRef?.HandleKeyDown(e);
     }
 
+    bool CanSubmitBill()
+    {
+
+        foreach(var bill in BillItems)
+        {
+            if(bill.ItemType == "PRODUCT")
+            {
+                if(!bill.ProductIDValid)
+                {
+                    return  false;
+
+                }
+                if (bill.itemOutOfStock)
+                {
+                    return  false;
+
+                }
+            }
+
+        }
+        return true;
+    }
+
 
     public async void OnProductsSearch(ChangeEventArgs e, int index)
     {
@@ -326,6 +356,7 @@
 
 
         BillItems[index].showSuggestions = filteredProducts.Any();
+        BillItems[index].ProductIDValid = false;
         StateHasChanged();
     }
 
@@ -344,10 +375,17 @@
     }
 
 
-    private void CheckStock(BillItem item,int quantity)
+    private void CheckStock(BillItem item,ChangeEventArgs e)
     {
         if (item.isItemSelected && item.ItemType == "PRODUCT")
         {
+            string value = e.Value.ToString();
+            int quantity = 0;
+            if (!string.IsNullOrEmpty(value) && !string.IsNullOrWhiteSpace(value) && int.TryParse(value, out quantity))
+            {
+                // quantity is already parsed safely
+            }
+
             item.itemOutOfStock = quantity > item.AvailableQuantity;
             Debug.WriteLine($"Item Quantity = {quantity}");
             Debug.WriteLine($"Available Quantity = {item.AvailableQuantity}");
@@ -386,6 +424,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        isProcessing = true;
         isAdmin = await MyLocalStorageService.GetItemAsync("IsAdmin") == "true" ? true : false;
         if(isUpdating)
         {
@@ -430,6 +469,7 @@
             StateHasChanged();
         }
         await NecessaryData();
+        isProcessing = false;
     }
     public async Task SubmitFormVehicle(VehicleType vehicle)
     {
@@ -479,79 +519,88 @@
     }
     public async void HandleSubmit()
     {
-        Debug.WriteLine(SelectedBranch);
-        isProcessing = true;
-        if (restrictCashBox)
+        if(CanSubmitBill())
         {
-            CashAmount = TotalAmount;
-        }
-        manageCredit();
-        billPayment.CardAmount = CardAmount;
-        billPayment.CashAmount = CashAmount;
-        billPayment.BankAmount = BankAmount;
-        billPayment.UPIAmount = UPIAmount;
-
-        bill.Branch = SelectedBranch;
-        bill.BillingYear = DateTime.Now.Year;
-        bill.Discount = Discount;
-        bill.TotalAmount = TotalAmount;
-        bill.GrandTotal = GrandTotal;
-
-
-
-
-        BillDetails finalBill = new BillDetails
+            Debug.WriteLine(SelectedBranch);
+            isProcessing = true;
+            if (restrictCashBox)
             {
-                Bill = bill,
-                BillItems = BillItems,
-                BillPayment = billPayment
-            };
-        try
+                CashAmount = TotalAmount;
+            }
+            manageCredit();
+            billPayment.CardAmount = CardAmount;
+            billPayment.CashAmount = CashAmount;
+            billPayment.BankAmount = BankAmount;
+            billPayment.UPIAmount = UPIAmount;
+
+            bill.Branch = SelectedBranch;
+            bill.BillingYear = DateTime.Now.Year;
+            bill.Discount = Discount;
+            bill.TotalAmount = TotalAmount;
+            bill.GrandTotal = GrandTotal;
+
+
+
+
+            BillDetails finalBill = new BillDetails
+                {
+                    Bill = bill,
+                    BillItems = BillItems,
+                    BillPayment = billPayment
+                };
+            try
+            {
+                if (isUpdating)
+                {
+                    int[] temp = await DatabaseHandler.InsertBillAsync(bill, BillItems, billPayment, true);
+                    ToastService.ShowToast("Bill Updated Successfully", ToastType.sucess);
+                }
+                else
+                {
+                    int[] data = await DatabaseHandler.InsertBillAsync(bill, BillItems, billPayment, false);
+                    bill.BillID = data[0];
+                    finalBill.Bill.BillID = data[0];
+                    bill.BillNo = data[1];
+                    finalBill.Bill.BillNo = data[1];
+                    ToastService.ShowToast("Bill Added Successfully", ToastType.sucess);
+                }
+
+                if (FormFactor.GetFormFactor() == "Web")
+                {
+                    await PDFGenerator.GeneratePdfAsync(finalBill, JS);
+                }
+                else
+                {
+                    await PDFGenerator.GeneratePdfAsync(finalBill, null);
+                }
+            }
+            catch (Exception e)
+            {
+                ToastService.ShowToast(e.Message, ToastType.error);
+            }
+
+            isProcessing = false;
+            bill = new Bill();
+            BillItems = new List<BillItem>();
+            CashAmount = 0;
+            CardAmount = 0;
+            BankAmount = 0;
+            UPIAmount = 0;
+            restrictCashBox = false;
+            CustomerSearch = "";
+            VehicleSearch = "";
+            SelectedCustomer = "No Customer Selected";
+            StateHasChanged();
+        }
+        else
         {
-            if (isUpdating)
-            {
-                int[] temp = await DatabaseHandler.InsertBillAsync(bill, BillItems, billPayment, true);
-                ToastService.ShowToast("Bill Updated Successfully", ToastType.sucess);
-            }
-            else
-            {
-                int[] data = await DatabaseHandler.InsertBillAsync(bill, BillItems, billPayment, false);
-                bill.BillID = data[0];
-                finalBill.Bill.BillID = data[0];
-                bill.BillNo = data[1];
-                finalBill.Bill.BillNo = data[1];
-                ToastService.ShowToast("Bill Added Successfully", ToastType.sucess);
-            }
+            ToastService.ShowToast("Invalid ProductID or Out of stock error", ToastType.error);
+        }
 
-            if (FormFactor.GetFormFactor() == "Web")
-            {
-                await PDFGenerator.GeneratePdfAsync(finalBill, JS);
-            }
-            else
-            {
-                await PDFGenerator.GeneratePdfAsync(finalBill, null);
-            }
-        }
-        catch (Exception e)
-        {
-            ToastService.ShowToast(e.Message, ToastType.error);
-        }
-       
-        isProcessing = false;
-        bill  = new Bill();
-        BillItems = new List<BillItem>();
-        CashAmount = 0;
-        CardAmount = 0;
-        BankAmount = 0;
-        UPIAmount = 0;
-        restrictCashBox = false;
-        CustomerSearch = "";
-        VehicleSearch = "";
-        SelectedCustomer = "No Customer Selected";
-        StateHasChanged();
     }
     public async Task NecessaryData()
     {
+        
         string customerQuery = @"SELECT * FROM Customers";
         string vehicleQuery = @"SELECT * FROM Vehicle";
         string serviceQuery = @"SELECT * FROM Services";

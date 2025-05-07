@@ -405,8 +405,9 @@
             }
             else
             {
-                await DatabaseHandler.InsertPurchaseBillAsync(finalBill.purchase, finalBill.purchaseItems, false);
-                ToastService.ShowToast("Purchase updated successfully", ToastType.sucess);
+                int billNo = await DatabaseHandler.InsertPurchaseBillAsync(finalBill.purchase, finalBill.purchaseItems, false);
+                string billNoString = finalBill.purchase.Branch == "Sivakasi" ? "SFRP" + billNo.ToString().PadLeft(4, '0') : "BPRP"+billNo.ToString().PadLeft(4, '0');
+                ToastService.ShowToast($"Purchase updated successfully: BillNo = {billNoString}", ToastType.sucess);
             }
             
         }

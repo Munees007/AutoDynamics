@@ -4,6 +4,8 @@
              xmlns:local="clr-namespace:AutoDynamics"
              xmlns:shared="clr-namespace:AutoDynamics.Shared;assembly=AutoDynamics.Shared"
              x:Class="AutoDynamics.MainPage"
+             
+             
              BackgroundColor="{DynamicResource PageBackgroundColor}">
     <BlazorWebView x:Name="blazorWebView" HostPage="wwwroot/index.html">
         <BlazorWebView.RootComponents>

@@ -3,4 +3,7 @@
         <RouteView RouteData="routeData" DefaultLayout="@(routeData.PageType == typeof(Layout.LoginLayout) ? typeof(Layout.LoginLayout) : typeof(Layout.MainLayout))" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
+    <NotFound>
+        <p>Sorry, there's nothing at this address.</p>
+    </NotFound>
 </Router>

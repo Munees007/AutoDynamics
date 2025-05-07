@@ -55,6 +55,7 @@ namespace AutoDynamics.Services
                     var totalSGST = 0m;
                     var totalQuantity = 0;
                     var totalTaxableAmount = 0m;
+                    var total = 0m;
                     foreach (var item in serviceItems)
                     {
                         var cgstRate =  9;
@@ -66,12 +67,13 @@ namespace AutoDynamics.Services
                         totalSGST += sgstAmt;
                         totalQuantity += item.Quantity;
                         totalTaxableAmount += item.TaxableValue;
+                        total += item.UnitPrice * item.Quantity;
                     }
 
                     var computedTotal = totalTaxableAmount + totalCGST + totalSGST;
 
                     // ✅ Rounding difference
-                    var roundingDiffRaw = bill.TotalAmount - computedTotal;
+                    var roundingDiffRaw = total - computedTotal;
                     var roundingDiff = Math.Round(roundingDiffRaw, 2);
 
                     ws.Cell(excelRow, 1).Value = bill.BillDate.ToString("dd-MM-yyyy");
@@ -89,7 +91,7 @@ namespace AutoDynamics.Services
                     ws.Cell(excelRow, 11).Value = totalSGST;
                     ws.Cell(excelRow, 11).Style.NumberFormat.Format = "0.00";
                     ws.Cell(excelRow, 12).Value = roundingDiff;
-                    ws.Cell(excelRow, 13).Value = bill.TotalAmount;
+                    ws.Cell(excelRow, 13).Value = total;
                     excelRow++;
                 }
 
@@ -104,7 +106,8 @@ namespace AutoDynamics.Services
                     var totalSGST = 0m;
                     var totalQuantity = 0;
                     var totalTaxableAmount = 0m;
-                    foreach (var item in serviceItems)
+                    var total = 0m;
+                    foreach (var item in hsnGroup)
                     {
                         var cgstRate = 14;
                         var sgstRate = 14;
@@ -115,12 +118,13 @@ namespace AutoDynamics.Services
                         totalSGST += sgstAmt;
                         totalQuantity += item.Quantity;
                         totalTaxableAmount += item.TaxableValue;
+                        total += item.UnitPrice * item.Quantity;
                     }
 
                     var computedTotal = totalTaxableAmount + totalCGST + totalSGST;
 
                     // ✅ Rounding difference
-                    var roundingDiffRaw = bill.TotalAmount - computedTotal;
+                    var roundingDiffRaw = total - computedTotal;
                     var roundingDiff = Math.Round(roundingDiffRaw, 2);
 
                     string hsnCode = hsnGroup.Key;
@@ -140,7 +144,7 @@ namespace AutoDynamics.Services
                     ws.Cell(excelRow, 11).Value = totalSGST;
                     ws.Cell(excelRow, 11).Style.NumberFormat.Format = "0.00";
                     ws.Cell(excelRow, 12).Value = roundingDiff;
-                    ws.Cell(excelRow, 13).Value = bill.TotalAmount;
+                    ws.Cell(excelRow, 13).Value = total;
                     excelRow++;
                 }
             }

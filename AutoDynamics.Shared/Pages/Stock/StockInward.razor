@@ -1,0 +1,118 @@
+@page "/stock/inward"
+@using AutoDynamics.Shared.Modals
+@using AutoDynamics.Shared.Services
+@using AutoDynamics.Shared.Pages.Components
+@using AutoDynamics.Shared.Modals.ComponentsTypes
+@using AutoDynamics.Shared.Pages.Stock
+@using System.Diagnostics
+@inject IDatabaseHandler DatabaseHandler
+@inject IToastService ToastService
+@inject IMyLocalStorageService MyLocalStorageService
+
+<div class="container my-4">
+    <h1 class="mb-4">Stock Inwards</h1>
+    <DialoBox dialogBox="itemsDialogBox"/>
+    <!-- Table for displaying stock inwards -->
+    <table class="table table-striped table-hover table-bordered align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>From</th>
+                <th>To</th>
+                <th>Received By</th>
+                <th>Received Date</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var inward in stockInwards)
+            {
+                <tr>
+                    <td>@inward.SourceLocation</td>
+                    <td>@inward.DestinationLocation</td>
+                    <td>@inward.ReceivedBy</td>
+                    <td>@inward.ReceivedData.ToString("yyyy-MM-dd")</td>
+                    <td>@inward.status</td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm me-1"
+                        @onclick="()=>{currentInward = inward; itemsDialogBox.showDialog = true;StateHasChanged();}">
+                            View
+                        </button>
+                        <button class="btn btn-primary btn-sm" @onclick="()=> Accept(inward)">Accept</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+
+</div>
+
+@code{
+    List<StockInwardType> stockInwards { set; get; } = new();
+
+    StockInwardType currentInward = new();
+
+    CustomDialogBox itemsDialogBox;
+
+    string currentBranch = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentBranch = await MyLocalStorageService.GetItemAsync("Branch");
+        itemsDialogBox = new CustomDialogBox
+        {
+                    body = @<table class="table table-striped table-hover table-bordered align-middle">
+    <thead class="table-dark">
+        <tr>
+            <th>Product</th>
+            <th>Quantity</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in currentInward.StockOutward.Outwards)
+        {
+            <tr>
+                <td>@item.Product.Brand - @item.Product.Size @item.Product.Pattern @item.Product.TubeOrTubeless</td>
+                <td>@item.Quantity</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+
+
+    ,
+        OnCloase = EventCallback.Factory.Create(this,()=>
+        {
+            itemsDialogBox.showDialog = false;
+            StateHasChanged();
+        })
+
+        };
+        try
+        {
+            stockInwards = await DatabaseHandler.GetStockInwards();
+			stockInwards = stockInwards.Where(x => x.DestinationLocation == currentBranch).ToList();
+            Debug.WriteLine(stockInwards[0].SourceLocation);
+        }
+        catch(Exception e)
+        {
+            ToastService.ShowToast(e.Message, ToastType.error);
+        }
+
+
+    }
+
+    public async Task Accept(StockInwardType inward)
+    {
+        try
+        {
+            await DatabaseHandler.AcceptInward(inward);
+            ToastService.ShowToast("Accepted", ToastType.sucess);
+        }
+        catch(Exception e)
+        {
+            ToastService.ShowToast(e.Message,ToastType.error);
+        }
+    }
+}

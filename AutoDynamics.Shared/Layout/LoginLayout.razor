@@ -63,6 +63,7 @@
 
     protected override void OnInitialized()
     {
+        MyLocalStorageService.ClearAsync();
         isLogin = true;
         StateHasChanged();
     }

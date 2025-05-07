@@ -55,6 +55,7 @@
             Name = "";
             Address = "";
             Area = "";
+            GSTIN = "";
             City = "";
             Country = "";
             State = "";

@@ -7,6 +7,7 @@ namespace AutoDynamics.Services
     {
         public async Task ShowAlertAsync(string title, string message, string buttonText = "OK")
         {
+            
             await Application.Current.MainPage.DisplayAlert(title, message, buttonText);
         }
     }

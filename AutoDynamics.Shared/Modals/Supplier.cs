@@ -64,6 +64,7 @@ namespace AutoDynamics.Shared.Modals
             LastUpdatedBy = "";
             CreateAt = "";
             LastUpdatedAt = "";
+            GSTIN = "";
         }
     }
 }

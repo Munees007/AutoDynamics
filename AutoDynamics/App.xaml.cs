@@ -1,4 +1,5 @@
-﻿namespace AutoDynamics
+﻿
+namespace AutoDynamics
 {
     public partial class App : Application
     {
@@ -9,7 +10,10 @@
 
         protected override Window CreateWindow(IActivationState? activationState)
         {
-            return new Window(new MainPage()) { Title = "AutoDynamics" };
+            var window = new Window(new MainPage()) { Title = "AutoDynamics" };
+            return window;
         }
+
+
     }
 }

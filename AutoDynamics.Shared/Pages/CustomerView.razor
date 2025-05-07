@@ -6,6 +6,7 @@
 @inject ICurrentData CurrentData
 @inject IAlertService AlertService
 @inject IMyLocalStorageService MyLocalStorageService
+@inject ITabService TabService
 
 <h1 class="text-center mt-3">Customer List</h1>
 
@@ -95,6 +96,7 @@
 
     public async Task fetchData()
     {
+        customers.Clear();
         string query = "SELECT * FROM Customers";
         var result = await DatabaseHandler.ExecuteQueryAsync(query);
         customers = new List<UserModal>();
@@ -133,7 +135,8 @@
     private void ViewCustomer(UserModal user)
     {
         CurrentData.Set(CurrentType.Customer,user);
-        Navigation.NavigateTo($"/customer/details");
+        //TabService.OpenWithParameter(user.Name + " View", typeof(CustomerSingleView), user, "customerData");
+		Navigation.NavigateTo($"/customer/details");
     }
 
     private async Task DeleteCustomer(string customerId)
@@ -149,5 +152,6 @@
     {
         CurrentData.Set(CurrentType.Customer,user);
         Navigation.NavigateTo($"/customer/update");
+		//TabService.OpenWithParameter(user.Name + " Update", typeof(UpdateCustomer),user,"customerData");
     }
 }

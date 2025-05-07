@@ -6,6 +6,7 @@ namespace AutoDynamics.Services
     {
         public Task SetItemAsync(string key, string value)
         {
+            
             Preferences.Set(key, value);
             return Task.CompletedTask;
         }
@@ -18,6 +19,12 @@ namespace AutoDynamics.Services
         public Task RemoveItemAsync(string key)
         {
             Preferences.Remove(key);
+            return Task.CompletedTask;
+        }
+
+        public Task ClearAsync()
+        {
+            Preferences.Clear();
             return Task.CompletedTask;
         }
     }

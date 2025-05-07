@@ -30,6 +30,8 @@ namespace AutoDynamics.Shared.Modals
         public TaxRate TaxRate { get; set; } = TaxRate.TAX_28;
         public string HSNCode { get; set; } = "";
         public bool itemOutOfStock { get; set; } = false;
+
+        public bool ProductIDValid = false;
         public bool isItemSelected { get; set; } = false;
         public string Branch { get; set; } = "";
         public string ItemID { get; set; } = "";

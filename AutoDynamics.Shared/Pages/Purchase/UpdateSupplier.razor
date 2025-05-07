@@ -1,0 +1,16 @@
+@page "/supplier/update"
+@using AutoDynamics.Shared.Services
+@using AutoDynamics.Shared.Modals
+@inject ICurrentData CurrentCustomer
+<h1>Update Supplier</h1>
+
+<SupplierForm isUpdating="true" userData="@updatingUser"></SupplierForm>
+
+@code{
+	private Supplier updatingUser { set; get; } = new Supplier();
+	protected override void OnInitialized()
+	{
+		updatingUser = CurrentCustomer.Get<Supplier>(CurrentType.Supplier) ?? new() ;
+	}
+}
+

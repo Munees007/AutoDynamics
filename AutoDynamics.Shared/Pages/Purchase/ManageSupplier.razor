@@ -7,12 +7,12 @@
 @inject IAlertService AlertService
 @inject IMyLocalStorageService MyLocalStorageService
 
-<h1 class="text-center mt-3">Customer List</h1>
+<h1 class="text-center mt-3">Supplier List</h1>
 
 
 <div class="container mt-4">
     <input autocomplete="off" type="text" class="form-control mb-3" placeholder="Search by Supplier Name, Contact or Supplier ID"
-           @bind="searchTerm" @oninput="FilterData" />
+    @bind="searchTerm" @oninput="FilterData" />
 </div>
 
 <div class="container mt-4">
@@ -46,12 +46,12 @@
                             <td>@customer.City</td>
                             <td>@customer.GSTIN</td>
                             <td>
-                                 @* <button class="btn btn-primary btn-sm" @onclick="() => ViewCustomer(customer    )">View</button>  *@
-                                 @* <button class="btn btn-dark btn-sm" @onclick="() => UpdateCustomer(customer)">Update</button>  *@
-                                
-                                    <button class="btn btn-danger btn-sm" @onclick="() => DeleteCustomer(customer.SupplierID)">Delete</button> 
-                                
-                             </td> 
+                                @* <button class="btn btn-primary btn-sm" @onclick="() => ViewCustomer(customer    )">View</button>  *@
+                                <button class="btn btn-dark btn-sm" @onclick="() => UpdateCustomer(customer)">Update</button> 
+
+                                <button class="btn btn-danger btn-sm" @onclick="() => DeleteCustomer(customer.SupplierID)">Delete</button> 
+
+                            </td> 
                         </tr>
                     }
                 }
@@ -96,6 +96,7 @@
 
     public async Task fetchData()
     {
+        customers.Clear();
         string query = "SELECT * FROM Suppliers";
         var result = await DatabaseHandler.ExecuteQueryAsync(query);
         customers = new List<Supplier>();
@@ -137,7 +138,7 @@
     {
         string query = $"DELETE FROM Suppliers WHERE SupplierID = '{customerId}'";
         await DatabaseHandler.ExecuteQueryAsync(query);
-        await AlertService.ShowAlertAsync("Delete Customer:", "Deleted Successfully", "OK");
+        await AlertService.ShowAlertAsync("Delete Supplier:", "Deleted Successfully", "OK");
         await fetchData();
         StateHasChanged();
     }

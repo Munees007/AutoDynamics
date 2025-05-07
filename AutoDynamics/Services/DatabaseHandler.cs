@@ -167,13 +167,55 @@ namespace AutoDynamics.Services
 
                                 purchaseBillId = Convert.ToInt32(purchaseBill.PurchaseBillID); // use existing bill ID for update
 
-                                // Delete old purchase items linked to this bill
-                                var deleteItemsQuery = @"DELETE FROM PurchaseItems WHERE PurchaseBillID = @PurchaseBillID";
+                                // Step 1: Fetch existing purchase items
+                                string fetchItemsQuery = "SELECT ProductID, Quantity FROM PurchaseItems WHERE PurchaseBillID = @PurchaseBillID";
+                                using (var fetchCommand = new MySqlCommand(fetchItemsQuery, connection, (MySqlTransaction)transaction))
+                                {
+                                    fetchCommand.Parameters.AddWithValue("@PurchaseBillID", purchaseBillId);
+
+                                    using (var reader = await fetchCommand.ExecuteReaderAsync())
+                                    {
+                                        var itemsToDeduct = new List<(string ProductID, int Quantity)>();
+
+                                        while (await reader.ReadAsync())
+                                        {
+                                            string productId = reader.GetString("ProductID");
+                                            int quantity = reader.GetInt32("Quantity");
+                                            
+
+                                            itemsToDeduct.Add((productId, quantity));
+                                        }
+
+                                        reader.Close(); // Must close before issuing new command on same connection
+
+                                        // Step 2: Deduct from stock
+                                        foreach (var item in itemsToDeduct)
+                                        {
+                                            string updateStockQuery = @"
+                UPDATE Stock
+                SET AvailableQuantity = AvailableQuantity - @Quantity
+                WHERE ProductID = @ProductID AND Branch = @Branch";
+
+                                            using (var updateCommand = new MySqlCommand(updateStockQuery, connection, (MySqlTransaction)transaction))
+                                            {
+                                                updateCommand.Parameters.AddWithValue("@Quantity", item.Quantity);
+                                                updateCommand.Parameters.AddWithValue("@ProductID", item.ProductID);
+                                                updateCommand.Parameters.AddWithValue("@Branch", purchaseBill.Branch);
+
+                                                await updateCommand.ExecuteNonQueryAsync();
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Step 3: Delete the purchase items
+                                string deleteItemsQuery = @"DELETE FROM PurchaseItems WHERE PurchaseBillID = @PurchaseBillID";
                                 using (var deleteCommand = new MySqlCommand(deleteItemsQuery, connection, (MySqlTransaction)transaction))
                                 {
                                     deleteCommand.Parameters.AddWithValue("@PurchaseBillID", purchaseBillId);
                                     await deleteCommand.ExecuteNonQueryAsync();
                                 }
+
 
                                 // Update stock for the purchase items
                                 foreach (var item in purchaseItems)
@@ -245,7 +287,8 @@ namespace AutoDynamics.Services
                         // Commit the transaction after all operations succeed
                         await transaction.CommitAsync();
                         //ToastService.ShowToast("Purchase Bill Added Successfully", ToastType.success);
-                        return purchaseBillId;
+
+                        return newBillNo;
                     }
                     catch (Exception ex)
                     {
@@ -303,8 +346,48 @@ namespace AutoDynamics.Services
 
                         await command.ExecuteNonQueryAsync();
                     }
+                    //2. Restock old items
+                    string fetchBillItemsQuery = "SELECT ItemID, Quantity FROM BillItems WHERE BillID = @BillID AND ItemType = @ItemType";
+                    using (var fetchCommand = new MySqlCommand(fetchBillItemsQuery, connection, (MySqlTransaction)transaction))
+                    {
+                        fetchCommand.Parameters.AddWithValue("@BillID", bill.BillID);
+                        fetchCommand.Parameters.AddWithValue("@ItemType", "PRODUCT");
 
-                    // 2. Remove old BillItems and Insert new ones
+                        using (var reader = await fetchCommand.ExecuteReaderAsync())
+                        {
+                            var itemsToRestock = new List<(string ProductID, int Quantity)>();
+
+                            while (await reader.ReadAsync())
+                            {
+                                string productId = reader.GetString("ItemID");
+                                int quantity = reader.GetInt32("Quantity");
+                                
+
+                                itemsToRestock.Add((productId, quantity));
+                            }
+
+                            reader.Close(); // Must close before executing next command in same connection
+
+                            // Step 2: Restock each item
+                            foreach (var item in itemsToRestock)
+                            {
+                                string updateStockQuery = @"
+                UPDATE Stock
+                SET AvailableQuantity = AvailableQuantity + @Quantity
+                WHERE ProductID = @ProductID AND Branch = @Branch";
+
+                                using (var updateCommand = new MySqlCommand(updateStockQuery, connection, (MySqlTransaction)transaction))
+                                {
+                                    updateCommand.Parameters.AddWithValue("@Quantity", item.Quantity);
+                                    updateCommand.Parameters.AddWithValue("@ProductID", item.ProductID);
+                                    updateCommand.Parameters.AddWithValue("@Branch", bill.Branch);
+
+                                    await updateCommand.ExecuteNonQueryAsync();
+                                }
+                            }
+                        }
+                    }
+                    // 3. Remove old BillItems and Insert new ones
                     string deleteBillItemsQuery = "DELETE FROM BillItems WHERE BillID = @BillID";
                     using (var command = new MySqlCommand(deleteBillItemsQuery, connection, (MySqlTransaction)transaction))
                     {
@@ -333,7 +416,29 @@ namespace AutoDynamics.Services
                         }
                     }
 
-                    // 3. Update Bill Payments
+                    // Update Stock
+                    foreach (var billItem in billItems)
+                    {
+                        if (billItem.ItemType == "PRODUCT")
+                        {
+
+                            string updateStockQuery = @"UPDATE Stock 
+SET AvailableQuantity = AvailableQuantity - @Quantity 
+WHERE ProductID = @ProductID AND Branch = @Branch
+                            
+                                                        ";
+
+                            using (var command = new MySqlCommand(updateStockQuery, connection, (MySqlTransaction)transaction))
+                            {
+                                command.Parameters.AddWithValue("@Quantity", billItem.Quantity);
+                                command.Parameters.AddWithValue("@ProductID", billItem.ItemID);
+                                command.Parameters.AddWithValue("@Branch", billItem.Branch);
+                                await command.ExecuteNonQueryAsync();
+                            }
+                        }
+                    }
+
+                    // 4. Update Bill Payments
                     string updatePaymentQuery = @"
         UPDATE BillPayments 
         SET CashAmount = @CashAmount, 
@@ -352,7 +457,7 @@ namespace AutoDynamics.Services
                         await command.ExecuteNonQueryAsync();
                     }
 
-                    // 4. Update Credit Record if Bank Amount > 0
+                    // 6. Update Credit Record if Bank Amount > 0
                     if (billPayment.BankAmount > 0)
                     {
                         string updateCreditQuery = @"
@@ -369,7 +474,7 @@ namespace AutoDynamics.Services
                         }
                     }
 
-                    // 5. Commit Transaction
+                    // 7. Commit Transaction
                     await transaction.CommitAsync();
 
                     int[] returnData = { 0, 0 };
@@ -668,6 +773,8 @@ WHERE p.ProductID = @ProductID";
                         BrandID = brand.BrandID,
                         Branch = branch,
                         BrandName = brand.BrandName,
+                        isItemSelected = true,
+                        ProductIDValid = true,
                         AvailableQuantity = availableQuantity,
                         ProductName = billItemReader.GetString("ItemName"),
                         ProductID = billItemReader.IsDBNull("ItemID") ? "" : billItemReader.GetString("ItemID"),
@@ -737,8 +844,8 @@ WHERE p.ProductID = @ProductID";
             var billDictionary = new Dictionary<int, BillDetails>();
             while (await billReader.ReadAsync())
             {
-                
-                var customer = new UserModal 
+
+                var customer = new UserModal
                 {
                     CustomerId = billReader.GetString("CustomerID"),
                     Contact = billReader.GetString("Contact"),
@@ -752,7 +859,7 @@ WHERE p.ProductID = @ProductID";
                     VehicleMake = billReader.IsDBNull("VehicleNo") ? "" : billReader.GetString("VehicleMake"),
                     ModelName = billReader.IsDBNull("VehicleNo") ? "" : billReader.GetString("ModelName"),
                 };
-               
+
                 var bill = new Bill
                 {
                     BillID = billReader.GetInt32("BillID"),
@@ -801,28 +908,57 @@ WHERE p.ProductID = @ProductID";
                     {
                         taxRate = TaxRate.TAX_28; // default fallback
                     }
+
                     string itemType = billItemReader.GetString("ItemType");
                     string hsnCode = "";
+                    int availableQuantity = 0;
+                    string branch = "";
+                    BrandType brand = new();
                     if (itemType == "PRODUCT")
                     {
-                        using var productConnection = new MySqlConnection(connection.ConnectionString);
+                        using var productConnection = new MySqlConnection(_connectionString);
                         await productConnection.OpenAsync();
-                        string productQuery = @"SELECT * FROM Product WHERE ProductID = @ProductID";
+                        string productQuery = @"SELECT p.*, b.*, bi.BillID, bi.Branch, s.AvailableQuantity 
+FROM Product p
+JOIN Brands b ON b.BrandID = p.BrandID
+JOIN Bills bi ON bi.BillID = @BillID
+JOIN Stock s ON s.Branch = bi.Branch AND s.ProductID = p.ProductID
+WHERE p.ProductID = @ProductID";
+
+
                         using var productCommand = new MySqlCommand(productQuery, productConnection);
                         productCommand.Parameters.AddWithValue("@ProductID", billItemReader.GetString("ItemID"));
+                        productCommand.Parameters.AddWithValue("@BillID", billId);
                         using var productReader = await productCommand.ExecuteReaderAsync();
                         if (await productReader.ReadAsync())
                         {
                             hsnCode = productReader.IsDBNull("HSNCode") ? "" : productReader.GetString("HSNCode");
-
+                            brand = new BrandType
+                            {
+                                BrandName = productReader.IsDBNull("BrandName") ? "" : productReader.GetString("BrandName"),
+                                BrandID = productReader.IsDBNull("BrandID") ? "" : productReader.GetString("BrandID"),
+                                BrandShortForm = productReader.IsDBNull("BrandShortForm") ? "" : productReader.GetString("BrandShortForm"),
+                            };
+                            branch = productReader.IsDBNull("Branch") ? "" : productReader.GetString("Branch");
+                            availableQuantity = productReader.IsDBNull("AvailableQuantity") ? 0 : productReader.GetInt32("AvailableQuantity");
                         }
                         await productReader.CloseAsync(); // ✅ Explicit close
                         await productConnection.CloseAsync(); // ✅ Explicit close (optional, but clean)
 
                     }
+
                     billDictionary[billId].BillItems.Add(new BillItem
                     {
                         BillID = billId,
+                        Brand = brand,
+                        BrandID = brand.BrandID,
+                        Branch = branch,
+                        BrandName = brand.BrandName,
+                        isItemSelected = true,
+                        ProductIDValid = true,
+                        AvailableQuantity = availableQuantity,
+                        ProductName = billItemReader.GetString("ItemName"),
+                        ProductID = billItemReader.IsDBNull("ItemID") ? "" : billItemReader.GetString("ItemID"),
                         ItemType = billItemReader.GetString("ItemType"),
                         ItemName = billItemReader.GetString("ItemName"),
                         TaxRate = taxRate,
@@ -837,6 +973,7 @@ WHERE p.ProductID = @ProductID";
             }
 
             await billItemReader.CloseAsync();
+
 
             // Fetch BillPayments
             string billPaymentQuery = "SELECT * FROM BillPayments";
@@ -881,5 +1018,343 @@ WHERE p.ProductID = @ProductID";
             string newCustomerID = $"{startsWith}{(lastNumber + 1).ToString().PadLeft(size, '0')}";
             return newCustomerID;
         }
+
+        public async Task<int> InsertStockOutwardAsync(StockOutwardType outward, List<Outward> outwardItems)
+        {
+            int stockOutwardId = 0;
+
+            string insertOutwardQuery = @"
+        INSERT INTO StockOutward (SourceBranch, DestinationBranch, Remarks, CreatedBy)
+        VALUES (@SourceBranch, @DestinationBranch, @Remarks, @CreatedBy);
+        SELECT LAST_INSERT_ID();";
+
+            string insertItemQuery = @"
+        INSERT INTO StockOutwardItems (StockOutwardId, ProductID, Quantity)
+        VALUES (@StockOutwardId, @ProductID, @Quantity);";
+
+            string subtractStockQuery = @"
+        UPDATE Stock
+        SET AvailableQuantity = AvailableQuantity - @Quantity
+        WHERE ProductID = @ProductID AND Branch = @SourceBranch;";
+
+            string insertInwardQuery = @"
+    INSERT INTO StockInward (StockOutwardId, SourceBranch, DestinationBranch, Status)
+    VALUES (@StockOutwardId, @SourceBranch, @DestinationBranch, 'Pending');";
+
+
+            using (var connection = new MySqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                using (var transaction = await connection.BeginTransactionAsync())
+                {
+                    try
+                    {
+                        // Insert into StockOutward
+                        using (var cmd = new MySqlCommand(insertOutwardQuery, connection, (MySqlTransaction)transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@SourceBranch", outward.From);
+                            cmd.Parameters.AddWithValue("@DestinationBranch", outward.To);
+                            cmd.Parameters.AddWithValue("@Remarks", outward.Remarks ?? (object)DBNull.Value);
+                            cmd.Parameters.AddWithValue("@CreatedBy", outward.CreatedBy ?? (object)DBNull.Value);
+
+                            object result = await cmd.ExecuteScalarAsync();
+                            stockOutwardId = Convert.ToInt32(result);
+                        }
+
+                        using (var cmd = new MySqlCommand(insertInwardQuery, connection, (MySqlTransaction)transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@StockOutwardId", stockOutwardId);
+                            cmd.Parameters.AddWithValue("@SourceBranch", outward.From);
+                            cmd.Parameters.AddWithValue("@DestinationBranch", outward.To);
+                            await cmd.ExecuteNonQueryAsync();
+                        }
+
+                        // Insert items
+                        foreach (var item in outwardItems)
+                        {
+                            using (var cmd = new MySqlCommand(insertItemQuery, connection, (MySqlTransaction)transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@StockOutwardId", stockOutwardId);
+                                cmd.Parameters.AddWithValue("@ProductID", item.ProductID);
+                                cmd.Parameters.AddWithValue("@Quantity", item.Quantity);
+
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+
+                            using (var cmd = new MySqlCommand(subtractStockQuery, connection, (MySqlTransaction)transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@ProductID", item.ProductID);
+                                cmd.Parameters.AddWithValue("@Quantity", item.Quantity);
+                                cmd.Parameters.AddWithValue("@SourceBranch", outward.From);
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+                        }
+
+                        await transaction.CommitAsync();
+                    }
+                    catch
+                    {
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                }
+            }
+
+            return stockOutwardId;
+        }
+        public async Task UpdateStockOutwardAsync(int stockOutwardId, StockOutwardType outward, List<Outward> outwardItems)
+        {
+            string updateOutwardQuery = @"
+        UPDATE StockOutward
+        SET SourceBranch = @SourceBranch,
+            DestinationBranch = @DestinationBranch,
+            Remarks = @Remarks,
+            CreatedBy = @CreatedBy
+        WHERE Id = @Id;";
+
+            string deleteItemsQuery = @"
+        DELETE FROM StockOutwardItems
+        WHERE StockOutwardId = @StockOutwardId;";
+
+            string insertItemQuery = @"
+        INSERT INTO StockOutwardItems (StockOutwardId, ProductID, Quantity)
+        VALUES (@StockOutwardId, @ProductID, @Quantity);";
+
+            string subtractStockQuery = @"
+        UPDATE Stock
+        SET AvailableQuantity = AvailableQuantity - @Quantity
+        WHERE ProductID = @ProductID AND Branch = @SourceBranch;";
+
+            using (var connection = new MySqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                using (var transaction = await connection.BeginTransactionAsync())
+                {
+                    try
+                    {
+                        // Update StockOutward
+                        using (var cmd = new MySqlCommand(updateOutwardQuery, connection, (MySqlTransaction)transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@SourceBranch", outward.From);
+                            cmd.Parameters.AddWithValue("@DestinationBranch", outward.To);
+                            cmd.Parameters.AddWithValue("@Remarks", outward.Remarks ?? (object)DBNull.Value);
+                            cmd.Parameters.AddWithValue("@CreatedBy", outward.CreatedBy ?? (object)DBNull.Value);
+                            cmd.Parameters.AddWithValue("@Id", stockOutwardId);
+
+                            await cmd.ExecuteNonQueryAsync();
+                        }
+
+                        // Delete existing items
+                        using (var cmd = new MySqlCommand(deleteItemsQuery, connection, (MySqlTransaction)transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@StockOutwardId", stockOutwardId);
+                            await cmd.ExecuteNonQueryAsync();
+                        }
+
+                        // Insert updated items
+                        foreach (var item in outwardItems)
+                        {
+                            using (var cmd = new MySqlCommand(insertItemQuery, connection, (MySqlTransaction)transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@StockOutwardId", stockOutwardId);
+                                cmd.Parameters.AddWithValue("@ProductID", item.ProductID);
+                                cmd.Parameters.AddWithValue("@Quantity", item.Quantity);
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+                            using (var cmd = new MySqlCommand(subtractStockQuery, connection, (MySqlTransaction)transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@ProductID", item.ProductID);
+                                cmd.Parameters.AddWithValue("@Quantity", item.Quantity);
+                                cmd.Parameters.AddWithValue("@SourceBranch", outward.From);
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+                        }
+
+                        await transaction.CommitAsync();
+                    }
+                    catch
+                    {
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                }
+            }
+        }
+
+        public async Task<List<StockInwardType>> GetStockInwards()
+        {
+            
+            var result = new List<StockInwardType>();
+
+            // Dictionary to store StockOutwardItems by StockOutwardId for quick lookup
+            var outwardItemsMap = new Dictionary<int, List<Outward>>();
+
+            // Fetch all inwards and related outward details
+            string selectQuery = @"
+        SELECT 
+            si.Id AS InwardId, si.StockOutwardId, si.Status, si.SourceBranch AS InwardSource, 
+            si.DestinationBranch AS InwardDestination, si.ReceivedBy, si.ReceivedDate,
+            so.Id AS OutwardId, so.SourceBranch AS OutwardSource, so.DestinationBranch AS OutwardDestination,
+            so.Remarks, so.CreatedBy, so.CreatedDate
+        FROM StockInward si 
+        JOIN StockOutward so ON so.Id = si.StockOutwardId";
+
+            // Fetch all products and brands
+            string fetchProductsQuery = @"
+        SELECT 
+            *
+        FROM Product p 
+        JOIN Brands b ON b.BrandID = p.BrandID
+        WHERE p.ProductID = @ProductID"; // This query will be executed for each product ID.
+
+            // Fetch outward items for each stock outward
+            string outwardItemsQuery = @"
+        SELECT 
+            Id, ProductID, Quantity, StockOutwardId
+        FROM StockOutwardItems
+        WHERE StockOutwardId = @StockOutwardId";
+
+            using var connection = new MySqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            var inwardsBuffer = new List<StockInwardType>();
+
+            // 1. Fetch Inward + Outward Details
+            using (var inwardCmd = new MySqlCommand(selectQuery, connection))
+            using (var reader = await inwardCmd.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    var inward = new StockInwardType
+                    {
+                        Id = reader.GetInt32("InwardId"),
+                        StockOutwardID = reader.GetInt32("StockOutwardId"),
+                        status = Enum.TryParse<Status>(reader.GetString("Status"), out var parsedStatus) ? parsedStatus : Status.Pending,
+                        SourceLocation = reader["InwardSource"]?.ToString(),
+                        DestinationLocation = reader["InwardDestination"]?.ToString(),
+                        ReceivedBy = reader.IsDBNull(reader.GetOrdinal("ReceivedBy")) ? "" : reader["ReceivedBy"]?.ToString(),
+                        ReceivedData = reader.IsDBNull(reader.GetOrdinal("ReceivedDate")) ? DateTime.MinValue : reader.GetDateTime("ReceivedDate"),
+
+                        StockOutward = new StockOutwardType
+                        {
+                            Id = reader.GetInt32("OutwardId"),
+                            From = reader["OutwardSource"]?.ToString(),
+                            To = reader["OutwardDestination"]?.ToString(),
+                            Remarks = reader["Remarks"]?.ToString(),
+                            CreatedBy = reader["CreatedBy"]?.ToString(),
+                            CreatedDate = reader.GetDateTime("CreatedDate")
+                        }
+                    };
+
+                    inwardsBuffer.Add(inward);
+                }
+            }
+
+            // 2. For each Inward, fetch StockOutwardItems and Product Details
+            foreach (var inward in inwardsBuffer)
+            {
+                var outwardItems = new List<Outward>();
+
+                using (var outwardItemsCmd = new MySqlCommand(outwardItemsQuery, connection))
+                {
+                    outwardItemsCmd.Parameters.AddWithValue("@StockOutwardId", inward.StockOutwardID);
+                    using (var outwardItemsReader = await outwardItemsCmd.ExecuteReaderAsync())
+                    {
+                        while (await outwardItemsReader.ReadAsync())
+                        {
+                            outwardItems.Add(new Outward
+                            {
+                                ProductID = outwardItemsReader.GetString("ProductID"),
+                                Quantity = outwardItemsReader.GetInt32("Quantity")
+                            });
+                        }
+                    }
+                }
+
+                // 3. Fetch Product details for each item
+                foreach (var outwardItem in outwardItems)
+                {
+                    using (var productCmd = new MySqlCommand(fetchProductsQuery, connection))
+                    {
+                        productCmd.Parameters.AddWithValue("@ProductID", outwardItem.ProductID);
+                        using (var productReader = await productCmd.ExecuteReaderAsync())
+                        {
+                            if (await productReader.ReadAsync())
+                            {
+                                outwardItem.Product = new ProductType
+                                {
+                                    ProductID = productReader.GetString("ProductID"),
+                                    Brand = productReader["Brand"]?.ToString(),
+                                    Size = productReader["Size"]?.ToString(),
+                                    TubeOrTubeless = productReader["TubeOrTubeless"]?.ToString(),
+                                    Pattern = productReader["Pattern"]?.ToString()
+                                };
+                            }
+                        }
+                    }
+                }
+
+                // Assign to the main object
+                inward.StockOutward.Outwards = outwardItems;
+
+                // Add to final result
+                result.Add(inward);
+            }
+
+
+            return result;
+        }
+
+
+        public async Task AcceptInward(StockInwardType stockInward)
+        {
+            string updateStatusQuery = @"
+        UPDATE StockInward 
+        SET Status = 'Received', ReceivedBy = @ReceivedBy, ReceivedDate = @ReceivedDate 
+        WHERE Id = @InwardId;";
+
+            string updateStockQuery = @"
+        INSERT INTO Stock (ProductID, Branch, AvailableQuantity)
+        VALUES (@ProductID, @Branch, @Quantity)
+        ON DUPLICATE KEY UPDATE AvailableQuantity = AvailableQuantity + @Quantity;";
+
+            using var connection = new MySqlConnection(_connectionString);
+            await connection.OpenAsync();
+            using var transaction = await connection.BeginTransactionAsync();
+
+            try
+            {
+                // 1. Update Inward Status
+                using (var cmd = new MySqlCommand(updateStatusQuery, connection, (MySqlTransaction)transaction))
+                {
+                    cmd.Parameters.AddWithValue("@ReceivedBy", stockInward.ReceivedBy ?? "System");
+                    cmd.Parameters.AddWithValue("@ReceivedDate", DateTime.Now);
+                    cmd.Parameters.AddWithValue("@InwardId", stockInward.Id);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+
+                // 2. Update Stock for Each Product
+                foreach (var item in stockInward.StockOutward.Outwards)
+                {
+                    using (var cmd = new MySqlCommand(updateStockQuery, connection, (MySqlTransaction)transaction))
+                    {
+                        cmd.Parameters.AddWithValue("@ProductID", item.ProductID);
+                        cmd.Parameters.AddWithValue("@Branch", stockInward.DestinationLocation);
+                        cmd.Parameters.AddWithValue("@Quantity", item.Quantity);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                }
+
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+
+
     }
 }

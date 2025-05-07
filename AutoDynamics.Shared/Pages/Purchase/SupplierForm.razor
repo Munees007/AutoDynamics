@@ -213,11 +213,11 @@
         {
             if (data.GSTIN.Trim().Length != 15)
             {
-                errors.Add("GSTIN number must be 15 digits.");
+                errors.Add("GSTIN must be exactly 15 characters (letters and numbers).");
             }
-            else if (!data.GSTIN.Trim().All(char.IsDigit))
+            else if (!data.GSTIN.Trim().All(char.IsLetterOrDigit))
             {
-                errors.Add("GSTIN must contain only digits.");
+                errors.Add("GSTIN must contain only letters and digits.");
             }
         }
         return errors;

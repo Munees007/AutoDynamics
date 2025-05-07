@@ -22,10 +22,22 @@
         <div class="col-md-10">
             <input type="text" @oninput="(e)=>{FilterStock(e);}" class="form-control" placeholder="Search by Product Id, Name" />
         </div>
-        <div class="col-md-2 d-flex align-items-center">
-            <button class="btn h-100 btn-success btn-sm w-100" @onclick="() => {addDialog.showDialog = true; StateHasChanged();}">
-                Add
-            </button>
+        @if (isAdmin)
+        {
+            <div class="col-md-2 d-flex align-items-center">
+                <button class="btn h-100 btn-success btn-sm w-100" @onclick="() => {addDialog.showDialog = true; StateHasChanged();}">
+                    Add
+                </button>
+            </div>}
+    </div>
+
+    <div class="row mt-3 mb-3">
+        <div class="col-md-12">
+            <select autocomplete="off"  class="form-select" @bind="ShowTable">
+                <option value="both">Both</option>
+                <option value="sivakasi">Sivakasi</option>
+                <option value="bypass">ByPass</option>
+            </select>
         </div>
     </div>
 
@@ -53,8 +65,9 @@
             {
                 <div class="col-md-6 w-100">
                     <div class="card shadow-lg">
-                        <div class="card-header bg-primary text-white">
+                        <div class="card-header d-flex justify-content-between bg-primary text-white">
                             <h5 class="mb-0">Sivakasi Branch</h5>
+                            <h5>Total = @sivakasiStockTotal</h5>
                         </div>
                         <div class="card-body">
                             @if (sivakasiStocks.Any())
@@ -70,7 +83,10 @@
                                             <th>Pattern</th>
                                             <th>Type</th>
                                             <th>Available Quantity</th>
-                                            <th>Actions</th>
+                                            @if (isAdmin)
+                                            {
+                                                <th>Actions</th>
+                                            }
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -86,7 +102,10 @@
                                                 <td>@stock.Product.Pattern</td>
                                                 <td>@stock.Product.TubeOrTubeless</td>
                                                 <td>@stock.AvailableQuantity</td>
-                                                <td><button class="btn btn-outline-success" @onclick="()=> {CurrentStock = stock;availabeStockPreviously = stock.AvailableQuantity; updateDialog.showDialog = true;StateHasChanged();}">CHANGE</button></td>
+                                                @if (isAdmin)
+                                                {
+                                                    <td><button class="btn btn-outline-success" @onclick="()=> {CurrentStock = stock;availabeStockPreviously = stock.AvailableQuantity; updateDialog.showDialog = true;StateHasChanged();}">CHANGE</button></td>
+                                                }
                                             </tr>
                                         }
                                     </tbody>
@@ -105,8 +124,9 @@
             {
                 <div class="col-md-6 mt-5 w-100">
                     <div class="card shadow-lg">
-                        <div class="card-header bg-success text-white">
+                        <div class="card-header d-flex justify-content-between bg-success text-white">
                             <h5 class="mb-0">Bypass Branch</h5>
+                            <h5>Total = @bypassStockTotal</h5>
                         </div>
                         <div class="card-body">
                             @if (bypassStocks.Any())
@@ -122,7 +142,10 @@
                                             <th>Pattern</th>
                                             <th>Type</th>
                                             <th>Available Quantity</th>
-                                            <th>Actions</th>
+                                            @if(isAdmin)
+                                            {
+                                                <th>Actions</th>
+                                            }
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -137,7 +160,10 @@
                                                 <td>@stock.Product.Pattern</td>
                                                 <td>@stock.Product.TubeOrTubeless</td>
                                                 <td>@stock.AvailableQuantity</td>
-                                                <td><button class="btn btn-outline-success" @onclick="()=> {CurrentStock = stock;availabeStockPreviously = stock.AvailableQuantity; updateDialog.showDialog = true;StateHasChanged();}">CHANGE</button></td>
+                                                @if(isAdmin)
+                                                {
+                                                    <td><button class="btn btn-outline-success" @onclick="()=> {CurrentStock = stock;availabeStockPreviously = stock.AvailableQuantity; updateDialog.showDialog = true;StateHasChanged();}">CHANGE</button></td>
+                                                }
                                             </tr>
                                         }
                                     </tbody>
@@ -164,7 +190,8 @@
     List<StockType> filteredSivakasiStocks = new();
     List<StockType> filteredBypassStocks = new();
 
-
+    int sivakasiStockTotal = 0;
+    int bypassStockTotal = 0;
 
     StockType CurrentStock = new();
 
@@ -174,6 +201,16 @@
     string branch = "";
     bool showSivakasi = false;
     bool showByPass = false;
+    string showTable = "both";
+    string ShowTable
+    {
+        get => showTable;
+        set
+        {
+            showTable = value;
+            HandleSelectTable();
+        }
+    }
     string searchQuery = "";
     string selectedSortOption = "month";
     DateTime? startDate;
@@ -183,11 +220,31 @@
     public CustomDialogBox updateDialog;
     public CustomDialogBox addDialog;
 
+    private void HandleSelectTable()
+    {
+        Debug.WriteLine(showTable);
+        if(showTable == "both")
+        {
+            showSivakasi = true;
+            showByPass = true;
+        }
+        else if(showTable == "sivakasi")
+        {
+            showSivakasi = true;
+            showByPass = false;
+        }
+        else
+        {
+            showSivakasi = false;
+            showByPass = true;
+        }
+        StateHasChanged();
+    }
 
 
     private async Task HandleUpdateClick()
     {
-
+        
         string UpdateQuery = @"UPDATE Stock Set AvailableQuantity = @AvailableQuantity WHERE ProductID = @ProductID";
         Dictionary<string,object> param = new Dictionary<string, object>
         {
@@ -202,6 +259,7 @@
     }
     protected override async Task OnInitializedAsync()
     {
+        isAdmin = await MyLocalStorageService.GetItemAsync("IsAdmin") == "true" ? true : false;
         updateDialog = new CustomDialogBox
 	    {
 	    	Title = "Update Stock",
@@ -328,18 +386,22 @@
                     });
             }
             Debug.WriteLine(stockDetails.Count);
-            showSivakasi = true;
-            showByPass = true;
+
             sivakasiStocks = stockDetails.Where(b => string.Equals(b.Branch, "Sivakasi", StringComparison.OrdinalIgnoreCase)).ToList();
             bypassStocks = stockDetails.Where(b => string.Equals(b.Branch, "ByPass", StringComparison.OrdinalIgnoreCase)).ToList();
+            HandleSelectTable();
             filteredSivakasiStocks = sivakasiStocks;
             filteredBypassStocks = bypassStocks;
+            filteredSivakasiStocks.ForEach(s => sivakasiStockTotal += s.AvailableQuantity);
+            filteredBypassStocks.ForEach(s => bypassStockTotal += s.AvailableQuantity);
 
         }
     }
 
     void FilterStock(ChangeEventArgs e)
     {
+        sivakasiStockTotal = 0;
+        bypassStockTotal = 0;
         string temp = e.Value.ToString();
 
         
@@ -355,7 +417,8 @@
         s.Product.Size.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
         s.Product.Brand.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
         s.Product.BrandID.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase)).ToList();
-
+        filteredSivakasiStocks.ForEach(s => sivakasiStockTotal += s.AvailableQuantity);
+        filteredBypassStocks.ForEach(s => bypassStockTotal += s.AvailableQuantity);
         StateHasChanged();
     }
 

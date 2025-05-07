@@ -16,8 +16,9 @@
     {
         <div class="col-md-12 mb-4">
             <div class="card shadow-lg">
-                <div class="card-header bg-primary text-white">
+                <div class="d-flex justify-content-between align-items-center card-header bg-primary text-white">
                     <h5 class="mb-0">Sivakasi Branch</h5>
+                    <h5>Total Amount = @sivakasiCreditTotal</h5>
                 </div>
                 <div class="card-body">
                     @if (filteredSivakasiRecords.Any())
@@ -73,8 +74,9 @@
     {
         <div class="col-md-12 mb-4">
             <div class="card shadow-lg">
-                <div class="card-header bg-success text-white">
+                <div class="d-flex justify-content-between align-items-center card-header bg-success text-white">
                     <h5 class="mb-0">Bypass Branch</h5>
+					<h5>Total Amount = @bypassCreditTotal</h5>
                 </div>
                 <div class="card-body">
                     @if (filteredBypassRecords.Any())
@@ -137,10 +139,15 @@
     List<CreditRecord> filteredSivakasiRecords = new List<CreditRecord>();
     List<CreditRecord> filteredBypassRecords = new List<CreditRecord>();
 
+    decimal sivakasiCreditTotal = 0m;
+    decimal bypassCreditTotal = 0m;
+
     bool showSivakasi = true;
     bool showByPass = true;
     void FilterRecord(ChangeEventArgs e)
     {
+        sivakasiCreditTotal = 0m;
+		bypassCreditTotal = 0m;
         string text = e.Value.ToString();
 
         filteredSivakasiRecords = sivakasiRecords.Where(r =>
@@ -155,6 +162,8 @@
     r.Customer.Name.Contains(text, StringComparison.OrdinalIgnoreCase)
     ).ToList();
 
+		filteredSivakasiRecords.ForEach(s => sivakasiCreditTotal += s.CreditAmount);
+		filteredBypassRecords.ForEach(b => bypassCreditTotal += b.CreditAmount);
         StateHasChanged();
     }
     protected override async Task OnInitializedAsync()
@@ -169,6 +178,8 @@
     }
     public async Task FetchData()
     {
+        sivakasiCreditTotal = 0m;
+		bypassCreditTotal = 0m;
         string fetchQuery = "SELECT c.*,cu.*,b.* FROM CreditRecord c JOIN Customers cu ON c.CustomerID = cu.CustomerID LEFT JOIN Bills b ON c.BillID = b.BillID";
 
         var result = await DatabaseHandler.ExecuteQueryAsync(fetchQuery);
@@ -213,6 +224,9 @@
         bypassRecords = records.Where(r => r.Branch.ToLower() == "bypass").ToList();
         filteredSivakasiRecords = sivakasiRecords;
         filteredBypassRecords = bypassRecords;
+
+        filteredSivakasiRecords.ForEach(s => sivakasiCreditTotal += s.CreditAmount);
+		filteredBypassRecords.ForEach(b => bypassCreditTotal += b.CreditAmount);
     }
 
 

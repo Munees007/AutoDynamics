@@ -25,5 +25,10 @@ namespace AutoDynamics.Web.Services
         {
             await _localStorage.RemoveItemAsync(key);
         }
+
+        public async Task ClearAsync()
+        {
+            await _localStorage.ClearAsync();
+        }
     }
 }
