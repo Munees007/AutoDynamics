@@ -73,6 +73,8 @@
 	[Parameter] public bool isBill  {get;set;} = false;
 	List<VehicleType> vehicles { get; set; } = new List<VehicleType>();
 	List<BillDetails> bills { get; set; } = new List<BillDetails>();
+	List<BillDetails> sivakasiBills { get; set; } = new List<BillDetails>();
+	List<BillDetails> bypassBills { get; set; } = new List<BillDetails>();
 	List<CreditRecord> creditRecords { get; set; } = new List<CreditRecord>();
 
 	RenderFragment vehiclesFront, recordsFront, billsFront;
@@ -139,7 +141,7 @@
                         <h5 class="mb-0">Sivakasi Branch</h5>
                     </div>
                     <div class="card-body">
-                        @if (bills.Any())
+                        @if (sivakasiBills.Any())
                         {
                             <table class="table table-bordered table-hover">
                                 <thead class="table-dark">
@@ -156,7 +158,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach (var bill in bills)
+                                    @foreach (var bill in sivakasiBills)
                                     {
                                         <tr>
                                             <td style="cursor:pointer;" @onclick="()=> ViewBill(bill)">@("SFR" + (bill.Bill.BillNo.ToString().PadLeft(4, '0')))</td>
@@ -182,6 +184,55 @@
                         }
                     </div>
                 </div>
+
+		<div class="card shadow-lg mt-4">
+			<div class="card-header bg-primary text-white">
+				<h5 class="mb-0">ByPass Branch</h5>
+			</div>
+			<div class="card-body">
+				@if (bypassBills.Any())
+			{
+				<table class="table table-bordered table-hover">
+					<thead class="table-dark">
+						<tr>
+							<th>Bill No</th>
+							<th>Customer ID</th>
+							<th>Name</th>
+							<th>Mobile No</th>
+							<th>Branch</th>
+							<th>Vehicle No</th>
+							<th>Bill Date</th>
+							<th>Total</th>
+							<th>Actions</th>
+						</tr>
+					</thead>
+					<tbody>
+						@foreach (var bill in bypassBills)
+					{
+						<tr>
+							<td style="cursor:pointer;" @onclick="()=> ViewBill(bill)">@("BPR" + (bill.Bill.BillNo.ToString().PadLeft(4, '0')))</td>
+							<td>@bill.Bill.CustomerID</td>
+							<td>@bill.customer.Name</td>
+							<td>@bill.customer.Contact</td>
+							<td>@bill.Bill.Branch</td>
+							<td>@bill.Bill.VehicleNo</td>
+							<td>@bill.Bill.BillDate.ToString("yyyy-MM-dd")</td>
+							<td>₹@(Math.Round(bill.Bill.TotalAmount))</td>
+							<td>
+								<button class="btn btn-sm btn-success" @onclick="() => DownloadBill(bill)">Download</button>
+							</td>
+
+						</tr>
+					}
+					</tbody>
+				</table>
+			}
+			else
+			{
+				<p class="text-muted text-center">No records for ByPass.</p>
+			}
+			</div>
+		</div>
             </div>;
 
 		recordsFront = @<div class="container mt-4">
@@ -279,6 +330,9 @@
 		bills.Clear();
 		customerData = CurrentCustomer.Get<UserModal>(CurrentType.Customer) ?? new();
 		bills = await DatabaseHandler.GetCustomerBillsAsync(customerData.CustomerId);
+
+		sivakasiBills = bills.Where((b => b.Bill.Branch == "Sivakasi")).ToList();
+		bypassBills = bills.Where((b => b.Bill.Branch == "ByPass")).ToList();
 		string query = $@"
     SELECT *
     FROM Vehicle

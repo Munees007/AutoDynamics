@@ -8,11 +8,11 @@
 @using AutoDynamics.Shared.Pages.Stock
 @inject ITabService TabService
 @inject IMultiWindowService MultiWindowService
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">AutoDynamics</a>
-    </div>
-</div>
+@* <div class="top-row ps-3 navbar navbar-dark"> *@
+@*     <div class="container-fluid"> *@
+@*         <a class="navbar-brand" href="">AutoDynamics</a> *@
+@*     </div> *@
+@* </div> *@
 
 <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
 
@@ -27,7 +27,7 @@
                     <ul style="@(menu.IsExpanded ? "display:block;" : "display:none;")">
                         @foreach (var sub in menu.SubMenus)
                         {
-                            <li style="cursor:pointer;user-select:none" class="text-white rounded-3" onclick=@(()=> Navigation.NavigateTo(sub.Path))>@sub.Name</li>
+                            <li style="cursor:pointer;user-select:none" class="text-white rounded-3" onclick=@(()=> TabService.OpenTab(sub.Name,sub.type))>@sub.Name</li>
                         }
                     </ul>
                 }
@@ -91,7 +91,7 @@
         { 5, new MenuType("Purchase", "#") {
             SubMenus = new List<MenuType> {
                 new MenuType("Add Purchase", "/purchase",typeof(AddPurchase)),
-                new MenuType("View Purchase", "/list/purchaseBills",typeof(PurchaseView)),
+                new MenuType("View Purchase", "/list/purchaseBills",typeof(ListPuchases)),
             }
         }},
         { 6, new MenuType("Stock", "") {
@@ -121,8 +121,8 @@
     {
         if(menuV.SubMenus.Count == 0)
         {
-            //TabService.OpenTab(menuV.Name,menuV.type);
-			Navigation.NavigateTo(menuV.Path);
+            TabService.OpenTab(menuV.Name,menuV.type);
+			//Navigation.NavigateTo(menuV.Path);
         }
         else
         {

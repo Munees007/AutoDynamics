@@ -184,6 +184,8 @@ else
     int excelMonth = 1;
     int excelYear = 2025;
 
+    Dictionary<string, dynamic> Parameters;
+
     CustomDialogBox excelDialog = new CustomDialogBox();
 
     public void generateExcel()
@@ -219,6 +221,12 @@ else
 
     private void ViewBill(BillDetails bill)
     {
+
+        Parameters = new Dictionary<string, dynamic>
+            {
+            {"billData",bill}
+            };
+        TabService.OpenWithParameter("Bill No: " + bill.Bill.BillNo, typeof(BillView),Parameters);
         CurrentData.Set(CurrentType.Bill,bill);
         Navigation.NavigateTo("/bill/single-view");
     }
@@ -235,7 +243,7 @@ else
             if (FormFactor.GetFormFactor() == "Web")
             {
                 string path = await PDFGenerator.GeneratePdfAsync(data, JS);
-				ToastService.ShowToast("PDF Downloaded Successfully", ToastType.sucess);
+                ToastService.ShowToast("PDF Downloaded Successfully", ToastType.sucess);
             }
             else
             {
@@ -245,11 +253,12 @@ else
         }
         catch(Exception e)
         {
-			ToastService.ShowToast(e.Message, ToastType.error);
+            ToastService.ShowToast(e.Message, ToastType.error);
         }
     }
     protected override async Task OnInitializedAsync()
     {
+
         excelDialog = new CustomDialogBox
         {
             Title = "Download Excel",
@@ -328,7 +337,9 @@ else
     void ApplyFilters()
     {
         filteredSivakasiBills = FilterBills(sivakasiBills);
+        filteredSivakasiBills = filteredSivakasiBills.OrderBy((sb) => sb.Bill.BillNo).ToList();
         filteredBypassBills = FilterBills(bypassBills);
+        filteredBypassBills = filteredBypassBills.OrderBy((bb)=>bb.Bill.BillNo).ToList();
     }
 
     List<BillDetails> FilterBills(List<BillDetails> bills)
