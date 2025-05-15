@@ -22,7 +22,7 @@ namespace AutoDynamics.Shared.Services
         Task<string> GenerateID(string startsWith, int size, string tableName, string columnName);
 
         Task<int> InsertStockOutwardAsync(StockOutwardType outward, List<Outward> outwardItems);
-
+        Task<List<StockOutwardType>> GetStockOutward();
         Task UpdateStockOutwardAsync(int stockOutwardId, StockOutwardType outward, List<Outward> outwardItems);
         Task<List<StockInwardType>> GetStockInwards();
         Task AcceptInward(StockInwardType stockInward);

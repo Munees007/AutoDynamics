@@ -28,7 +28,7 @@ main {
 
 .sidebar {
     /*    background-image: linear-gradient(180deg, rgb(5, 39, 103) 0%, #3a0647 70%);*/
-    background-color: #006D77;
+    background-color: #023047;
 }
 
 .top-row {
@@ -202,3 +202,8 @@ main {
     scrollbar-width: thin;
     scrollbar-color: #28a745 #f1f1f1;
   }
+
+.search-input:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}

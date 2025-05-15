@@ -1,79 +1,78 @@
 ﻿@page "/home"
 @using AutoDynamics.Shared.Services
-@inject IWhatsAppService WhatsAppService
+@using AutoDynamics.Shared.Modals.ComponentsTypes
+@inject IApiService ApiService
+@inject IMyLocalStorageService MyLocalStorageService
 
-<h3>WhatsApp Background Messaging</h3>
+<div class="container text-center" style="padding:10px; position:relative; min-height:80vh;">
+    <p class="text-primary"  style="text-align:right">Today: @todayData</p>
+    <h2 style="color:#28a745;">Welcome, @UserName!</h2> 
+    <p style="font-size:18px;color:#6c757d;">@GreetingMessage</p>
 
-@if (isLoading)
-{
-    <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Loading...</span>
+    <div class="visually-hidden" style="position:absolute; bottom:10px; width:100%;">
+        <div class="card shadow-sm" style="padding:10px; margin-top:10px; border-radius:8px; max-width:90%; margin:auto;">
+            <div class="row">
+
+                <div class="col-8">
+                    <h5 style="color:#007bff; font-weight:bold;text-align:left">திருக்குறள்</h5>
+                </div>
+
+                <div class="col-4 text-end">
+                    <h5 style="color:#007bff;">@Thirukkural.KurralNo</h5>
+                </div>
+            </div>
+            <hr style="margin:5px 0;">
+            <div class="row">
+                <div class="col-4">
+                    <h6 style="color:#6c757d; font-size:14px;">பால்: @Thirukkural.Pall</h6>
+                </div>
+                <div class="col-4">
+                    <h6 style="color:#6c757d; font-size:14px;">இயல்: @Thirukkural.iyal</h6>
+                </div>
+                <div class="col-4">
+                    <h6 style="color:#6c757d; font-size:14px;">அதிகாரம்: @Thirukkural.athikaram</h6>
+                </div>
+            </div>
+            <hr style="margin:5px 0;">
+
+            <div class="text-center d-flex flex-column align-items-center">
+                <p style="font-weight:bold; font-size:16px;">குறள்</p>
+                <div class="d-flex flex-column text-start">
+                    <p style="font-size:14px;">@Thirukkural.kural[0]</p>
+                    <p style="font-size:14px;">@Thirukkural.kural[1]</p>
+                </div>
+            </div>
+            <hr style="margin:5px 0;">
+
+            <div>
+                <h6 style="color:#343a40; font-weight:bold;">விளக்கம்</h6>
+                <p style="font-size:13px;">@Thirukkural.vilakam</p>
+            </div>
+        </div>
     </div>
-}
-else
-{
-    <div>
-        <button class="btn btn-success" @onclick="StartWhatsApp">Start WhatsApp (Hidden)</button>
-        <button class="btn btn-primary" @onclick="SendTestMessage">Send Test Message</button>
-        <button class="btn btn-danger" @onclick="StopWhatsApp">Close WhatsApp</button>
-    </div>
+</div>
 
-    <br />
-
-    <label>Phone Number:</label>
-    <input class="form-control" @bind="phoneNumber" placeholder="Enter Phone Number" />
-
-    <label>Message:</label>
-    <textarea class="form-control" @bind="message" placeholder="Enter your message"></textarea>
-
-    <button class="btn btn-warning mt-2" @onclick="SendCustomMessage">Send Custom Message</button>
-
-    <p class="text-success">@statusMessage</p>
-}
 
 @code {
-    private string phoneNumber = "";
-    private string message = "";
-    private bool statusMessage;
-    private bool isLoading = false;
+    private string UserName = ""; // Dynamic user data
+    private string GreetingMessage = "";
+    private string todayData = "";
+    private ThirukkuralType Thirukkural = new();
 
     protected override async Task OnInitializedAsync()
     {
-        //await StartWhatsApp();
+        todayData = @DateTime.Now.ToString("dddd, dd MMMM yyyy");
+        UserName = await MyLocalStorageService.GetItemAsync("Username") ?? "";
+        GreetingMessage = GetGreeting();
+        Thirukkural = await ApiService.GetQuoteOfTheDay();
     }
 
-    private async Task StartWhatsApp()
+    private string GetGreeting()
     {
-        isLoading = true;
-        await WhatsAppService.StartWhatsApp();
-        isLoading = false;
-    }
-
-    private async Task SendTestMessage()
-    {
-        isLoading = true;
-        statusMessage = await WhatsAppService.SendMessage("9360436527", "Hello! This is a test message.");
-        isLoading = false;
-    }
-
-    private async Task SendCustomMessage()
-    {
-        if (!string.IsNullOrWhiteSpace(phoneNumber) && !string.IsNullOrWhiteSpace(message))
-        {
-            isLoading = true;
-            statusMessage = await WhatsAppService.SendMessage(phoneNumber, message);
-            isLoading = false;
-        }
-        else
-        {
-            
-        }
-    }
-
-    private async Task StopWhatsApp()
-    {
-        isLoading = true;
-        await WhatsAppService.StopWhatsApp();
-        isLoading = false;
+        var hour = DateTime.Now.Hour;
+        return hour < 12 ? "Good Morning! Start your day with positivity."
+             : hour < 18 ? "Good Afternoon! Keep pushing forward."
+             : "Good Evening! Relax and recharge.";
     }
 }
+

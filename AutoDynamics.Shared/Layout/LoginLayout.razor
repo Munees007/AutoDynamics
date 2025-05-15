@@ -1,6 +1,7 @@
 ﻿@page "/"
 @inherits LayoutComponentBase
 @using AutoDynamics.Shared.Services
+@using AutoDynamics.Shared.Pages
 @inject IDatabaseHandler DatabaseHandler
 @inject IAlertService AlertService
 @inject IMyLocalStorageService MyLocalStorageService
@@ -38,9 +39,7 @@
         <!-- Progress Bar -->
         @if (isProcessing)
         {
-            <div class="progress-container">
-                <a-spin tip="Processing..."></a-spin>
-            </div>
+            <Loader/>
         }
 
         <p class="no-account">
@@ -121,6 +120,7 @@
                         await MyLocalStorageService.SetItemAsync("Username", username);
                         await MyLocalStorageService.SetItemAsync("Branch", branch);
                         await MyLocalStorageService.SetItemAsync("IsLogin", "true");
+                        
                         await AlertService.ShowAlertAsync("Login", "Login Successful", "Proceed");
 
                         if(username == "Arun Kumar" || username == "Muneeswaran")

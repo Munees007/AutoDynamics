@@ -7,10 +7,11 @@
 <Billing isUpdating="true" updateData="updatingBill"></Billing>
 
 @code {
-	private BillDetails updatingBill { set; get; } = new();
+	[Parameter]
+	public BillDetails updatingBill { set; get; } = new();
 	protected override void OnInitialized()
 	{
-		updatingBill = CurrentCustomer.Get<BillDetails>(CurrentType.Bill) ?? new();
+		//updatingBill = CurrentCustomer.Get<BillDetails>(CurrentType.Bill) ?? new();
 	}
 }
 

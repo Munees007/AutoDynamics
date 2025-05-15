@@ -221,20 +221,26 @@ else
 
     private void ViewBill(BillDetails bill)
     {
-
+		string billNo = ( bill.Bill.Branch == "Sivakasi" ? "SFR" : "BPR") + bill.Bill.BillNo.ToString().PadLeft(4,'0');
         Parameters = new Dictionary<string, dynamic>
             {
             {"billData",bill}
             };
-        TabService.OpenWithParameter("Bill No: " + bill.Bill.BillNo, typeof(BillView),Parameters);
-        CurrentData.Set(CurrentType.Bill,bill);
-        Navigation.NavigateTo("/bill/single-view");
+        TabService.OpenWithParameter("View Bill No: " + billNo, typeof(BillView),Parameters);
+        // CurrentData.Set(CurrentType.Bill,bill);
+        // Navigation.NavigateTo("/bill/single-view");
     }
 
     private void UpdateBill(BillDetails bill)
     {
-        CurrentData.Set(CurrentType.Bill,bill);
-        Navigation.NavigateTo($"/updateBill");
+        string billNo = (bill.Bill.Branch == "Sivakasi" ? "SFR" : "BPR") + bill.Bill.BillNo.ToString().PadLeft(4, '0');
+        Parameters = new Dictionary<string, dynamic>
+                {
+            {"updatingBill",bill}
+                };
+        TabService.OpenWithParameter("Update Bill No: " + billNo, typeof(UpdateBill), Parameters);
+        // CurrentData.Set(CurrentType.Bill,bill);
+        // Navigation.NavigateTo($"/updateBill");
     }
     async void DownloadBill(BillDetails data)
     {

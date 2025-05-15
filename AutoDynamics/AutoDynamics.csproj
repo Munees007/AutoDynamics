@@ -64,6 +64,16 @@
     <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
+  
+
+  <ItemGroup>
+    <MauiAsset Include="wwwroot\files\thirukkural.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </MauiAsset>
+  </ItemGroup>
+
+  
+
 
   <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.104.2" />
@@ -98,6 +108,12 @@
 
   <ItemGroup>
     <None Include="wwwroot\images\login_page.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <MauiAsset Update="Resources\Raw\thirukkural.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </MauiAsset>
   </ItemGroup>
 
 </Project>

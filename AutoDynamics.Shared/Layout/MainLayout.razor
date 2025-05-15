@@ -6,6 +6,7 @@
 @using AutoDynamics.Shared.Services
 @using AutoDynamics.Shared.Modals
 @using AutoDynamics.Shared.Pages
+@using AutoDynamics.Shared.Modals.ComponentsTypes
 @using System.Diagnostics
 @inject ITabService TabService
 @inject IMyLocalStorageService MyLocalStorageService
@@ -82,42 +83,77 @@
 @* </div> *@
 
 @*Back up for nav bar with scroll bar*@
-<div class="d-flex align-items-center" style="gap:0.5rem; padding: 0 10px; background-color:#e6f9e6;">
+<div class="d-flex align-items-center" style="gap:0.5rem; padding: 0 10px; background-color:#ffffff;">
     <!-- Home Link -->
     <a href="/home" class="fw-bold"
-       style="min-width: fit-content; font-size:18px; color:#28a745;">
+    style="min-width: fit-content; font-size:18px; color:#28a745;">
         AutoDynamics
     </a>
 
     <!-- Tabs Container with Horizontal Scrollbar -->
     <div id="tabsScroller" class="flex-grow-1"
-         style="overflow-x:auto; white-space:nowrap; margin: 0 10px;">
-        @foreach (var tab in TabService.Tabs)
+    style="overflow-x:auto; white-space:nowrap; margin: 0 10px;">
+        @{
+            var remainingTabs = TabService.Tabs.Skip(1);
+            var visibleTabs = remainingTabs.Count() > 7 ? remainingTabs.Skip(remainingTabs.Count() - 7) : remainingTabs;
+        }
+        @if(TabService.Tabs.Count > 0)
         {
             <div class="d-inline-flex align-items-center"
-                 style="width:120px; border:1px solid #28a745; background-color:#fff;
+                 style="width:120px; border:1px solid #006D77; background-color:#fff;
                   border-radius:4px; padding:0.4rem 0.5rem; margin-right:4px;
                   cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-                  @((tab == TabService.Selected)
+                  @((TabService.Tabs[0] == TabService.Selected)
                       ? "font-weight:bold; background-color:#28a745; color:#fff;"
                       : "color:#28a745;")"
-                 title="@tab.Title"
-                 @onclick="@(() => TabService.SelectTab(tab))">
+            title="@TabService.Tabs[0].Title"
+            @onclick="@(() => TabService.SelectTab(TabService.Tabs[0]))">
                 <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:4px;">
-                    @tab.Title
+                    @TabService.Tabs[0].Title
                 </span>
-                @if (tab.IsClosable)
+                @if (TabService.Tabs[0].IsClosable)
                 {
                     <button class="btn btn-sm btn-link"
-                            style="flex-shrink:0; width:24px; padding:0; margin:0; color:inherit;"
-                            @onclick="@(() => TabService.CloseTab(tab))">
+                    style="flex-shrink:0; width:24px; padding:0; margin:0; color:inherit;"
+                    @onclick="@(() => TabService.CloseTab(TabService.Tabs[0]))">
                         &times;
                     </button>
                 }
                 else
                 {
                     <button class="btn btn-sm btn-link" disabled
-                            style="flex-shrink:0; width:24px; padding:0; margin:0; color:inherit;">
+                    style="flex-shrink:0; width:24px; padding:0; margin:0; color:inherit;">
+                        &times;
+                    </button>
+                }
+            </div>
+        }
+        @foreach (var tab in visibleTabs)
+        {
+            <div class="d-inline-flex align-items-center"
+                 style="width:120px; border:1px solid #006D77; background-color:#fff;
+                  border-radius:4px; padding:0.4rem 0.5rem; margin-right:4px;
+                  cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+                  @((tab == TabService.Selected)
+                      ? "font-weight:bold; background-color:#28a745; color:#fff;"
+                      : "color:#28a745;")"
+            title="@tab.Title"
+            @onclick="@(() => TabService.SelectTab(tab))">
+                <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:4px;">
+                    @tab.Title
+                </span>
+                @if (tab.IsClosable)
+                {
+                    <button class="btn btn-sm btn-link"
+                    style="flex-shrink:0; width:24px; padding:0; margin:0; color:inherit;"
+                    @onclick="@(() => TabService.CloseTab(tab))">
+                        &times;
+                    </button>
+                }
+                else
+                {
+                    <button class="btn btn-sm btn-link" disabled
+                    style="flex-shrink:0; width:24px; padding:0; margin:0; color:inherit;">
                         &times;
                     </button>
                 }
@@ -128,20 +164,20 @@
     <!-- Profile Section -->
     <div class="flex-shrink-0 position-relative" style="margin-left:10px;">
         <button class="profile-btn"
-                style="width:40px; height:40px; background-size:cover; background-image:url(@profileImgSource); border:none; border-radius:50%;"
-                @onclick="ToggleDropdown">
+        style="width:40px; height:40px; background-size:cover; background-image:url(@profileImgSource); border:none; border-radius:50%;"
+        @onclick="ToggleDropdown">
         </button>
         @if (showDropdown)
         {
             <div class="dropdown-menu show position-absolute end-0 mt-2 p-2 shadow rounded"
-                 style="width:150px; background-color:#fff;">
+            style="width:150px; background-color:#fff;">
                 <div class="text-center fw-bold" style="color:#28a745;">@Username</div>
                 <hr class="my-2">
                 <div class="text-center fw-bold" style="color:#28a745;">@Branch</div>
                 <hr class="my-2">
                 <button class="dropdown-item"
-                        style="color:#28a745; text-align:center;"
-                        @onclick="LogOut">
+                style="color:#28a745; text-align:center;"
+                @onclick="LogOut">
                     <i class="bi bi-box-arrow-right me-1"></i> Logout
                 </button>
             </div>
@@ -150,7 +186,7 @@
 </div>
 
 
-<div class="page" tabindex="0" @onkeydown="ToggleNavbar">
+<div class="page min-vh-100" tabindex="0" @onkeydown="ToggleNavbar">
     <CustomToast customToast="ToastService.toast" ></CustomToast>
     <div class="sidebar" style="display:@(showNavbar ? "block" : "none")">
         <NavMenu />
@@ -160,22 +196,7 @@
     <!-- From Uiverse.io by Nawsome -->
 
 
-    <main>
-        <div class=" px-4 d-flex gap-2 justify-content-end">
-
-            
-            <div class="px-2 d-flex gap-2 align-items-center">
-            @* <button class="btn btn-primary px-3 py-2 fw-bold" @onclick="GoBack" disabled="@(!canGoBack)"> *@
-            @*     🔙 Back *@
-            @* </button> *@
-            @* <button class="btn btn-primary px-3 py-2 fw-bold" @onclick="GoForward" disabled="@(!canGoForward)"> *@
-            @*     🔜 Forward *@
-            @* </button> *@
-           
-            </div>
-
-        </div>
-
+    <main class="position-relative">
 
         <article class="content px-4">
             @foreach (var tab in TabService.Tabs) 
@@ -188,7 +209,7 @@
 
             @* @Body  *@
         </article>
-
+        <DialoBox dialogBox="tabChooseDialog"/>
     </main>
 </div>
 
@@ -216,18 +237,29 @@
 
 
 
+    CustomDialogBox tabChooseDialog = new();
+	CustomDialogBox settingsDialog = new();
+
     private void ToggleDropdown()
     {
         showDropdown = !showDropdown;
     }
-    private void ToggleNavbar(KeyboardEventArgs e)
+    private async void ToggleNavbar(KeyboardEventArgs e)
     {
-        Debug.WriteLine(e.Key);
+
+
         if(e.AltKey && e.Key.ToLower() == "n")
         {
             showNavbar = !showNavbar;
         }
-        
+
+        if(e.AltKey && e.Key.ToLower() == "t")
+        {
+            tabChooseDialog.showDialog = true;
+            await Task.Delay(100);
+            await TabSearchRef.FocusAsync();
+        }
+
         StateHasChanged();
     }
     public void CloseDropdown()
@@ -235,12 +267,116 @@
         showDropdown = false;
     }
 
-    
 
+
+    //filter for tab
+    string tabSearch = "";
+    ElementReference TabSearchRef;
 
     protected override async Task OnInitializedAsync()
     {
-		TabService.OpenTab("Home", typeof(Home),false);
+
+        tabChooseDialog = new CustomDialogBox
+        {
+              Title = "Tab Choose",
+
+              body = @<div style="height:400px;overflow-y:auto;overflow-x:hidden">
+        <div class="input-group mb-2">
+            <!-- Search Icon -->
+            <span class="input-group-text search-icon">&#128269;</span>
+
+            <!-- Search Input -->
+            <input type="text"
+                   class="form-control search-input"
+                   placeholder="Search a tab"
+                   @bind="tabSearch"
+                   @ref="TabSearchRef"
+                   @oninput="(e) => {
+            tabSearch = e.Value.ToString();
+            StateHasChanged();
+        }" />
+        </div>
+
+
+               
+                @foreach(var tab in TabService.Tabs)
+                {
+                    @if(tab.Title.Contains(tabSearch,StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(tabSearch))
+                    {
+        <div class="d-inline-flex mt-2 align-items-center"
+             style="width:100%; border:1px solid #28a745; background-color:#fff;
+                          border-radius:4px; padding:0.4rem 0.5rem; margin-right:4px;
+                          cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+                          @((tab == TabService.Selected)
+                      ? "font-weight:bold; background-color:#28a745; color:#fff;"
+                      : "color:#28a745;")"
+             title="@tab.Title"
+             @onclick="@(() => TabService.SelectTab(tab))">
+            <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:4px;">
+                @tab.Title
+            </span>
+            @if (tab.IsClosable)
+        {
+            <button class="btn btn-sm btn-link"
+                    style="flex-shrink:0; width:24px; padding:0; margin:0; color:inherit;"
+                    @onclick="@(() => TabService.CloseTab(tab))">
+                &times;
+            </button>
+        }
+        else
+        {
+            <button class="btn btn-sm btn-link" disabled
+                    style="flex-shrink:0; width:24px; padding:0; margin:0; color:inherit;">
+                &times;
+            </button>
+        }
+        </div>
+                    }
+                    if(string.IsNullOrEmpty(tabSearch))
+                    {
+        <div class="d-inline-flex mt-2 align-items-center"
+             style="width:100%; border:1px solid #28a745; background-color:#fff;
+                              border-radius:4px; padding:0.4rem 0.5rem; margin-right:4px;
+                              cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+                              @((tab == TabService.Selected)
+                      ? "font-weight:bold; background-color:#28a745; color:#fff;"
+                      : "color:#28a745;")"
+             title="@tab.Title"
+             @onclick="@(() => TabService.SelectTab(tab))">
+            <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:4px;">
+                @tab.Title
+            </span>
+            @if (tab.IsClosable)
+        {
+            <button class="btn btn-sm btn-link"
+                    style="flex-shrink:0; width:24px; padding:0; margin:0; color:inherit;"
+                    @onclick="@(() => TabService.CloseTab(tab))">
+                &times;
+            </button>
+        }
+        else
+        {
+            <button class="btn btn-sm btn-link" disabled
+                    style="flex-shrink:0; width:24px; padding:0; margin:0; color:inherit;">
+                &times;
+            </button>
+        }
+        </div>
+                    }
+
+                }
+              </div>
+    ,
+              OnCloase = EventCallback.Factory.Create(this,async() =>
+              {
+                  tabChooseDialog.showDialog = false;
+                  StateHasChanged();
+              }),
+        };
+
+
+
+        TabService.OpenTab("Home", typeof(Home),false);
         TabService.OnChange += StateHasChanged;
         ToastService.OnToastUpdated += RefreshToast;
         Navigation.LocationChanged += OnLocationChanged;
@@ -248,23 +384,31 @@
         historyIndex = 0;  
     }
 
+
+
     public void RefreshToast()
     {
         InvokeAsync(StateHasChanged);
     }
     public void Dispose()
     {
-		TabService.OnChange -= StateHasChanged;
+        TabService.OnChange -= StateHasChanged;
         ToastService.OnToastUpdated -= RefreshToast;
+
     }
 
     protected override async void OnAfterRender(bool firstRender)
     {
         if(firstRender)
         {
-            
+
             Username = await MyLocalStorageService.GetItemAsync("Username") ?? "";
             Branch = await MyLocalStorageService.GetItemAsync("Branch") ?? "";
+        }
+
+        if(firstRender && tabChooseDialog.showDialog)
+        {
+            await TabSearchRef.FocusAsync();
         }
     }
 

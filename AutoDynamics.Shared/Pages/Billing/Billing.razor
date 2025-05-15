@@ -604,7 +604,7 @@
     }
     public async Task NecessaryData()
     {
-        
+
         string customerQuery = @"SELECT * FROM Customers";
         string vehicleQuery = @"SELECT * FROM Vehicle";
         string serviceQuery = @"SELECT * FROM Services";
@@ -621,6 +621,7 @@
         vehicles = new List<VehicleType>();
         services = new List<ServiceModal>();
         products = new List<ProductType>();
+        brands = new List<BrandType>();
 
         if(res1.Count>0)
         {
@@ -684,19 +685,20 @@
                 });
             }
 
-			products = products.Where(p => string.Equals(p.Branch ,SelectedBranch,StringComparison.OrdinalIgnoreCase)).ToList();
+            products = products.Where(p => string.Equals(p.Branch ,SelectedBranch,StringComparison.OrdinalIgnoreCase)).ToList();
         }
         if(res5.Count>0)
         {
             foreach(var row in res5)
             {
-				brands.Add(new BrandType
+                brands.Add(new BrandType
 				{
 					BrandID = row["BrandID"].ToString() ?? "",
 					BrandName = row["BrandName"].ToString() ?? "",
 					BrandShortForm = row["BrandShortForm"].ToString() ?? "",
 				});
             }
+            brands = brands.DistinctBy(b => b.BrandName).ToList();
         }
     }
 

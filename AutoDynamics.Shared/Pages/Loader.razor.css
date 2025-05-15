@@ -1,75 +1,49 @@
-/* From Uiverse.io by SchawnnahJ */
+/* From Uiverse.io by aadium */
 .loader {
+    overflow: hidden;
     position: relative;
-    width: 2.5em;
-    height: 2.5em;
-    transform: rotate(165deg);
 }
 
-    .loader:before, .loader:after {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        display: block;
-        width: 0.5em;
-        height: 0.5em;
-        border-radius: 0.25em;
-        transform: translate(-50%, -50%);
-    }
-
-    .loader:before {
-        animation: before8 2s infinite;
-    }
-
-    .loader:after {
-        animation: after6 2s infinite;
-    }
-
-@keyframes before8 {
-    0% {
-        width: 0.5em;
-        box-shadow: 1em -0.5em rgba(225, 20, 98, 0.75), -1em 0.5em rgba(111, 202, 220, 0.75);
-    }
-
-    35% {
-        width: 2.5em;
-        box-shadow: 0 -0.5em rgba(225, 20, 98, 0.75), 0 0.5em rgba(111, 202, 220, 0.75);
-    }
-
-    70% {
-        width: 0.5em;
-        box-shadow: -1em -0.5em rgba(225, 20, 98, 0.75), 1em 0.5em rgba(111, 202, 220, 0.75);
-    }
-
-    100% {
-        box-shadow: 1em -0.5em rgba(225, 20, 98, 0.75), -1em 0.5em rgba(111, 202, 220, 0.75);
-    }
+.wheel {
+    fill: rgb(128, 128, 128);
+    font-size: 100px;
+    width: 70px;
+    height: 70px;
+    border-radius: 6em;
+    text-align: center;
+    animation: rolling 1s linear infinite;
 }
 
-@keyframes after6 {
-    0% {
-        height: 0.5em;
-        box-shadow: 0.5em 1em rgba(61, 184, 143, 0.75), -0.5em -1em rgba(233, 169, 32, 0.75);
-    }
-
-    35% {
-        height: 2.5em;
-        box-shadow: 0.5em 0 rgba(61, 184, 143, 0.75), -0.5em 0 rgba(233, 169, 32, 0.75);
-    }
-
-    70% {
-        height: 0.5em;
-        box-shadow: 0.5em -1em rgba(61, 184, 143, 0.75), -0.5em 1em rgba(233, 169, 32, 0.75);
-    }
-
-    100% {
-        box-shadow: 0.5em 1em rgba(61, 184, 143, 0.75), -0.5em -1em rgba(233, 169, 32, 0.75);
-    }
+#rim {
+    fill: rgb(126, 126, 126);
 }
 
-.loader {
+#tire {
+    fill: rgb(55, 55, 55);
+}
+
+.road {
     position: absolute;
-    top: calc(50% - 1.25em);
-    left: calc(50% - 1.25em);
+    margin-top: -4px;
+    width: 100%;
+    height: 10px;
+    border-radius: 5em;
+    background-color: rgb(55, 55, 55);
+    animation: road-move 2s linear infinite;
+}
+
+@keyframes rolling {
+    to {
+        transform: rotate(-360deg);
+    }
+}
+
+@keyframes road-move {
+    from {
+        transform: translateX(-140%);
+    }
+
+    to {
+        transform: translateX(100%);
+    }
 }

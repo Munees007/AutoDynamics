@@ -22,7 +22,7 @@
     }
     private async Task DismissToastAfterDelay()
     {
-        await Task.Delay(5000); // Wait for 5 seconds
+        await Task.Delay(10000); // Wait for 5 seconds
         customToast.showToast = false;
         StateHasChanged(); // Re-render the component
     }

@@ -116,8 +116,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        currentBranch = await MyLocalStorageService.GetItemAsync("Branch");
-        userName = await MyLocalStorageService.GetItemAsync("Username");
+        currentBranch = await MyLocalStorageService.GetItemAsync("Branch") ?? "";
+        userName = await MyLocalStorageService.GetItemAsync("Username") ?? "";
         itemsDialogBox = new CustomDialogBox
         {
                     body = @<table class="table table-striped table-hover table-bordered align-middle">

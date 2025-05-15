@@ -241,6 +241,7 @@
                     await DatabaseHandler.InsertStockOutwardAsync(stockOutward, stockOutward.Outwards);
                     ToastService.ShowToast("StockOutward Create Successful", ToastType.sucess);
                 }
+                stockOutward = new();
             }
             else
             {
@@ -307,6 +308,28 @@
                         BrandName = row["BrandName"].ToString() ?? "",
                         BrandShortForm = row["BrandShortForm"].ToString() ?? "",
                     });
+            }
+        }
+
+        if(isUpdating)
+        {
+            for(int i=0;i<stockOutward.Outwards.Count;i++)
+            {
+                var tempProduct = products.Find(p => p.ProductID == stockOutward.Outwards[i].ProductID);
+                var tempBrand = brands.Find(b => b.BrandName == tempProduct.Brand);
+                if (tempProduct != null)
+                {
+                    stockOutward.Outwards[i].Product = tempProduct;
+                    stockOutward.Outwards[i].ProductName = $"{tempProduct.Brand} {tempProduct.Size} - {tempProduct.Pattern} ({tempProduct.TubeOrTubeless})";
+                    stockOutward.Outwards[i].BrandName = tempProduct.Brand;
+                    stockOutward.Outwards[i].BrandID = tempBrand.BrandID;
+                    stockOutward.Outwards[i].AvailableQuantity = tempProduct.AvailableQuantity;
+                    stockOutward.Outwards[i].Product = tempProduct;
+					stockOutward.Outwards[i].Quantity = stockOutward.Outwards[i].Quantity;
+                    stockOutward.Outwards[i].ProductIDValid = true;
+					stockOutward.Outwards[i].isItemSelected = true;
+					stockOutward.Outwards[i].itemOutOfStock = false;
+				}
             }
         }
     }

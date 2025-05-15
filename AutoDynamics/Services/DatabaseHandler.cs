@@ -1125,6 +1125,11 @@ WHERE p.ProductID = @ProductID";
         SET AvailableQuantity = AvailableQuantity - @Quantity
         WHERE ProductID = @ProductID AND Branch = @SourceBranch;";
 
+            string restoreStockQuery = @"
+UPDATE Stock
+SET AvailableQuantity = AvailableQuantity + @Quantity
+WHERE ProductID = @ProductID AND Branch = @SourceBranch;";
+
             using (var connection = new MySqlConnection(_connectionString))
             {
                 await connection.OpenAsync();
@@ -1143,6 +1148,34 @@ WHERE p.ProductID = @ProductID";
 
                             await cmd.ExecuteNonQueryAsync();
                         }
+
+                        // Restore stock for deleted items
+                        using (var cmd = new MySqlCommand(restoreStockQuery, connection, (MySqlTransaction)transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@StockOutwardId", stockOutwardId);
+
+                            // Select all items to restore quantity
+                            string selectItemsQuery = "SELECT ProductID, Quantity FROM StockOutwardItems WHERE StockOutwardId = @StockOutwardId;";
+                            using (var selectCmd = new MySqlCommand(selectItemsQuery, connection, (MySqlTransaction)transaction))
+                            {
+                                selectCmd.Parameters.AddWithValue("@StockOutwardId", stockOutwardId);
+                                using (var reader = await selectCmd.ExecuteReaderAsync())
+                                {
+                                    while (await reader.ReadAsync())
+                                    {
+                                        int productId = reader.GetInt32(0);
+                                        int quantity = reader.GetInt32(1);
+
+                                        cmd.Parameters.Clear();
+                                        cmd.Parameters.AddWithValue("@ProductID", productId);
+                                        cmd.Parameters.AddWithValue("@Quantity", quantity);
+                                        cmd.Parameters.AddWithValue("@SourceBranch", outward.From);
+                                        await cmd.ExecuteNonQueryAsync();
+                                    }
+                                }
+                            }
+                        }
+
 
                         // Delete existing items
                         using (var cmd = new MySqlCommand(deleteItemsQuery, connection, (MySqlTransaction)transaction))
@@ -1179,6 +1212,47 @@ WHERE p.ProductID = @ProductID";
                     }
                 }
             }
+        }
+
+        public async Task<List<StockOutwardType>> GetStockOutward()
+        {
+            var result = new List<StockOutwardType>();
+            string selectQuery = @"SELECT * from StockOutward so JOIN StockOutwardItems soi ON so.Id = soi.StockOutwardId JOIN Product p ON p.ProductID = soi.ProductID";
+
+            using var connection = new MySqlConnection(_connectionString);
+            await connection.OpenAsync();
+            using (var inwardCmd = new MySqlCommand(selectQuery, connection))
+            using (var reader = await inwardCmd.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    var outward = new StockOutwardType
+                    {
+                        Id = reader.GetInt32("Id"),
+                        From = reader["SourceBranch"]?.ToString(),
+                        To = reader["DestinationBranch"]?.ToString(),
+                        Remarks = reader["Remarks"]?.ToString(),
+                        CreatedBy = reader["CreatedBy"]?.ToString(),
+                        CreatedDate = reader.GetDateTime("CreatedDate")
+                    };
+                    var outwardItem = new Outward
+                    {
+                        ProductID = reader.GetString("ProductID"),
+                        Product = new ProductType { 
+                            ProductID = reader.GetString("ProductID"),
+                            Price = reader.GetInt32("Price"),
+                            Pattern = reader.GetString("Pattern"),
+                            TubeOrTubeless = reader.GetString("TubeOrTubeless"),
+                            Brand = reader.GetString("Brand")
+                        },
+                        Quantity = reader.GetInt32("Quantity")
+                    };
+                    outward.Outwards.Add(outwardItem);
+                    result.Add(outward);
+                }
+            }
+
+            return result;
         }
 
         public async Task<List<StockInwardType>> GetStockInwards()
