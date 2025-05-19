@@ -1,10 +1,8 @@
 ﻿using AutoDynamics.Shared.Services;
 using System.Data;
 using MySqlConnector;
-using AutoDynamics.Shared.Modals;
 using System.Diagnostics;
-using AutoDynamics.Shared.Modals.PurchaseTypes;
-using AutoDynamics.Shared.Modals.ComponentsTypes;
+
 
 namespace AutoDynamics.Services
 {
@@ -473,9 +471,18 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                             await command.ExecuteNonQueryAsync();
                         }
                     }
+                    else
+                    {
+                        string deletedCreditRecordQuery = @"DELETE FROM CreditRecord WHERE BillID = @BillID";
+                        using (var command = new MySqlCommand(deletedCreditRecordQuery, connection, (MySqlTransaction)transaction))
+                        {
+                            command.Parameters.AddWithValue("@BillID", bill.BillID);
+                            await command.ExecuteNonQueryAsync();
+                        }
+                    }
 
-                    // 7. Commit Transaction
-                    await transaction.CommitAsync();
+                        // 7. Commit Transaction
+                     await transaction.CommitAsync();
 
                     int[] returnData = { 0, 0 };
 
@@ -643,6 +650,222 @@ WHERE ProductID = @ProductID AND Branch = @Branch
         }
 
 
+    
+
+        public async Task<List<BillDetails>> GetFilteredBillsAsync(BillDateFilterType filterType, DateTime? startDate = null, DateTime? endDate = null,DateTime? customMonthYear = null)
+        {
+            var billDetailsList = new List<BillDetails>();
+            using var connection = new MySqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            // Build WHERE clause dynamically
+            string whereClause = "";
+            DateTime today = DateTime.Today;
+
+            switch (filterType)
+            {
+                case BillDateFilterType.Today:
+                    whereClause = $"WHERE DATE(b.BillDate) = '{today:yyyy-MM-dd}'";
+                    break;
+                case BillDateFilterType.Yesterday:
+                    whereClause = $"WHERE DATE(b.BillDate) = '{today.AddDays(-1):yyyy-MM-dd}'";
+                    break;
+                case BillDateFilterType.ThisMonth:
+                    whereClause = $"WHERE MONTH(b.BillDate) = {today.Month} AND YEAR(b.BillDate) = {today.Year}";
+                    break;
+                case BillDateFilterType.ThisYear:
+                    whereClause = $"WHERE YEAR(b.BillDate) = {today.Year}";
+                    break;
+                case BillDateFilterType.CustomMonthYear:
+                    if(customMonthYear.HasValue)
+                        whereClause = $"WHERE MONTH(b.BillDate) = {customMonthYear.Value.Month} AND YEAR(b.BillDate) = {customMonthYear.Value.Year}";
+                    break;
+                case BillDateFilterType.CustomDate:
+                    if (startDate.HasValue)
+                        whereClause = $"WHERE DATE(b.BillDate) = '{startDate.Value:yyyy-MM-dd}'";
+                    break;
+                case BillDateFilterType.CustomRange:
+                    if (startDate.HasValue && endDate.HasValue)
+                        whereClause = $"WHERE DATE(b.BillDate) BETWEEN '{startDate.Value:yyyy-MM-dd}' AND '{endDate.Value:yyyy-MM-dd}'";
+                    break;
+                case BillDateFilterType.All:
+                default:
+                    // No filter
+                    break;
+            }
+
+            string billQuery = $@"
+    SELECT b.*, c.*, v.*
+    FROM Bills b
+    JOIN Customers c ON b.CustomerID = c.CustomerID
+    LEFT JOIN Vehicle v ON b.VehicleNo = v.VehicleNo
+    {whereClause};";
+
+            using var billCommand = new MySqlCommand(billQuery, connection);
+            using var billReader = await billCommand.ExecuteReaderAsync();
+
+            var billDictionary = new Dictionary<int, BillDetails>();
+            while (await billReader.ReadAsync())
+            {
+
+                var customer = new UserModal
+                {
+                    CustomerId = billReader.GetString("CustomerID"),
+                    Contact = billReader.GetString("Contact"),
+                    Name = billReader.GetString("Name"),
+                    GSTIN = billReader.GetString("GSTIN")
+                };
+
+                var vehicle = new VehicleType
+                {
+                    VehicleNo = billReader.IsDBNull("VehicleNo") ? "" : billReader.GetString("VehicleNo"),
+                    VehicleMake = billReader.IsDBNull("VehicleNo") ? "" : billReader.GetString("VehicleMake"),
+                    ModelName = billReader.IsDBNull("VehicleNo") ? "" : billReader.GetString("ModelName"),
+                };
+
+                var bill = new Bill
+                {
+                    BillID = billReader.GetInt32("BillID"),
+                    Branch = billReader.GetString("Branch"),
+                    BillingYear = billReader.GetInt32("BillingYear"),
+                    BillNo = billReader.GetInt32("BillNo"),
+                    Vehicle = vehicle,
+                    CustomerID = billReader.GetString("CustomerID"),
+                    VehicleNo = billReader.IsDBNull("VehicleNo") ? null : billReader.GetString("VehicleNo"),
+                    BillDate = billReader.GetDateTime("BillDate"),
+                    TotalAmount = billReader.GetDecimal("TotalAmount"),
+                    UsageReading = billReader.GetDecimal("UsageReading").ToString() ?? "",
+                    Discount = billReader.GetDecimal("Discount"),
+                    GrandTotal = billReader.GetDecimal("GrandTotal"),
+                    Notes = billReader.IsDBNull("Notes") ? null : billReader.GetString("Notes")
+                };
+                billDictionary[bill.BillID] = new BillDetails
+                {
+                    Bill = bill,
+                    customer = customer,
+                    BillItems = new List<BillItem>(), // Initialize empty list
+                    BillPayment = null
+                };
+            }
+
+            await billReader.CloseAsync();
+
+            // Fetch BillItems
+            string billItemQuery = "SELECT * FROM BillItems";
+            using var billItemCommand = new MySqlCommand(billItemQuery, connection);
+            using var billItemReader = await billItemCommand.ExecuteReaderAsync();
+
+            while (await billItemReader.ReadAsync())
+            {
+                int billId = billItemReader.GetInt32("BillID");
+                if (billDictionary.ContainsKey(billId))
+                {
+                    TaxRate taxRate;
+                    string? taxRateStr = billItemReader.IsDBNull("TaxRate") ? null : billItemReader.GetString("TaxRate");
+
+                    if (!string.IsNullOrEmpty(taxRateStr) && Enum.TryParse<TaxRate>(taxRateStr, out var parsedTaxRate))
+                    {
+                        taxRate = parsedTaxRate;
+                    }
+                    else
+                    {
+                        taxRate = TaxRate.TAX_28; // default fallback
+                    }
+
+                    string itemType = billItemReader.GetString("ItemType");
+                    string hsnCode = "";
+                    int availableQuantity = 0;
+                    string branch = "";
+                    BrandType brand = new();
+                    if (itemType == "PRODUCT")
+                    {
+                        using var productConnection = new MySqlConnection(_connectionString);
+                        await productConnection.OpenAsync();
+                        string productQuery = @"SELECT p.*, b.*, bi.BillID, bi.Branch, s.AvailableQuantity 
+FROM Product p
+JOIN Brands b ON b.BrandID = p.BrandID
+JOIN Bills bi ON bi.BillID = @BillID
+JOIN Stock s ON s.Branch = bi.Branch AND s.ProductID = p.ProductID
+WHERE p.ProductID = @ProductID";
+
+
+                        using var productCommand = new MySqlCommand(productQuery, productConnection);
+                        productCommand.Parameters.AddWithValue("@ProductID", billItemReader.GetString("ItemID"));
+                        productCommand.Parameters.AddWithValue("@BillID", billId);
+                        using var productReader = await productCommand.ExecuteReaderAsync();
+                        if (await productReader.ReadAsync())
+                        {
+                            hsnCode = productReader.IsDBNull("HSNCode") ? "" : productReader.GetString("HSNCode");
+                            brand = new BrandType
+                            {
+                                BrandName = productReader.IsDBNull("BrandName") ? "" : productReader.GetString("BrandName"),
+                                BrandID = productReader.IsDBNull("BrandID") ? "" : productReader.GetString("BrandID"),
+                                BrandShortForm = productReader.IsDBNull("BrandShortForm") ? "" : productReader.GetString("BrandShortForm"),
+                            };
+                            branch = productReader.IsDBNull("Branch") ? "" : productReader.GetString("Branch");
+                            availableQuantity = productReader.IsDBNull("AvailableQuantity") ? 0 : productReader.GetInt32("AvailableQuantity");
+                        }
+                        await productReader.CloseAsync(); // ✅ Explicit close
+                        await productConnection.CloseAsync(); // ✅ Explicit close (optional, but clean)
+
+                    }
+
+                    billDictionary[billId].BillItems.Add(new BillItem
+                    {
+                        BillID = billId,
+                        Brand = brand,
+                        BrandID = brand.BrandID,
+                        Branch = branch,
+                        BrandName = brand.BrandName,
+                        isItemSelected = true,
+                        ProductIDValid = true,
+                        AvailableQuantity = availableQuantity,
+                        ProductName = billItemReader.GetString("ItemName"),
+                        ProductID = billItemReader.IsDBNull("ItemID") ? "" : billItemReader.GetString("ItemID"),
+                        ItemType = billItemReader.GetString("ItemType"),
+                        ItemName = billItemReader.GetString("ItemName"),
+                        TaxRate = taxRate,
+                        HSNCode = hsnCode,
+                        ItemID = billItemReader.IsDBNull("ItemID") ? "" : billItemReader.GetString("ItemID"),
+                        Quantity = billItemReader.GetInt32("Quantity"),
+                        TaxableValue = billItemReader.GetDecimal("TaxableValue"),
+                        UnitPrice = billItemReader.GetDecimal("UnitPrice"),
+                        TotalPrice = billItemReader.GetDecimal("TotalPrice")
+                    });
+                }
+            }
+
+            await billItemReader.CloseAsync();
+
+
+            // Fetch BillPayments
+            string billPaymentQuery = "SELECT * FROM BillPayments";
+            using var billPaymentCommand = new MySqlCommand(billPaymentQuery, connection);
+            using var billPaymentReader = await billPaymentCommand.ExecuteReaderAsync();
+
+            while (await billPaymentReader.ReadAsync())
+            {
+                int billId = billPaymentReader.GetInt32("BillID");
+                if (billDictionary.ContainsKey(billId))
+                {
+                    billDictionary[billId].BillPayment = new BillPayment
+                    {
+                        BillID = billId,
+                        CashAmount = billPaymentReader.GetDecimal("CashAmount"),
+                        BankAmount = billPaymentReader.GetDecimal("BankAmount"),
+                        CardAmount = billPaymentReader.GetDecimal("CardAmount"),
+                        UPIAmount = billPaymentReader.GetDecimal("UPIAmount")
+                    };
+                }
+            }
+
+            await billPaymentReader.CloseAsync();
+
+            // Convert dictionary values to list
+            billDetailsList = billDictionary.Values.ToList();
+
+            return billDetailsList;
+        }
 
         public async Task<List<BillDetails>> GetAllBillsAsync()
         {

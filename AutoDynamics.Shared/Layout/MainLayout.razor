@@ -5,8 +5,8 @@
 @inject IToastService ToastService
 @using AutoDynamics.Shared.Services
 @using AutoDynamics.Shared.Modals
-@using AutoDynamics.Shared.Pages
 @using AutoDynamics.Shared.Modals.ComponentsTypes
+@using AutoDynamics.Shared.Pages
 @using System.Diagnostics
 @inject ITabService TabService
 @inject IMyLocalStorageService MyLocalStorageService
@@ -83,12 +83,14 @@
 @* </div> *@
 
 @*Back up for nav bar with scroll bar*@
-<div class="d-flex align-items-center" style="gap:0.5rem; padding: 0 10px; background-color:#ffffff;">
+<div class="d-flex align-items-center" style="gap:0.5rem;  background-color:#264653;height:50px">
     <!-- Home Link -->
-    <a href="/home" class="fw-bold"
-    style="min-width: fit-content; font-size:18px; color:#28a745;">
-        AutoDynamics
-    </a>
+    <div class="d-flex justify-content-center align-items-center" style="background:#264653;min-width: 250px;height:100%">
+        <a href="/home" class="fw-bold"
+        style="font-size:25px; color:#ffffff;text-decoration:none;">
+            AutoDynamics
+        </a>
+    </div>
 
     <!-- Tabs Container with Horizontal Scrollbar -->
     <div id="tabsScroller" class="flex-grow-1"
@@ -100,17 +102,18 @@
         @if(TabService.Tabs.Count > 0)
         {
             <div class="d-inline-flex align-items-center"
-                 style="width:120px; border:1px solid #006D77; background-color:#fff;
+            style="width:120px; border:1px solid #006D77; background-color:#fff;
                   border-radius:4px; padding:0.4rem 0.5rem; margin-right:4px;
                   cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
                   @((TabService.Tabs[0] == TabService.Selected)
-                      ? "font-weight:bold; background-color:#28a745; color:#fff;"
+                      ? "font-weight:bold; background-color:#2a9d8f; color:#fff;"
                       : "color:#28a745;")"
             title="@TabService.Tabs[0].Title"
             @onclick="@(() => TabService.SelectTab(TabService.Tabs[0]))">
-                <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:4px;">
-                    @TabService.Tabs[0].Title
-                </span>
+                @* <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:4px;"> *@
+                @*     @TabService.Tabs[0].Title *@
+                @* </span> *@
+                <Marquee text="@TabService.Tabs[0].Title" style="margin-right:4px;" />
                 @if (TabService.Tabs[0].IsClosable)
                 {
                     <button class="btn btn-sm btn-link"
@@ -131,17 +134,18 @@
         @foreach (var tab in visibleTabs)
         {
             <div class="d-inline-flex align-items-center"
-                 style="width:120px; border:1px solid #006D77; background-color:#fff;
+            style="width:120px; border:1px solid #006D77; background-color:#fff;
                   border-radius:4px; padding:0.4rem 0.5rem; margin-right:4px;
                   cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
                   @((tab == TabService.Selected)
-                      ? "font-weight:bold; background-color:#28a745; color:#fff;"
+                      ? "font-weight:bold; background-color:#2a9d8f; color:#fff;"
                       : "color:#28a745;")"
             title="@tab.Title"
             @onclick="@(() => TabService.SelectTab(tab))">
-                <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:4px;">
-                    @tab.Title
-                </span>
+                @* <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:4px;"> *@
+                @*     @tab.Title *@
+                @* </span> *@
+                <Marquee text="@tab.Title" style="margin-right:4px;background-color:transparent" />
                 @if (tab.IsClosable)
                 {
                     <button class="btn btn-sm btn-link"
@@ -162,7 +166,7 @@
     </div>
 
     <!-- Profile Section -->
-    <div class="flex-shrink-0 position-relative" style="margin-left:10px;">
+    <div class="flex-shrink-0 position-relative" style="margin-right:10px;">
         <button class="profile-btn"
         style="width:40px; height:40px; background-size:cover; background-image:url(@profileImgSource); border:none; border-radius:50%;"
         @onclick="ToggleDropdown">
@@ -175,6 +179,12 @@
                 <hr class="my-2">
                 <div class="text-center fw-bold" style="color:#28a745;">@Branch</div>
                 <hr class="my-2">
+                <button class="dropdown-item fw-bold"
+                style="color:#28a745; text-align:center;"
+                @onclick="()=>{tabChooseDialog.showDialog= false; shortcutDialog.showDialog = true;StateHasChanged();}">
+                    <i class="bi me-1"></i> Shortcuts
+                </button>
+                <hr class="my-2">
                 <button class="dropdown-item"
                 style="color:#28a745; text-align:center;"
                 @onclick="LogOut">
@@ -186,8 +196,9 @@
 </div>
 
 
-<div class="page min-vh-100" tabindex="0" @onkeydown="ToggleNavbar">
+<div class="page min-vh-100" tabindex="0" @onkeydown="ToggleNavbar" @onclick="PageClicked">
     <CustomToast customToast="ToastService.toast" ></CustomToast>
+
     <div class="sidebar" style="display:@(showNavbar ? "block" : "none")">
         <NavMenu />
     </div>
@@ -198,10 +209,10 @@
 
     <main class="position-relative">
 
-        <article class="content px-4">
+        <article class="content px-4 ">
             @foreach (var tab in TabService.Tabs) 
-            { 
-                <div style="display:@(tab == TabService.Selected ? "block" : "none")"> 
+            {
+                <div style="display:@(tab == TabService.Selected ? "block" : "none")">
                     @tab.Content 
 
                 </div> 
@@ -210,10 +221,11 @@
             @* @Body  *@
         </article>
         <DialoBox dialogBox="tabChooseDialog"/>
+        <DialoBox dialogBox="shortcutDialog" />
     </main>
 </div>
 
-<div id="blazor-error-ui" data-nosnippet>
+<div id="blazor-error-ui" data-nosnippet style="z-index:9999">
     An unhandled error has occurred.
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
@@ -238,8 +250,12 @@
 
 
     CustomDialogBox tabChooseDialog = new();
-	CustomDialogBox settingsDialog = new();
-
+    CustomDialogBox shortcutDialog = new();
+    private void PageClicked()
+    {
+        showDropdown = false;
+        StateHasChanged();
+    }
     private void ToggleDropdown()
     {
         showDropdown = !showDropdown;
@@ -255,6 +271,7 @@
 
         if(e.AltKey && e.Key.ToLower() == "t")
         {
+            shortcutDialog.showDialog = false;
             tabChooseDialog.showDialog = true;
             await Task.Delay(100);
             await TabSearchRef.FocusAsync();
@@ -298,7 +315,7 @@
         </div>
 
 
-               
+
                 @foreach(var tab in TabService.Tabs)
                 {
                     @if(tab.Title.Contains(tabSearch,StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(tabSearch))
@@ -374,6 +391,44 @@
               }),
         };
 
+        shortcutDialog = new CustomDialogBox
+        {
+            Title ="Short Cuts",
+                    body = @<div class="container mt-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Keyboard Shortcuts</h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-striped table-bordered mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col">Shortcut</th>
+                            <th scope="col">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><kbd>Alt</kbd> + <kbd>N</kbd></td>
+                            <td>Toggle Sidebar</td>
+                        </tr>
+                        <tr>
+                            <td><kbd>Alt</kbd> + <kbd>T</kbd></td>
+                            <td>List Tabs</td>
+                        </tr>
+                        
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+,
+                OnCloase = EventCallback.Factory.Create(this, async () =>
+                  {
+                      shortcutDialog.showDialog = false;
+                      StateHasChanged();
+                  }),
+        };
 
 
         TabService.OpenTab("Home", typeof(Home),false);

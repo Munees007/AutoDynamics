@@ -1,0 +1,20 @@
+<div class="marquee-container">
+    <div class="@currentClassName" style="@style">
+        @text
+    </div>
+</div>
+
+@code
+{
+    [Parameter] public string text { get; set; } = "";
+    [Parameter] public string style { get; set; } = "";
+    [Parameter] public int marqueeTextTriggerLength { get; set; } = 10;
+
+    string className = "marquee-text";
+    string currentClassName = "";
+
+    protected override void OnParametersSet()
+    {
+        currentClassName = text.Length > marqueeTextTriggerLength ? className : "";
+    }
+}

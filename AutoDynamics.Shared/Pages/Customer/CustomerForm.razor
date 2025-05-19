@@ -1,0 +1,406 @@
+﻿@using System.Diagnostics
+@inject IMyLocalStorageService MyLocalStorageService
+@inject IDatabaseHandler DatabaseHandler
+@inject IAlertService AlertService
+<div class="position-relative">
+    <EditForm class="p-4 border rounded shadow bg-light" Model="formData">
+        <div class="mb-3">
+            <label for="contact" class="form-label">Mobile Number: 
+                @if(ShowWarning)
+                {
+                    <p class="text-danger">Customer Already Exists</p>
+                }
+            </label>
+            <input autocomplete="new-password" @oninput="CheckContactThere" type="text" id="contact" class="form-control" maxlength="10" required @bind="formData.Contact">
+        </div>
+
+        <div class="mb-3">
+            <label for="name" class="form-label">Name:</label>
+            <input  autocomplete="new-password" type="text" id="name" class="form-control" maxlength="255" required @bind="formData.Name">
+        </div>
+
+        <div class="mb-3">
+            <label for="gstIn" class="form-label">GSTIN:</label>
+            <input autocomplete="off"  type="text" id="gstIn" class="form-control" @bind="formData.GSTIN" @oninput="(e)=>{ValidateGSTIN(e);}">
+        </div>
+
+        <div class="mb-3">
+            <label for="address" class="form-label">Address:</label>
+            <textarea autocomplete="off" id="address" class="form-control" @bind="formData.Address"></textarea>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="area" class="form-label">Area:</label>
+                <input autocomplete="off" type="text" id="area" class="form-control" maxlength="100" @bind="formData.Area">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="city" class="form-label">City:</label>
+                <input autocomplete="new-password" type="text" id="city" class="form-control" maxlength="100" @bind="formData.City">
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="country" class="form-label">Country:</label>
+                <select autocomplete="off" class="form-control" @bind="formData.Country">
+                    <option value="">Select Country</option>
+                    <option value="India">India</option>
+                </select>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="state" class="form-label">State:</label>
+                <select autocomplete="off" class="form-control" @bind="formData.State">
+                    <option value="">Select State</option>
+                    <option value="Tamil Nadu">Tamil Nadu</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="district" class="form-label">District:</label>
+                <select autocomplete="off" class="form-control" @bind="formData.District">
+                    <option value="">Select District</option>
+                    <option value="Ariyalur">Ariyalur</option>
+                    <option value="Chengalpattu">Chengalpattu</option>
+                    <option value="Chennai">Chennai</option>
+                    <option value="Coimbatore">Coimbatore</option>
+                    <option value="Cuddalore">Cuddalore</option>
+                    <option value="Dharmapuri">Dharmapuri</option>
+                    <option value="Dindigul">Dindigul</option>
+                    <option value="Erode">Erode</option>
+                    <option value="Kallakurichi">Kallakurichi</option>
+                    <option value="Kanchipuram">Kanchipuram</option>
+                    <option value="Kanyakumari">Kanyakumari</option>
+                    <option value="Karur">Karur</option>
+                    <option value="Krishnagiri">Krishnagiri</option>
+                    <option value="Madurai">Madurai</option>
+                    <option value="Mayiladuthurai">Mayiladuthurai</option>
+                    <option value="Nagapattinam">Nagapattinam</option>
+                    <option value="Namakkal">Namakkal</option>
+                    <option value="Nilgiris">Nilgiris</option>
+                    <option value="Perambalur">Perambalur</option>
+                    <option value="Pudukkottai">Pudukkottai</option>
+                    <option value="Ramanathapuram">Ramanathapuram</option>
+                    <option value="Ranipet">Ranipet</option>
+                    <option value="Salem">Salem</option>
+                    <option value="Sivaganga">Sivaganga</option>
+                    <option value="Tenkasi">Tenkasi</option>
+                    <option value="Thanjavur">Thanjavur</option>
+                    <option value="Theni">Theni</option>
+                    <option value="Thoothukudi">Thoothukudi</option>
+                    <option value="Tiruchirappalli">Tiruchirappalli</option>
+                    <option value="Tirunelveli">Tirunelveli</option>
+                    <option value="Tirupattur">Tirupattur</option>
+                    <option value="Tiruppur">Tiruppur</option>
+                    <option value="Tiruvallur">Tiruvallur</option>
+                    <option value="Tiruvannamalai">Tiruvannamalai</option>
+                    <option value="Tiruvarur">Tiruvarur</option>
+                    <option value="Vellore">Vellore</option>
+                    <option value="Viluppuram">Viluppuram</option>
+                    <option value="Virudhunagar">Virudhunagar</option>
+                </select>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="pincode" class="form-label">Pin Code:</label>
+                <input autocomplete="off" type="text" id="pincode" class="form-control" maxlength="10" @bind="formData.PinCode">
+            </div>
+        </div>
+
+        <div class="mb-3 visually-hidden">
+            <label for="nationality" class="form-label">Nationality:</label>
+            <input autocomplete="off" type="text" id="nationality" class="form-control" maxlength="50" @bind="formData.Nationality">
+        </div>
+
+        <div class="mb-3">
+            <label for="email" class="form-label">Email:</label>
+            <input autocomplete="off" type="email" id="email" class="form-control" maxlength="255" @bind="formData.Email">
+        </div>
+
+        <div class="mb-3 visually-hidden">
+            <label for="website" class="form-label">Website:</label>
+            <input autocomplete="off" type="url" id="website" class="form-control" maxlength="255" @bind="formData.Website">
+        </div>
+
+        <div class="mb-3 form-check">
+            <input autocomplete="off" type="checkbox" id="isSMSAllowed" class="form-check-input" value="1" @bind="formData.IsSMSAllowed">
+            <label  class="form-check-label" for="isSMSAllowed">Allow SMS</label>
+        </div>
+
+        <div class="mb-3 form-check">
+            <input autocomplete="off" type="checkbox" id="isEmailAllowed" class="form-check-input" value="1" @bind="formData.IsEmailAllowed">
+            <label class="form-check-label" for="isEmailAllowed">Allow Email</label>
+        </div>
+
+        <div class="mb-3 form-check">
+            <input autocomplete="off" type="checkbox" id="isWhatsAppAllowed" class="form-check-input" value="1" @bind="formData.IsWhatsAppAllowed">
+            <label class="form-check-label" for="isWhatsAppAllowed">Allow WhatsApp</label>
+        </div>
+
+        <button type="button" @onclick="HandleSubmit" class="btn btn-primary w-100">@(isUpdating ? "Update" : "Submit")</button>
+    </EditForm>
+
+    <Loader show="isProcessing" customText="@loaderText")"/>
+</div>
+
+
+@code {
+    [Parameter] public bool isUpdating { get; set; }
+    [Parameter] public UserModal? userData { get; set; }
+    [Parameter] public bool isBilling { get; set; }
+    [Parameter] public EventCallback<UserModal> submitForm { get; set; }
+    private List<UserModal> customers = new List<UserModal>();
+    public bool ShowWarning = false;
+    public string loaderText = "";
+    public IReadOnlyDictionary<string, object> additionalAttributes = new Dictionary<string, object>
+    {
+        {"autocomplete","off"}
+    }; 
+    public bool isProcessing = false;
+
+    public UserModal formData { get; set; } = new UserModal();
+
+    protected override async void OnInitialized()
+    {
+        loaderText = "Fetching Data";
+        isProcessing = true;
+        if(isUpdating)
+        {
+            formData = userData;
+            StateHasChanged();
+        }
+        else
+        {
+            await FetchData();
+        }
+        loaderText = "";
+        isProcessing = false;
+    }
+
+    private void ValidateGSTIN(ChangeEventArgs e)
+    {
+        // Remove any non-alphanumeric characters
+        var inputValue = e.Value.ToString().Trim();
+        formData.GSTIN = string.Concat(inputValue.Where(char.IsLetterOrDigit));
+    }
+
+
+    public async Task FetchData()
+    {
+        customers = new List<UserModal>();
+        string query = "SELECT * FROM Customers";
+
+        var res = await DatabaseHandler.ExecuteQueryAsync(query);
+        if(res.Count > 0)
+        {
+            foreach(var row in res)
+            {
+                customers.Add(new UserModal
+                {
+                    Contact = row["Contact"].ToString() ??""
+                });
+            }
+        }
+    }
+    public void CheckContactThere(ChangeEventArgs e)
+    {
+        formData.Contact = e.Value.ToString();
+        Debug.WriteLine(formData.Contact);
+        List<UserModal> temp = customers.Where(c => c.Contact == formData.Contact).ToList();
+        ShowWarning = temp.Any();
+        StateHasChanged();
+    }
+
+    public List<string> ValidateForm(UserModal data)
+    {
+        List<string> errors = new List<string>();
+
+        if (string.IsNullOrEmpty(data.Name))
+        {
+            errors.Add("Name cannot be empty.");
+        }
+
+        if (data.Contact.Length != 10 || !data.Contact.All(char.IsDigit))
+        {
+            errors.Add("Contact must be exactly 10 digits and contain only numbers.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(data.GSTIN))
+        {
+            if (data.GSTIN.Trim().Length != 15)
+            {
+                errors.Add("GSTIN must be exactly 15 characters (letters and numbers).");
+            }
+            else if (!data.GSTIN.Trim().All(char.IsLetterOrDigit))
+            {
+                errors.Add("GSTIN must contain letters and digits.");
+            }
+        }
+        return errors;
+    }
+
+
+
+    public async Task<bool> AddCustomer(UserModal customer)
+    {
+        loaderText = isUpdating ? "Updating Customer" : "Adding Customer";
+        isProcessing = true;
+        if(isUpdating)
+        {
+            string currentUser = await MyLocalStorageService.GetItemAsync("Username") ?? "";
+            string updateQuery = @"UPDATE Customers SET
+                Contact = @contact,
+                Name = @name,
+                GSTIN = @gstIn,
+                Address = @address,
+                Area = @area,
+                City = @city,
+                Country = @country,
+                State = @state,
+                District = @district,
+                PinCode = @pinCode,
+                Nationality = @nationality,
+                Email = @email,
+                Website = @website,
+                IsSMSAllowed = @isSMSAllowed,
+                IsEmailAllowed = @isEmailAllowed,
+                IsWhatsAppAllowed = @isWhatsAppAllowed,
+                LastUpdatedBy = @lastUpdatedBy
+                    WHERE
+                CustomerID = @customerID;";
+            var updateParameters = new Dictionary<string, object>
+    {
+        {"@customerID",userData.CustomerId},
+        { "@contact", customer.Contact },
+        { "@name", customer.Name },
+		{"@gstIn", customer.GSTIN },
+        { "@address", customer.Address },
+        { "@area", customer.Area },
+        { "@city", customer.City },
+        { "@country", customer.Country },
+        { "@state", customer.State },
+        { "@district", customer.District },
+        { "@pinCode", customer.PinCode },
+        { "@nationality", customer.Nationality },
+        { "@email", customer.Email },
+        { "@website", customer.Website },
+        { "@isSMSAllowed", customer.IsSMSAllowed },
+        { "@isEmailAllowed", customer.IsEmailAllowed },
+        { "@isWhatsAppAllowed", customer.IsWhatsAppAllowed },
+        { "@createdBy", customer.CreatedBy },
+        { "@lastUpdatedBy", currentUser }
+    };
+			List<string> errors = ValidateForm(customer);
+            if(errors.Count == 0)
+            {
+                int rowsAffected = await DatabaseHandler.ExecuteNonQueryAsync(updateQuery, updateParameters);
+                formData.Reset();
+                StateHasChanged();
+                return rowsAffected > 0;
+            }
+            else
+            {
+                string errorMessage = string.Join("\n", errors);
+                await AlertService.ShowAlertAsync("Form Validation", errorMessage, "Retry");
+                return false;
+            }
+
+
+
+        }
+        else
+        {
+            // string checkQuery = $"SELECT * FROM Customers WHERE Contact = '{customer.Contact}'";
+
+            // var res = await DatabaseHandler.ExecuteQueryAsync(checkQuery);
+            // if(res.Count > 0)
+            // {
+            //     await AlertService.ShowAlertAsync("Customer Creation", "Customer Already Exists", "OK");
+            //     return false;
+            // }
+            // Generate unique CustomerID
+            string newID = await DatabaseHandler.GenerateID("AD",10,"Customers","CustomerID");
+
+            string query = @"
+        INSERT INTO Customers (
+            CustomerID, Contact, Name, GSTIN, Address, Area, City, Country, State, District, PinCode, Nationality,
+             Email, Website, IsSMSAllowed, IsEmailAllowed, IsWhatsAppAllowed,
+            CreatedBy, LastUpdatedBy
+        ) VALUES (
+            @customerID, @contact, @name,@gstIn, @address, @area, @city, @country, @state, @district, @pinCode, @nationality,
+             @email, @website, @isSMSAllowed, @isEmailAllowed, @isWhatsAppAllowed,
+            @createdBy, @lastUpdatedBy
+        )";
+
+            var parameters = new Dictionary<string, object>
+    {
+        { "@customerID", newID },
+        { "@contact", customer.Contact },
+        { "@name", customer.Name },
+        {"@gstIn",customer.GSTIN},
+        { "@address", customer.Address },
+        { "@area", customer.Area },
+        { "@city", customer.City },
+        { "@country", customer.Country },
+        { "@state", customer.State },
+        { "@district", customer.District },
+        { "@pinCode", customer.PinCode },
+        { "@nationality", customer.Nationality },
+        { "@email", customer.Email },
+        { "@website", customer.Website },
+        { "@isSMSAllowed", customer.IsSMSAllowed },
+        { "@isEmailAllowed", customer.IsEmailAllowed },
+        { "@isWhatsAppAllowed", customer.IsWhatsAppAllowed },
+        { "@createdBy", customer.CreatedBy },
+        { "@lastUpdatedBy", customer.LastUpdatedBy }
+    };
+			List<string> errors = ValidateForm(customer);
+            if(errors.Count == 0)
+            {
+                int rowsAffected = await DatabaseHandler.ExecuteNonQueryAsync(query, parameters);
+                if (isBilling)
+                {
+                    customer.CustomerId = newID;
+                    Debug.WriteLine("IsBilling is true");
+                    await submitForm.InvokeAsync(customer);
+
+                }
+                return rowsAffected > 0;
+            }
+            else
+            {
+                string errorMessage = string.Join("\n", errors);
+                await AlertService.ShowAlertAsync("Form Validation", errorMessage, "Retry");
+                return false;
+            }
+        }
+        loaderText = "";
+        isProcessing = false;
+    }
+
+
+    public async void HandleSubmit()
+    {
+        isProcessing = true;
+        string userName = await MyLocalStorageService.GetItemAsync("Username") ?? "No user";
+        formData.CreatedBy = userName;
+
+        bool res = await AddCustomer(formData);
+        if(res)
+        {
+            await AlertService.ShowAlertAsync("Customer Adding Process:", "SuccessFull", "Done");
+        }
+
+        isProcessing = false;
+
+        if(res)
+        {
+            formData.Reset();
+        }
+
+        StateHasChanged();
+
+    }
+    
+}

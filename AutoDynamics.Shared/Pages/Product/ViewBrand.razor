@@ -1,9 +1,8 @@
 @page "/brand/details"
-@using AutoDynamics.Shared.Modals
-@using AutoDynamics.Shared.Services
 @inject IDatabaseHandler DatabaseHandler
 @inject ICurrentData CurrentData
 @inject NavigationManager Navigation
+@inject ITabService TabService
 <h1 class="text-center mt-3">Brand lists</h1>
 
 <div class="container mt-4">
@@ -45,13 +44,16 @@
         </table>
     </div>
 </div>
+<Loader show="isLoading" customText="Fetching Brands"/>
 @code {
     List<BrandType> brands = new List<BrandType>();
-
+    bool isLoading = false;
     protected override async Task OnInitializedAsync()
     {
+        isLoading = true;
         await FetchData();
         StateHasChanged();
+        isLoading = false;
     }
 
     public async Task FetchData()
@@ -79,8 +81,12 @@
 
     public void UpdateProduct(BrandType data)
     {
-        CurrentData.Set(CurrentType.Brand,data);
-        Navigation.NavigateTo("/brand/update");
+        Dictionary<string, dynamic> Parameters = new Dictionary<string, dynamic>
+        {
+            {"data",data }    
+        };
+        TabService.OpenWithParameter("Update Brand",typeof(UpdateBrand),Parameters);
+        
     }
 
     public async Task DeleteProduct(string brandID)

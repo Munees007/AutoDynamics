@@ -1,12 +1,11 @@
 @page "/product/details"
-@using AutoDynamics.Shared.Modals
-@using AutoDynamics.Shared.Services
 @inject IDatabaseHandler DatabaseHandler
 @inject ICurrentData CurrentData
 @inject NavigationManager Navigation
+@inject ITabService TabService
 <h1 class="text-center mt-3">Product Deatils</h1>
 <div class="col-md-12 mb-3">
-    
+
     <select class="form-select form-select-sm" @bind="selectedBrand">
         <option value="">Select a Brand</option>
         @foreach (var brand in Brands)
@@ -69,18 +68,22 @@
         </table>
     </div>
 </div>
+<Loader show="isLoading" customText="Fetching Products"/>
 @code {
     List<ProductType> products = new List<ProductType>();
 
     List<ProductType> filteredProducts = new List<ProductType>();
 
     List<BrandType> Brands = new List<BrandType>();
+    bool isLoading = false;
     string selectedBrand = "";
 
     protected override async Task OnInitializedAsync()
     {
+        isLoading = true;
         await FetchData();
         StateHasChanged();
+        isLoading = false;
     }
     void FilterProduct(ChangeEventArgs e)
     {
@@ -134,20 +137,28 @@
             filteredProducts = products;
             Brands = Brands.DistinctBy(b => b.BrandName).ToList();
         }
-        
+
 
     }
 
     public void ViewProduct(ProductType data)
     {
-        CurrentData.Set(CurrentType.Product,data);
-        Navigation.NavigateTo("/product/view");
+        string productName = $"Viewing: {data.Brand} - {data.Size} {data.Pattern} ({data.TubeOrTubeless})";
+        Dictionary<string, dynamic> Parameters = new Dictionary<string, dynamic>
+        {
+            {"product",data}
+        };
+        TabService.OpenWithParameter(productName, typeof(ViewSingleProduct), Parameters);
     }
 
     public void UpdateProduct(ProductType data)
     {
-        CurrentData.Set(CurrentType.Product,data);
-        Navigation.NavigateTo("/product/update");
+        string productName = $"Updating: {data.Brand} - {data.Size} {data.Pattern} ({data.TubeOrTubeless})";
+        Dictionary<string, dynamic> Parameters = new Dictionary<string, dynamic>
+        {
+            {"data",data}
+        };
+        TabService.OpenWithParameter(productName, typeof(ProductUpdate), Parameters);
     }
 
     public async Task DeleteProduct(string productID)

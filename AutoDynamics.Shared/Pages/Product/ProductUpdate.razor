@@ -1,16 +1,9 @@
 @page "/product/update"
-@using AutoDynamics.Shared.Modals
-@using AutoDynamics.Shared.Services
-@using AutoDynamics.Shared.Pages.Product
 @inject ICurrentData CurrentData
 
 <AddProduct isProductUpdating=true product="@data"/>
 
 @code {
-	ProductType data { set; get; } = new ProductType();
-	protected override void OnInitialized()
-	{
-		data = CurrentData.Get<ProductType>(CurrentType.Product) ?? new() ;
-		StateHasChanged();
-	}
+	[Parameter]
+	public ProductType data { set; get; } = new ProductType();
 }

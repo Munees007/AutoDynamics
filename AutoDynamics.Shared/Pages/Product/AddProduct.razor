@@ -1,7 +1,4 @@
 @page "/product/add"
-@using AutoDynamics.Shared.Modals
-@using AutoDynamics.Shared.Services
-@using AutoDynamics.Shared.Pages.Components
 @inject IDatabaseHandler DatabaseHandler
 @inject IAlertService AlertService
 @inject IMyLocalStorageService MyLocalStorageService
@@ -90,11 +87,10 @@
         <button type="button" onclick="@HandleSubmit" class="btn btn-primary w-100">@(isProductUpdating ? "Update" : "Submit")</button>
     </EditForm>
 
-    @if(isProcessing)
-    {
-        <Loader/>
 
-    }
+        <Loader show="isProcessing" customText="@(isProductUpdating ? "Updating Product" : "Adding Product")"/>
+
+  
 
 </div>
 
@@ -241,7 +237,7 @@
         await FetchData();
         if(isProductUpdating)
         {
-            product = CurrentData.Get<ProductType>(CurrentType.Product) ?? new();
+            
             brandSearch = product.Brand;
             sizeSearch = product.Size;
             patternSearch = product.Pattern;
@@ -259,7 +255,7 @@
 
         if(isBrandUpdating)
         {
-            brand = CurrentData.Get<BrandType>(CurrentType.Brand) ?? new();
+            
             StateHasChanged();
         }
     }

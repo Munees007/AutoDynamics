@@ -1,10 +1,5 @@
 ﻿@page "/purchase"
 @using System.Globalization
-@using AutoDynamics.Shared.Modals
-@using AutoDynamics.Shared.Modals.ComponentsTypes
-@using AutoDynamics.Shared.Modals.PurchaseTypes
-@using AutoDynamics.Shared.Services
-@using AutoDynamics.Shared.Pages.Components
 @using System.Diagnostics
 @inject IDatabaseHandler DatabaseHandler
 @inject IAlertService AlertService
@@ -218,20 +213,19 @@
                 <button  class="btn btn-primary" @onclick="HandleSubmit">Submit Purchase</button>
             </div>
         </div>
-        @if (isProcessing)
-        {
-            <Loader />
 
-        }
+        
+
+
     </div>
 
 </div>
-
+<Loader show="isProcessing" customText="@loaderText" />
 @code {
     [Parameter] public bool isUpdating { set; get; } = false;
     [Parameter] public PurchaseDetails updateData { set; get; } = new();
     [Parameter] public bool isViewing { set; get; } = false;
-
+    private string loaderText = "";
     private string CustomerSearch = "";
     private string ProductSearch = "";
 
@@ -288,6 +282,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        loaderText = "Fetching Data";
+        isProcessing = true;
         isAdmin = await MyLocalStorageService.GetItemAsync("IsAdmin") == "true" ? true : false;
         if (isUpdating)
         {
@@ -327,6 +323,8 @@
             StateHasChanged();
         }
         await NecessaryData();
+        loaderText = "";
+        isProcessing = false;
     }
     public async Task SubmitFormVehicle(VehicleType vehicle)
     {
@@ -374,6 +372,7 @@
     public async void HandleSubmit()
     {
         Debug.WriteLine(SelectedBranch);
+        loaderText = isUpdating ? "Updating Purchase Bill" : "Adding Purchase Bill";
         isProcessing = true;
         if (restrictCashBox)
         {
@@ -409,7 +408,7 @@
                 string billNoString = finalBill.purchase.Branch == "Sivakasi" ? "SFRP" + billNo.ToString().PadLeft(4, '0') : "BPRP"+billNo.ToString().PadLeft(4, '0');
                 ToastService.ShowToast($"Purchase updated successfully: BillNo = {billNoString}", ToastType.sucess);
             }
-            
+
         }
         catch(Exception e)
         {
@@ -426,8 +425,9 @@
             //await PDFGenerator.GeneratePdfAsync(finalBill, null);
         }
 
-        
+
         isProcessing = false;
+        loaderText = "";
         purchase = new Purchase();
         purchaseItems = new List<PurchaseItems>();
         restrictCashBox = false;

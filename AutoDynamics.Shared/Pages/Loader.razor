@@ -1,20 +1,24 @@
 
-<div style="overflow:hidden;left:0px" class="position-absolute rounded-2 w-100  bg-black h-100 bg-opacity-10 top-0 d-flex gap-3 justify-content-center align-items-center">
-    <!-- From Uiverse.io by aadium -->
-    <div class="loader">
-        <svg xml:space="preserve"
-             viewBox="0 0 254.532 254.532"
-             xmlns:xlink="http://www.w3.org/1999/xlink"
-             xmlns="http://www.w3.org/2000/svg"
-             id="Capa_1"
-             version="1.1"
-             class="wheel">
-        <g>
-        <path d="M127.267,0C57.092,0,0,57.091,0,127.266s57.092,127.266,127.267,127.266c70.174,0,127.266-57.091,127.266-127.266
+@inject IJSRuntime JS
+@if(show)
+{
+    <div style="overflow:hidden;left:0px;z-index:1100;" class="position-absolute  w-100 backdrop-blur gap-3  vh-100 bg-opacity-25 bg-black top-0 d-flex justify-content-center align-items-center">
+        <!-- From Uiverse.io by aadium -->
+
+        <div class="loader">
+            <svg xml:space="preserve"
+            viewBox="0 0 254.532 254.532"
+            xmlns:xlink="http://www.w3.org/1999/xlink"
+            xmlns="http://www.w3.org/2000/svg"
+            id="Capa_1"
+            version="1.1"
+            class="wheel">
+                <g>
+                    <path d="M127.267,0C57.092,0,0,57.091,0,127.266s57.092,127.266,127.267,127.266c70.174,0,127.266-57.091,127.266-127.266
 				S197.44,0,127.267,0z M127.267,217.656c-49.922,0-90.391-40.468-90.391-90.39s40.469-90.39,90.391-90.39
 				c49.92,0,90.39,40.468,90.39,90.39S177.186,217.656,127.267,217.656z"
-              id="tire"></path>
-        <path d="M127.267,48.578c-43.39,0-78.689,35.299-78.689,78.688c0,43.389,35.3,78.688,78.689,78.688
+                    id="tire"></path>
+                    <path d="M127.267,48.578c-43.39,0-78.689,35.299-78.689,78.688c0,43.389,35.3,78.688,78.689,78.688
 				c43.389,0,78.688-35.299,78.688-78.688C205.955,83.877,170.655,48.578,127.267,48.578z M195.878,122.249h-38.18
 				c-0.78-4.825-2.686-9.275-5.435-13.079l26.954-26.954C188.679,93.112,194.771,106.996,195.878,122.249z M132.204,58.648
 				c15.244,1.087,29.123,7.156,40.025,16.591l-26.948,26.949c-3.804-2.748-8.253-4.653-13.077-5.433V58.648z M122.329,58.648v38.106
@@ -32,23 +36,27 @@
 				c-1.821,1.114-3.82,1.956-5.951,2.474v-0.072c-1.586,0.385-3.233,0.612-4.938,0.612S123.915,147.845,122.329,147.459z
 				M132.204,195.884v-38.267c4.824-0.78,9.273-2.685,13.077-5.433l27.034,27.034C161.4,188.696,147.488,194.794,132.204,195.884z
 				M179.292,172.23l-27.028-27.028c2.749-3.804,4.654-8.254,5.435-13.079h38.191C194.818,147.398,188.745,161.308,179.292,172.23z"
-              id="rim"></path>
-    </g>
-  </svg>
-        <div class="road"></div>
-    </div>
+                    id="rim"></path>
+                </g>
+            </svg>
+            <div class="road"></div>
+        </div>
 
-    <h2 class="fw-bolder">@text</h2>
-</div>
+        <h4 class="fw-bolder">@(customText.Length > 0 ? customText : text)</h4>
+    </div>
+}
 
 @code
 {
+
     public enum LoaderType
     {
         Loading, Processing, Adding, Updating, Deleting
     }
-    
+
     string text = "Loading";
+    [Parameter] public bool show { get; set; } = false;
+    [Parameter] public string customText { get; set; } = "";
     [Parameter] public LoaderType purpose 
     {
         get
@@ -61,28 +69,42 @@
             switch(val)
             {
                 case 0:
-                    
+
                     text = "Loading";
                     break;
                 case 1:
-                    
+
                     text = "Processing";
                     break;
                 case 2:
-                    
+
                     text = "Adding";
                     break;
                 case 3:
-                    
+
                     text = "Updating";
                     break;
                 case 4:
-                    
+
                     text = "Deleting";
+                    break;
+                default:
+                    text = customText;
                     break;
             }
         } 
     }
 
+    protected override void OnParametersSet()
+    {
+        if(show)
+        {
+            JS.InvokeVoidAsync("scrollControl.disableScroll");
+        }
+        else
+        {
+            JS.InvokeVoidAsync("scrollControl.enableScroll");
+        }
+    }
 
 }

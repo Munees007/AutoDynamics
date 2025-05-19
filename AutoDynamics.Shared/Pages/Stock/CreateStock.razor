@@ -1,7 +1,3 @@
-@using AutoDynamics.Shared.Modals.ComponentsTypes
-@using AutoDynamics.Shared.Modals
-@using AutoDynamics.Shared.Pages.Components
-@using AutoDynamics.Shared.Services
 @inject IDatabaseHandler DatabaseHandler
 @inject IToastService ToastService
 @inject IMyLocalStorageService MyLocalStorageService
@@ -68,12 +64,10 @@
 
 
 
-	@if (isLoading)
-	{
-		<div class="d-flex justify-content-center align-items-center mt-5">
-			<Loader />
-		</div>
-	}
+	
+			<Loader show="isLoading" customText="Adding Stock"/>
+		
+	
 </div>
 
 @code

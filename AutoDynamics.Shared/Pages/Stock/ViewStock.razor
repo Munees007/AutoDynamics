@@ -1,9 +1,4 @@
 @page "/stock"
-@using AutoDynamics.Shared.Modals
-@using AutoDynamics.Shared.Modals.ComponentsTypes
-@using AutoDynamics.Shared.Modals.PurchaseTypes
-@using AutoDynamics.Shared.Services
-@using AutoDynamics.Shared.Pages.Components
 @using System.Diagnostics
 @inject IDatabaseHandler DatabaseHandler
 @inject IAlertService AlertService
@@ -15,6 +10,7 @@
 @inject IJSRuntime JS
 @inject IToastService ToastService
 @inject IFormFactor FormFactor
+@inject ITabService TabService
 <div>
     <h3 class="text-center mb-4">Stock Details</h3>
     <DialoBox dialogBox="addDialog"></DialoBox>

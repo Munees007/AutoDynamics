@@ -1,11 +1,5 @@
 ﻿@inject NavigationManager Navigation
-@using AutoDynamics.Shared.Services
-@using AutoDynamics.Shared.Pages
-@using AutoDynamics.Shared.Pages.Credit
-@using AutoDynamics.Shared.Pages.Product
-@using AutoDynamics.Shared.Pages.Billing
-@using AutoDynamics.Shared.Pages.Purchase
-@using AutoDynamics.Shared.Pages.Stock
+
 @inject ITabService TabService
 @inject IMultiWindowService MultiWindowService
 @* <div class="top-row ps-3 navbar navbar-dark"> *@
@@ -18,26 +12,55 @@
 
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="flex-column pt-3">
-        @foreach (var menu in menuOBJ.Values)
+        @foreach (var menu in groupMenuOBJ.Values)
         {
-            <div class="nav-btn" @onclick="() => MenuClicked(menu)">
-                <p class="rounded-3 user-select-none">@menu.Name</p>
-                @if (menu.SubMenus.Count > 0)
-                {
-                    <ul style="@(menu.IsExpanded ? "display:block;" : "display:none;")">
-                        @foreach (var sub in menu.SubMenus)
-                        {
-                            <li style="cursor:pointer;user-select:none" class="text-white rounded-3" onclick=@(()=> TabService.OpenTab(sub.Name,sub.type))>@sub.Name</li>
-                        }
-                    </ul>
-                }
-            </div>
+            @* <div class="nav-btn" @onclick="() => MenuClicked(menu)"> *@
+            @*     <p class="rounded-3 user-select-none text-black">@menu.Name</p> *@
+            @*     @if (menu.SubMenus.Count > 0) *@
+            @*     { *@
+            @*         <ul style="@(menu.IsExpanded ? "display:block;" : "display:none;")"> *@
+            @*             @foreach (var sub in menu.SubMenus) *@
+            @*             { *@
+            @*                 <li style="cursor:pointer;user-select:none" class="text-black rounded-3" onclick=@(()=> TabService.OpenTab(sub.Name,sub.type))>@sub.Name</li> *@
+            @*             } *@
+            @*         </ul> *@
+            @*     } *@
+            @* </div> *@
+            @RenderMenu(menu)
         }
     </nav>
 </div>
 
 @code
 {
+    RenderFragment RenderMenu(MenuType menu) => @<div class="nav-btn">
+        <p class="rounded-3 user-select-none text-black" @onclick="() => MenuClicked(menu)">
+            @menu.Name
+        </p>
+
+        @if (menu.SubMenus != null && menu.SubMenus.Count > 0)
+    {
+        <ul style="@(menu.IsExpanded ? "display:block;" : "display:none;")">
+            @foreach (var sub in menu.SubMenus)
+        {
+            @if (sub.SubMenus != null && sub.SubMenus.Count > 0)
+        {
+            @RenderMenu(sub)
+        }
+        else
+        {
+            <li title="@sub.Name" style="cursor:pointer;user-select:none;" class="text-black rounded-3"
+                @onclick="() => TabService.OpenTab(sub.Name, sub.type)">
+                <Marquee text="@sub.Name" marqueeTextTriggerLength="7"/>
+            </li>
+
+        }
+        }
+        </ul>
+    }
+    </div>
+    ;
+
     class MenuType
     {
         public string Name { get; set; }
@@ -59,64 +82,92 @@
     {
         Navigation.NavigateTo(path);
     }
-    Dictionary<int, MenuType> menuOBJ = new Dictionary<int, MenuType>
-    {
-        { 1, new MenuType("Customer", "#") {
-            SubMenus = new List<MenuType> {
-                new MenuType("Add", "/customer/add",typeof(CustomerAdd)),
-                new MenuType("Manage Users", "/customer/manage",typeof(CustomerView)),
-            }
-        }},
-        { 2, new MenuType("Vehicle", "#") {
-            SubMenus = new List<MenuType> {
-                new MenuType("Add", "/vehicle/add",typeof(VechicleAdd)),
-                new MenuType("Manage Vehicle", "/vehicle/details",typeof(VehicleUpdate)),
-                new MenuType("Vehicle Makes", "/vehicleMake",typeof(VehicleMake)),
-                new MenuType("Vehicle Models", "/vehicleModel",typeof(VehicleModel)),
-            }
-        }},
-        { 3, new MenuType("Product", "#") {
-            SubMenus = new List<MenuType> {
-                new MenuType("Add", "/product/add",typeof(AddProduct)),
-                new MenuType("Manage Product", "/product/details",typeof(ViewProducts)),
-                new MenuType("Manage Brand", "/brand/details",typeof(ViewBrand)),
-            }
-        }},
-        { 4, new MenuType("Billing", "#") {
-            SubMenus = new List<MenuType> {
-                new MenuType("Add Bill", "/billing",typeof(Billing)),
-                new MenuType("View Bill", "/bill/view",typeof(ListBills)),
-            }
-        }},
-        { 5, new MenuType("Purchase", "#") {
-            SubMenus = new List<MenuType> {
-                new MenuType("Add Purchase", "/purchase",typeof(AddPurchase)),
-                new MenuType("View Purchase", "/list/purchaseBills",typeof(ListPuchases)),
-            }
-        }},
-        { 6, new MenuType("Stock", "") {
 
-            SubMenus = new List<MenuType>
-            {
-                new MenuType("View Stock","/stock",typeof(ViewStock)),
-                new MenuType("Stock Outward","/stock/outward",typeof(StockOutward)),
-                new MenuType("View Outwards","/stock/viewOutwards",typeof(ViewStockOutwards)),
-                new MenuType("Stock Inward","/stock/inward",typeof(StockInward))
-            }
 
-        }},
-        { 7, new MenuType("Suppliers", "#") {
-            SubMenus = new List<MenuType> {
-                new MenuType("Add Supplier", "/supplier/add",typeof(AddSupplier)),
-                new MenuType("Manage Supplier", "/supplier/manage",typeof(ManageSupplier)),
+    Dictionary<int, MenuType> groupMenuOBJ = new Dictionary<int, MenuType>
+{
+    { 1, new MenuType("Customer", "#") {
+        SubMenus = new List<MenuType> {
+            new MenuType("Customer", "#") {
+                SubMenus = new List<MenuType> {
+                    new MenuType("Add", "/customer/add", typeof(CustomerAdd)),
+                    new MenuType("Manage Users", "/customer/manage", typeof(CustomerView)),
+                }
+            },
+            new MenuType("Vehicle", "#") {
+                SubMenus = new List<MenuType> {
+                    new MenuType("Add", "/vehicle/add", typeof(VechicleAdd)),
+                    new MenuType("Manage Vehicle", "/vehicle/details", typeof(VehicleUpdate)),
+                    new MenuType("Vehicle Makes", "/vehicleMake", typeof(VehicleMake)),
+                    new MenuType("Vehicle Models", "/vehicleModel", typeof(VehicleModel)),
+                }
             }
-        }},
-        { 8, new MenuType("Services", "/services",typeof(Services)) {
-        }},
-        { 9, new MenuType("Credit Record", "/credit/details",typeof(ViewCredit)) {
-        }},
-        
-    };
+        }
+    }},
+
+    { 2, new MenuType("Inventory", "#") {
+        SubMenus = new List<MenuType> {
+            new MenuType("Purchase", "#") {
+                SubMenus = new List<MenuType> {
+                    new MenuType("Add Purchase", "/purchase", typeof(AddPurchase)),
+                    new MenuType("View Purchase", "/list/purchaseBills", typeof(ListPuchases)),
+                }
+            },
+            new MenuType("Stock", "#") {
+                SubMenus = new List<MenuType> {
+                    new MenuType("View Stock", "/stock", typeof(ViewStock)),
+                    new MenuType("Stock Outward", "/stock/outward", typeof(StockOutward)),
+                    new MenuType("View Outwards", "/stock/viewOutwards", typeof(ViewStockOutwards)),
+                    new MenuType("Stock Inward", "/stock/inward", typeof(StockInward))
+                }
+            },
+            new MenuType("Suppliers", "#") {
+                SubMenus = new List<MenuType> {
+                    new MenuType("Add Supplier", "/supplier/add", typeof(AddSupplier)),
+                    new MenuType("Manage Supplier", "/supplier/manage", typeof(ManageSupplier)),
+                }
+            },
+        }
+    }},
+
+    { 3, new MenuType("Sales", "#") {
+        SubMenus = new List<MenuType> {
+            new MenuType("Product", "#") {
+                SubMenus = new List<MenuType> {
+                    new MenuType("Add", "/product/add", typeof(AddProduct)),
+                    new MenuType("Manage Product", "/product/details", typeof(ViewProducts)),
+                    new MenuType("Manage Brand", "/brand/details", typeof(ViewBrand)),
+                }
+            },
+            new MenuType("Billing", "#") {
+                SubMenus = new List<MenuType> {
+                    new MenuType("Add Bill", "/billing", typeof(Billing)),
+                    new MenuType("View Bill", "/bill/view", typeof(ListBills)),
+                }
+            }
+        }
+    }},
+    { 4, new MenuType("Financial", "#") {
+        SubMenus = new List<MenuType> {
+            new MenuType("Recipt", "#") {
+                SubMenus = new List<MenuType> {
+                    new MenuType("Add Recipt", "/receipt-entry", typeof(AddRecipt)),
+                }
+            },
+            
+        }
+    }},
+
+    { 5, new MenuType("Others", "#") {
+        SubMenus = new List<MenuType> {
+            
+            new MenuType("Services", "/services", typeof(Services)),
+            new MenuType("Credit Record", "/credit/details", typeof(ViewCredit)),
+            
+        }
+    }},
+};
+
 
     void MenuClicked(MenuType menuV)
     {
@@ -127,13 +178,15 @@
         }
         else
         {
-            var menu = menuOBJ.Values.FirstOrDefault(m => m.Name == menuV.Name);
-            if (menu != null)
-            {
-                menu.IsExpanded = !menu.IsExpanded; // Toggle only the clicked menu
-            }
+            // var menu = groupMenuOBJ.Values.FirstOrDefault(m => m.Name == menuV.Name);
+            // if (menu != null)
+            // {
+            //     menu.IsExpanded = !menu.IsExpanded; 
+            // }
+            menuV.IsExpanded = !menuV.IsExpanded;
             StateHasChanged();
         }
         
     }
+
 }

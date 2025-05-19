@@ -1,0 +1,85 @@
+@page "/vehicle/view"
+@inject IDatabaseHandler DatabaseHandler
+@inject NavigationManager Navigation
+@inject ITabService TabService
+<div class="container mt-4">
+    <div class="card shadow-lg">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Customer Details</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Vehicle No:</strong> @vehicle.VehicleNo</p>
+                    <p><strong>Vehicle Make:</strong> @vehicle.VehicleMake</p>
+                    <p><strong>Model Name:</strong> @vehicle.ModelName</p>
+                    <p><strong>Mfg Year:</strong> @vehicle.MfgYear</p>
+                    <p><strong>Desription:</strong> @vehicle.Description</p>
+                    <p><strong>Created By:</strong> @vehicle.CreatedBy</p>
+                    <p><strong>Created At:</strong> @vehicle.CreateAt</p>
+                    <p><strong>Last Updated By:</strong> @vehicle.LastUpdatedBy</p>
+                    <p><strong>Last Updated At:</strong> @vehicle.LastUpdatedAt</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Customer ID:</strong> @customer.CustomerId</p>
+                    <p><strong>Name:</strong> @customer.Name</p>
+                    <p><strong>Contact:</strong> @customer.Contact</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<Loader show="isLoading" customText="Fetching Vehicle"/>
+@code{
+    [Parameter] public VehicleType vehicle { set; get; } = new VehicleType();
+    UserModal customer { set; get; } = new UserModal();
+    bool isLoading = false;
+    public void ViewCustomer()
+    {
+        Dictionary<string, dynamic> Parameters = new Dictionary<string, dynamic>
+        {
+            {"customerData",customer }
+        };
+        TabService.OpenWithParameter("Viewing Customer: " + customer.Name,typeof(CustomerSingleView),Parameters);
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        await FetchData();
+        isLoading = false;
+    }
+    public async Task FetchData()
+    {
+        
+        string vehicleQuery = $"SELECT * FROM Customers WHERE CustomerID = '{vehicle.CustomerID}'";
+        
+        var result = await DatabaseHandler.ExecuteQueryAsync(vehicleQuery);
+        if(result.Count > 0)
+        {
+            var row = result[0];
+            customer = new UserModal
+            {
+                    CustomerId = row["CustomerID"].ToString() ?? "",
+                    Name = row["Name"].ToString() ?? "",
+                    Contact = row["Contact"].ToString() ?? "",
+                    Address = row["Address"].ToString() ?? "",
+                    Area = row["Area"].ToString() ?? "",
+                    City = row["City"].ToString() ?? "",
+                    State = row["State"].ToString() ?? "",
+                    Country = row["Country"].ToString() ?? "",
+                    District = row["District"].ToString() ?? "",
+                    Nationality = row["Nationality"].ToString() ?? "",
+                    PinCode = row["PinCode"].ToString() ?? "",
+                    Website = row["Website"].ToString() ?? "",
+                    LastUpdatedBy = row["LastUpdatedBy"].ToString() ?? "",
+                    Email = row["Email"].ToString() ?? "",
+                    IsSMSAllowed = row["IsSMSAllowed"].ToString() == "True" ? true : false,
+                    IsEmailAllowed = row["IsEmailAllowed"].ToString() == "True" ? true : false,
+                    IsWhatsAppAllowed = row["IsWhatsAppAllowed"].ToString() == "True" ? true : false,
+                    CreatedBy = row["CreatedBy"].ToString() ?? "",
+                    CreateAt = row["CreatedAt"].ToString() ?? "",
+                    LastUpdatedAt = row["LastUpdatedAt"].ToString() ?? ""
+            };
+        }
+    }
+}

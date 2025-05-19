@@ -1,0 +1,10 @@
+@page "/customer/update"
+@inject ICurrentData CurrentCustomer
+<h1>Update Customer</h1>
+
+<CustomerForm isUpdating="true" userData="@updatingUser"></CustomerForm>
+
+@code{
+	[Parameter] public UserModal updatingUser { set; get; } = new UserModal();
+}
+

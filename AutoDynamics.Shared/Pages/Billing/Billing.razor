@@ -1,10 +1,5 @@
 ﻿@page "/billing"
 @using System.Globalization
-@using AutoDynamics.Shared.Modals
-@using AutoDynamics.Shared.Modals.ComponentsTypes
-@using AutoDynamics.Shared.Services
-@using AutoDynamics.Shared.Pages.Components
-@using AutoDynamics.Shared.Modals.PurchaseTypes
 @using System.Diagnostics
 @inject IDatabaseHandler DatabaseHandler
 @inject IAlertService AlertService
@@ -19,7 +14,7 @@
     <h3 class="text-success fw-bolder @(!(isUpdating || isViewing) ? "visually-hidden" :"")">
         @((bill.Branch == "Sivakasi" ? "SFR" :"BPR") + bill.BillNo.ToString().PadLeft(4, '0'))</h3>
 </div>
-<div class="container m-3 position-relative">
+<div class="container m-3">
     @if(isAdmin)
     {
         <!-- Branch Selection -->
@@ -108,6 +103,7 @@
 
     @if(showVehicleForm)
     {
+
         <VechicleAdd isUpdating=false isBilling=true CustomerId="@CustomerSearch" SubmitForm="SubmitFormVehicle"/>
     }
 
@@ -259,11 +255,9 @@
         </div>
     </div>
 
-    @if (isProcessing)
-    {
-        <Loader/>
 
-    }
+    <Loader show="isProcessing" customText="@loaderText"/>
+
 </div>
 
 @code {
@@ -272,7 +266,7 @@
     [Parameter] public bool isViewing {set;get;} = false;
 
 
-
+    private string loaderText = "";
     private string CustomerSearch = "";
     private string ProductSearch = "";
     private string SelectedCustomer = "No Customer Selected";
@@ -429,6 +423,7 @@
     protected override async Task OnInitializedAsync()
     {
         isProcessing = true;
+        loaderText = isUpdating ? "Updating Bill" : (isViewing ? "Viewing Bill" : "Adding Bill");
         isAdmin = await MyLocalStorageService.GetItemAsync("IsAdmin") == "true" ? true : false;
         if(isUpdating)
         {
@@ -473,6 +468,7 @@
             StateHasChanged();
         }
         await NecessaryData();
+        loaderText = "";
         isProcessing = false;
     }
     public async Task SubmitFormVehicle(VehicleType vehicle)

@@ -1,12 +1,10 @@
 @page "/supplier/manage"
-@using AutoDynamics.Shared.Modals
-@using AutoDynamics.Shared.Services
 @inject IDatabaseHandler DatabaseHandler
 @inject NavigationManager Navigation
 @inject ICurrentData CurrentData
 @inject IAlertService AlertService
 @inject IMyLocalStorageService MyLocalStorageService
-
+@inject ITabService TabService
 <h1 class="text-center mt-3">Supplier List</h1>
 
 
@@ -59,17 +57,19 @@
         </table>
     </div>
 </div>
-
+<Loader show="isLoading" customText="Fetching Suppliers"/>
 @code {
     private string searchTerm = "";
-    private bool isAdmin = false;
+    private bool isAdmin = false,isLoading = false;
     public List<Supplier> customers { get; set; } = new();
     public List<Supplier> filteredCustomers { get; set; } = new List<Supplier>();
     protected override async Task OnInitializedAsync()
     {
+        isLoading = true;
         isAdmin = await MyLocalStorageService.GetItemAsync("IsAdmin") == "true" ? true : false;
         await fetchData();
         filteredCustomers = customers;
+        isLoading = false;
     }
 
     public void FilterData(ChangeEventArgs e)
@@ -130,8 +130,11 @@
 
     private void ViewCustomer(Supplier user)
     {
-        CurrentData.Set(CurrentType.Supplier, user);
-        Navigation.NavigateTo($"/supplier/details");
+        Dictionary<string, dynamic> Parameters = new Dictionary<string, dynamic>
+        {
+            { "",user}
+        };
+        //TabService.OpenWithParameter("Viewing Supplier: " + user.Name, typeof());
     }
 
     private async Task DeleteCustomer(string customerId)
@@ -145,7 +148,10 @@
 
     private void UpdateCustomer(Supplier user)
     {
-        CurrentData.Set(CurrentType.Supplier, user);
-        Navigation.NavigateTo($"/supplier/update");
+        Dictionary<string, dynamic> Parameters = new Dictionary<string, dynamic>
+        {
+            { "updatingUser",user}
+        };
+        TabService.OpenWithParameter("Updating Supplier: " + user.Name, typeof(UpdateSupplier),Parameters);
     }
 }

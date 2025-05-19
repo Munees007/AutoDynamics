@@ -1,16 +1,10 @@
 @page "/brand/update"
-@using AutoDynamics.Shared.Modals
-@using AutoDynamics.Shared.Services
-@using AutoDynamics.Shared.Pages.Product
 @inject ICurrentData CurrentData
 
 <AddProduct isBrandUpdating=true brand="@data" />
 
 @code {
-	BrandType data { set; get; } = new BrandType();
-	protected override void OnInitialized()
-	{
-		data = CurrentData.Get<BrandType>(CurrentType.Brand) ?? new();
-		StateHasChanged();
-	}
+	[Parameter]
+	public BrandType data { set; get; } = new BrandType();
+	
 }

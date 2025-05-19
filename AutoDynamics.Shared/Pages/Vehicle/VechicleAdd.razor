@@ -1,0 +1,412 @@
+@page "/Vehicle/add"
+@using System.Diagnostics
+@inject IDatabaseHandler DatabaseHandler
+@inject IMyLocalStorageService MyLocalStorageService
+@inject IAlertService AlertService
+<EditForm Model="@vehicle">
+    <DataAnnotationsValidator/>
+    <h2 class="text-center mt-3">Create Vehicle</h2>
+    <div class="mb-3">
+        <label for="Customer" class="form-label">Customer:</label>
+        <input @onkeydown="HandleKey" autocomplete="off" type="text" id="Customer" @bind="search" @oninput="OnInput" class="form-control" placeholder="Search by ID, Name, or Contact" required maxlength="12">
+        <SearchSelect showSuggestions="showSuggestions" @ref="customerListRef" T="UserModal" Items="filteredCustomers" OnSelect="@(e=>SelectCustomer(e))" ShowSuggestionsChanged="@((bool val) => showSuggestions = val)">
+            <ItemTemplate Context="cust">
+                <div>@cust.CustomerId - @cust.Name - @cust.Contact</div>
+            </ItemTemplate>
+        </SearchSelect>
+    </div>
+    @if(showCustomerForm)
+    {
+        <CustomerForm isBilling=true submitForm="SubmitCustomerForm"></CustomerForm>
+    }
+    <div class="mb-3">
+        <label for="VehicleNo" class="form-label">Vehicle No: @if (showWarning) {<p class="text-danger">Vehicle Already Exists </p>}</label>
+        <input autocomplete="off" type="text" id="VehicleNo" @oninput="OnVehicleNo" @bind="vehicle.VehicleNo" class="form-control" maxlength="20" required>
+    </div>
+
+    <div class="mb-3">
+        <label for="VehicleMake" class="form-label">Vehicle Make:</label>
+        <input @onkeydown="HandleVehicleMakeKey" type="text" class="form-control" @bind="makeSearch" @oninput="FilterVehicleMakes" placeholder="Search Vehicle Make" required>
+        <SearchSelect @ref="vechicleMakeListRef" T="VehicleMakeType" Items="filteredMakes" OnSelect="@(vm => SelectVehicleMake(vm))" showSuggestions="showMakeSuggestions" ShowSuggestionsChanged="@((bool val) => showMakeSuggestions = val)">
+            <ItemTemplate Context="vm">
+                <div>@vm.Vehicle_Make</div>
+            </ItemTemplate>
+        </SearchSelect>
+    </div>
+
+    <div class="mb-3">
+        <label for="VehicleModel" class="form-label">Vehicle Model:</label>
+        <input @onkeydown="HandleVehicleModelKey" type="text" class="form-control" @bind="modelSearch" @oninput="FilterVehicleModels" placeholder="Search Vehicle Model" required>
+        <SearchSelect Items="filteredModels" @ref="vehicleModelListRef" showSuggestions="showModelSuggestions" OnSelect="@(vmo => SelectVehicleModel(vmo))" T="VehicleModelType" ShowSuggestionsChanged="@((bool val) => showModelSuggestions = val)">
+            <ItemTemplate Context="vmo">
+                <div>@vmo.VehicelModel</div>
+            </ItemTemplate>
+        </SearchSelect>
+    </div>
+
+
+    <div class="mb-3">
+        <label for="description" class="form-label">Description:</label>
+        <textarea  autocomplete="off" id="description" class="form-control" @bind="vehicle.Description"></textarea>
+    </div>
+
+    <button type="button" @onclick="HandleSubmit"  class="btn btn-primary w-100">@(isUpdating ? "Updating" : "Submit")</button>
+</EditForm>
+
+<Loader show="isLoading" customText="@loaderText"/>
+@code {
+    VehicleType vehicle { get; set; } = new VehicleType();
+    [Parameter] public  bool isUpdating { get; set; } = false;
+    [Parameter] public VehicleType updateData { get; set; } = new VehicleType();
+    [Parameter] public bool isBilling { get; set; } = false;
+    [Parameter] public string CustomerId { set; get; } = "";
+    [Parameter] public EventCallback<VehicleType> SubmitForm { get; set; }
+    bool isLoading = false;
+    string loaderText = "";
+    private SearchSelect<UserModal> customerListRef;
+    private SearchSelect<VehicleMakeType> vechicleMakeListRef;
+    private SearchSelect<VehicleModelType> vehicleModelListRef;
+    private string search = "";
+    private string previousVehicleNo = "";
+    private string makeSearch = "";
+    private string modelSearch = "";
+    private string currentMakeID = "";
+    private bool showMakeSuggestions = false;
+    private bool showModelSuggestions = false;
+    private bool showSuggestions = false;
+    private bool showWarning = false;
+    private bool showCustomerForm = false;
+    List<UserModal> customers { get; set; } = new List<UserModal>();
+    List<UserModal> filteredCustomers { get; set; } = new List<UserModal>();
+    private List<VehicleMakeType> filteredMakes = new();
+    private List<VehicleMakeType> vehicleMakes { get; set; } = new();
+    private List<VehicleModelType> vehicleModels { get; set; } = new();
+    private List<VehicleModelType> filteredModels { get; set; } = new();
+    private List<VehicleType> Vehicles { get; set; } = new();
+
+
+    private void HandleKey(KeyboardEventArgs e)
+    {
+        customerListRef?.HandleKeyDown(e);
+    }
+
+    private void HandleVehicleModelKey(KeyboardEventArgs e)
+    {
+        vehicleModelListRef?.HandleKeyDown(e);
+    }
+    private void HandleVehicleMakeKey(KeyboardEventArgs e)
+    {
+        vechicleMakeListRef?.HandleKeyDown(e);
+    }
+    void KeyHandler(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            return;
+        }
+    }
+
+
+    public async void SubmitCustomerForm(UserModal customer)
+    {
+        search = customer.CustomerId;
+        vehicle.CustomerID = customer.CustomerId;
+        showCustomerForm = false;
+        await FetchNecessaryData();
+        StateHasChanged();
+    }
+    protected override void OnInitialized()
+    {
+        if(isUpdating)
+        {
+            vehicle = updateData;
+            previousVehicleNo = updateData.VehicleNo;
+            search = vehicle.CustomerID;
+            makeSearch = vehicle.VehicleMake;
+            modelSearch = vehicle.ModelName;
+            StateHasChanged();
+        }
+    }
+    protected override void OnParametersSet()
+    {
+        if(isBilling)
+        {
+            if (CustomerId != "" && CustomerId.Length == 12)
+            {
+                vehicle.CustomerID = CustomerId;
+                search = CustomerId;
+            }
+        }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        loaderText = "Fetching Data";
+        isLoading = true;
+        await FetchNecessaryData();
+        loaderText = "";
+        isLoading = false;
+    }
+    public async Task<bool> ManageDB(VehicleType data)
+    {
+        loaderText = isUpdating ? "Updating Vehicle" : "Adding Vehicle";
+        isLoading = true;
+        string username = await MyLocalStorageService.GetItemAsync("Username") ?? "";
+        if (isUpdating)
+        {
+            string updateQuery = @"UPDATE Vehicle SET CustomerID = @customerId, VehicleNo = @vehicleNo, VehicleMake = @vehicleMake,ModelName = @modelName, MfgYear = @mfgYear,Description = @description,CreatedBy = @createdBy, LastUpdatedBy = @lastUpdatedBy WHERE VehicleNo = @previousVehicleNo";
+
+            var updateParameter = new Dictionary<string, object>
+            {
+                {"@customerId",data.CustomerID},
+                {"@vehicleNo",data.VehicleNo},
+                {"@previousVehicleNo",previousVehicleNo},
+                {"@vehicleMake",data.VehicleMake},
+                {"@modelName",data.ModelName},
+                {"@mfgYear",data.MfgYear},
+                {"@description",data.Description},
+                {"@createdBy",data.CreatedBy},
+                {"@lastUpdatedBy",username}
+            };
+
+            int rowsAffected = await DatabaseHandler.ExecuteNonQueryAsync(updateQuery, updateParameter);
+            await AlertService.ShowAlertAsync("Update Vehicle Details", "Updated Successfully", "Done");
+            return rowsAffected > 0;
+
+        }
+        else
+        {
+            string insertQuery = @"INSERT INTO Vehicle (CustomerID,VehicleNo,VehicleMake,ModelName,MfgYear,Description,CreatedBy) VALUES(@customerId,@vehicleNo,@vehicleMake,@modelName,@mfgYear,@description,@createdBy)";
+            var insertParameter = new Dictionary<string, object>
+            {
+                {"@customerId",data.CustomerID},
+                {"@vehicleNo",data.VehicleNo},
+                {"@vehicleMake",data.VehicleMake},
+                {"@modelName",data.ModelName},
+                {"@mfgYear",data.MfgYear},
+                {"@description",data.Description},
+                {"@createdBy",username},
+            };
+
+            int result = await DatabaseHandler.ExecuteNonQueryAsync(insertQuery, insertParameter);
+            await AlertService.ShowAlertAsync("Adding Vehicle Details", "Added Successfully", "Done");
+            if(isBilling)
+            {
+                await SubmitForm.InvokeAsync(data);
+            }
+            return result > 0;
+        }
+        isLoading = false;
+    }
+
+    public async Task HandleSubmit()
+    {
+        List<string> errors = new List<string>();
+
+        if (!customers.Any(c => c.CustomerId == vehicle.CustomerID))
+        {
+            errors.Add("Customer ID is invalid.");
+        }
+
+        if (!vehicleMakes.Any(vm => vm.Vehicle_Make == vehicle.VehicleMake))
+        {
+            errors.Add("Vehicle make is invalid.");
+        }
+
+        if (!vehicleModels.Any(vem => vem.VehicelModel == vehicle.ModelName))
+        {
+            errors.Add("Vehicle model is invalid.");
+        }
+
+        if (errors.Count == 0)
+        {
+            await ManageDB(vehicle);
+            vehicle = new();
+            search = "";
+            modelSearch = "";
+            makeSearch = "";
+            StateHasChanged();
+        }
+        else
+        {
+            string errorMessage = string.Join("\n", errors);
+            await AlertService.ShowAlertAsync("Vehicle Form", errorMessage, "Retry");
+        }
+
+
+    }
+
+    private async Task FetchNecessaryData()
+    {
+        string query = "SELECT * FROM Customers";
+        var result = await DatabaseHandler.ExecuteQueryAsync(query);
+        customers.Clear();
+
+        foreach (var row in result)
+        {
+            customers.Add(new UserModal
+                {
+                    CustomerId = row["CustomerID"].ToString() ?? "",
+                    Name = row["Name"].ToString() ?? "",
+                    Contact = row["Contact"].ToString() ?? "",
+                });
+        }
+
+        string vehicleQuery = "SELECT * FROM Vehicle";
+        var vehicleResult = await DatabaseHandler.ExecuteQueryAsync(vehicleQuery);
+        Vehicles.Clear();
+
+        foreach(var row in vehicleResult)
+        {
+            Vehicles.Add(
+                new VehicleType
+                {
+                    VehicleNo = row["VehicleNo"].ToString() ?? ""
+                }
+            );
+        }
+
+        // Fetch Vehicle Makes
+        string makeQuery = "SELECT DISTINCT VehicleMakeID, VehicleMake FROM VehicleMakes";
+        var makesResult = await DatabaseHandler.ExecuteQueryAsync(makeQuery);
+        vehicleMakes.Clear();
+
+        foreach (var row in makesResult)
+        {
+            vehicleMakes.Add(new VehicleMakeType
+                {
+                    VehicleMakeID = row["VehicleMakeID"].ToString() ?? "",
+                    Vehicle_Make = row["VehicleMake"].ToString() ?? ""
+                });
+        }
+
+        // Fetch Vehicle Models
+        string modelQuery = "SELECT VehicleModelID, VehicleMakeID, VehicleModel FROM VehicleModels";
+        var modelsResult = await DatabaseHandler.ExecuteQueryAsync(modelQuery);
+        vehicleModels.Clear();
+
+        foreach (var row in modelsResult)
+        {
+            vehicleModels.Add(new VehicleModelType
+                {
+                    VehicleModelID = row["VehicleModelID"].ToString() ?? "",
+                    VehicleMakeID = row["VehicleMakeID"].ToString() ?? "",
+                    VehicelModel = row["VehicleModel"].ToString() ?? ""
+                });
+        }
+    }
+    public void OnVehicleNo(ChangeEventArgs e)
+    {
+        List<VehicleType> temp = new();
+        string tempStr = e.Value.ToString() ?? "";
+
+
+        var filteredVehicles = Vehicles
+            .Where(v => v.VehicleNo == tempStr)
+            .ToList();
+
+        showWarning = filteredVehicles.Any();
+    }
+    private void OnInput(ChangeEventArgs e)
+    {
+        search = e.Value.ToString() ?? "";
+        if (string.IsNullOrWhiteSpace(search))
+        {
+            showSuggestions = false;
+            filteredCustomers.Clear();
+            return;
+        }
+
+        filteredCustomers = customers
+            .Where(c => c.CustomerId.StartsWith(search, StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.StartsWith(search, StringComparison.OrdinalIgnoreCase) ||
+                        c.Contact.StartsWith(search, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        showSuggestions = filteredCustomers.Any();
+
+        if(showSuggestions == false)
+        {
+            showCustomerForm = true;
+        }
+        else
+        {
+            showCustomerForm = false;
+        }
+
+        StateHasChanged();
+    }
+
+    private void SelectCustomer(UserModal customer)
+    {
+
+        vehicle.CustomerID = customer.CustomerId;
+        search = customer.CustomerId;
+        showSuggestions = false;
+        Debug.WriteLine(search);
+        StateHasChanged();
+    }
+
+    private void FilterVehicleMakes(ChangeEventArgs e)
+    {
+        makeSearch = e.Value?.ToString() ?? "";
+        if (string.IsNullOrWhiteSpace(makeSearch))
+        {
+            showMakeSuggestions = false;
+            filteredMakes.Clear();
+            return;
+        }
+
+        filteredMakes = vehicleMakes
+            .Where(m => m.Vehicle_Make.Contains(makeSearch, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        showMakeSuggestions = filteredMakes.Any();
+    }
+
+    private void SelectVehicleMake(VehicleMakeType make)
+    {
+        vehicle.VehicleMake = make.Vehicle_Make;
+        makeSearch = make.Vehicle_Make;
+        showMakeSuggestions = false;
+        currentMakeID = make.VehicleMakeID;
+        // Filter models based on selected make
+        filteredModels = vehicleModels.Where(m => m.VehicleMakeID == make.VehicleMakeID).ToList();
+        showModelSuggestions = filteredModels.Any();
+        StateHasChanged();
+    }
+
+    private void FilterVehicleModels(ChangeEventArgs e)
+    {
+        modelSearch = e.Value?.ToString() ?? "";
+        if (string.IsNullOrWhiteSpace(modelSearch))
+        {
+            showModelSuggestions = false;
+            filteredModels.Clear();
+            return;
+        }
+
+        filteredModels = vehicleModels
+            .Where(m => m.VehicelModel.Contains(modelSearch, StringComparison.OrdinalIgnoreCase) &&
+                        (string.IsNullOrWhiteSpace(currentMakeID) || m.VehicleMakeID == currentMakeID))
+            .ToList();
+
+        showModelSuggestions = filteredModels.Any();
+    }
+
+    private void SelectVehicleModel(VehicleModelType model)
+    {
+        vehicle.ModelName = model.VehicelModel;
+        modelSearch = model.VehicelModel;
+        showModelSuggestions = false;
+
+        // Auto-select Vehicle Make if selecting a model
+        var make = vehicleMakes.FirstOrDefault(m => m.VehicleMakeID == model.VehicleMakeID);
+        if (make != null)
+        {
+            vehicle.VehicleMake = make.Vehicle_Make;
+            makeSearch = make.Vehicle_Make;
+        }
+        StateHasChanged();
+    }
+}
+

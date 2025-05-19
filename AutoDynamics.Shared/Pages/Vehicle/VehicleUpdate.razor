@@ -1,0 +1,6 @@
+@page "/vehicle/update"
+<VechicleAdd isUpdating=true updateData="@data"/>
+
+@code{
+	[Parameter] public VehicleType data { set; get; } = new VehicleType();
+}

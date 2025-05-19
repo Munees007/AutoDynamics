@@ -1,0 +1,241 @@
+﻿@page "/receipt-entry"
+@inject IDatabaseHandler DatabaseHandler
+@inject IMyLocalStorageService MyLocalStorageService
+@inject IToastService ToastService
+<div class="container mt-5">
+    <h3 class="mb-4">Enter Receipt</h3>
+
+    <!-- Date and Payment Method -->
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <div class="col-md-6">
+                <label for="paymentDate" class="form-label">Date</label>
+                <input type="date" id="paymentDate" class="form-control" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+            </div>
+
+            <div class="input-group col-md-7 mt-4" >
+                <input  @onkeydown="HandleCustomerKey" autocomplete="off" type="text" id="Customer" @bind="CustomerSearch" @oninput="OnCustomerSearch" class="form-control" placeholder="Search by ID, Name, or Contact" required>
+                <button type="button" class="btn btn-outline-secondary" @onclick="NecessaryData">
+                    🔄
+                </button>
+            </div>
+            <SearchSelect @ref="customerListRef" Items="filteredCustomers" OnSelect="@(c=> SelectCustomer(c))" T="UserModal" showSuggestions="ShowCustomerSuggestion" ShowSuggestionsChanged="@((bool val) => ShowCustomerSuggestion = val)">
+                <ItemTemplate Context="cust">
+                    <div>@cust.CustomerId - @cust.Name - @cust.Contact</div>
+                </ItemTemplate>
+            </SearchSelect>
+        </div>
+    </div>
+
+    <h5>Credit Bills</h5>
+    <button class="btn btn-success btn-sm mb-2" @onclick="AddNewItem">Add Item</button>
+
+    <!-- Table for Bill Selection -->
+    <div class="table-responsive mb-3">
+        <table class="table table-bordered">
+            <thead class="table-light">
+                <tr>
+                    <th>Bill No</th>
+                    <th>Bill Date</th>
+                    <th>Due Amount</th>
+                    <th>Amount Paid</th>
+                    <th>Payment Type</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for(int i = 0;i<creditReciptTypes.creditBills.Count;i++)
+                {
+                    var item = creditReciptTypes.creditBills[i];
+                    item.index = i;
+                    <td>
+                        <div class="input-group">
+                            <input @onkeydown="(e)=>{HandleCreditKey(e,item.index);}" autocomplete="off" type="text" id="Credit" value="@billSearch" @oninput="(e)=>{OnCreditBillSearch(e,item.index);}" class="form-control" placeholder="Search by Bill No" required>
+                        </div>
+                        <SearchSelect @ref="item.creditListRef" Items="filteredCreditBills" OnSelect="@(c=> {
+                                                                                                            item.billNo = c.billNo;item.billId = c.billId;item.dueAmount = c.dueAmount;item.showSuggestion = false;billSearch = createBillString(c); StateHasChanged();
+                                                                                         })" T="CreditBill" showSuggestions="item.showSuggestion" ShowSuggestionsChanged="@((bool val) => item.showSuggestion = val)">
+                            <ItemTemplate Context="credit">
+                            <div>@(((credit.branch == "Sivakasi" ? "SFR" : "BPR") + credit.billNo.ToString().PadLeft(4, '0')))</div>
+                            </ItemTemplate>
+                        </SearchSelect>
+                    </td>
+                    <td>@item.BillDate</td>
+                    <td>@item.dueAmount</td>
+                    <td>
+                        <input  autocomplete="off" type="number" class="form-control" @bind="item.amountPayed" min="1">
+                    </td>
+                    <td>
+                        <select  @bind="item.paymentType" class="form-select" style="width:fit-content">
+                            <option value="@PaymentTypes.CASH">CASH</option>
+                            <option value="@PaymentTypes.CARD">CARD</option>
+                            <option value="@PaymentTypes.BANK">BANK</option>
+                            <option value="@PaymentTypes.UPI">UPI</option>
+                        </select>
+                    </td>
+                    <td><button class="btn btn-outline-danger">Remove</button></td>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Submit Button -->
+    <button class="btn btn-primary">Submit</button>
+</div>
+<Loader show="isLoading" customText="@loaderText"/>
+@code{
+    CreditReciptType creditReciptTypes = new();
+    List<UserModal> customers = new();
+
+    private string CustomerSearch = "";
+    private List<UserModal> filteredCustomers { set; get; } = new List<UserModal>();
+    private SearchSelect<UserModal> customerListRef;
+    bool ShowCustomerSuggestion = false;
+
+    private string billSearch = "";
+    private List<CreditBill> creditBills { get; set; } = new();
+    private List<CreditBill> filteredCreditBills { get; set; } = new List<CreditBill>();
+    private SearchSelect<CreditBill> creditBillRef;
+    bool showCreditSuggestion = false;
+
+    bool isLoading = false;
+    string loaderText = "";
+
+    string currentBranch = "";
+
+    public void AddNewItem()
+    {
+        creditReciptTypes.creditBills.Add(new CreditBill());
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            loaderText = "Fetching Data";
+            isLoading = true;
+            currentBranch = await MyLocalStorageService.GetItemAsync("Branch") ?? "";
+            await NecessaryData();
+            isLoading = false;
+            loaderText = "";
+            StateHasChanged();
+            ToastService.ShowToast("Fetch Successful", ToastType.sucess);
+        }
+        catch(Exception e)
+        {
+            ToastService.ShowToast(e.Message, ToastType.sucess);
+        }
+
+    }
+
+    async Task NecessaryData()
+    {
+        string customerSelect = "SELECT * FROM Customers";
+
+        var res1 = await DatabaseHandler.ExecuteQueryAsync(customerSelect);
+        if (res1.Count > 0)
+        {
+            foreach (var row in res1)
+            {
+                customers.Add(new UserModal
+                    {
+                        CustomerId = row["CustomerID"].ToString() ?? "",
+                        Name = row["Name"].ToString() ?? "",
+                        Contact = row["Contact"].ToString() ?? "",
+                    });
+            }
+        }
+    }
+    public async void OnCustomerSearch(ChangeEventArgs e)
+    {
+        CustomerSearch = e.Value.ToString() ?? "";
+        // CustomerSearch.Replace(" ", "").Replace(".", "");
+
+        if (string.IsNullOrWhiteSpace(CustomerSearch))
+        {
+            ShowCustomerSuggestion = false;
+            filteredCustomers.Clear();
+            return;
+        }
+
+        filteredCustomers = customers
+            .Where(c => c.CustomerId.Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase) ||
+                        c.Contact.Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        ShowCustomerSuggestion = filteredCustomers.Any();
+        StateHasChanged();
+    }
+
+    private async Task SelectCustomer(UserModal customer)
+    {
+        try
+        {
+            loaderText = "Collecting Bills";
+            isLoading = true;
+            CustomerSearch = customer.CustomerId;
+            creditReciptTypes.customer = customer;
+            var bills = await DatabaseHandler.GetCustomerBillsAsync(customer.CustomerId);
+            Debug.WriteLine(bills.Count);
+            Debug.WriteLine(currentBranch);
+            if (bills.Count > 0)
+            {
+                List<CreditBill> credits = new List<CreditBill>();
+                foreach (var bill in bills)
+                {
+                    Debug.WriteLine(currentBranch == bill.Bill.Branch);
+                    if (currentBranch == bill.Bill.Branch)
+                    {
+                        CreditBill temp = new CreditBill
+                            {
+                                billId = bill.Bill.BillID,
+                                billNo = bill.Bill.BillNo,
+                                branch = bill.Bill.Branch,
+                                BillDate = bill.Bill.BillDate,
+                                amountPayed = 0,
+                                dueAmount = bill.BillPayment.BankAmount,
+                                paymentType = Modals.PaymentTypes.CASH
+                            };
+                            credits.Add(temp);
+                    }
+
+                }
+                creditBills = credits;
+            }
+            ShowCustomerSuggestion = false;
+            isLoading = false;
+            loaderText = "";
+            ToastService.ShowToast("Credi Bill Count = " + creditBills.Count.ToString(), ToastType.sucess);
+            StateHasChanged();
+        }
+        catch(Exception e)
+        {
+            ToastService.ShowToast(e.Message, ToastType.error);   
+        }
+        
+
+    }
+    public void HandleCustomerKey(KeyboardEventArgs e)
+    {
+        customerListRef?.HandleKeyDown(e);
+    }
+
+    public void OnCreditBillSearch(ChangeEventArgs e,int index)
+    {
+        billSearch = e.Value.ToString() ?? "";
+
+        filteredCreditBills = creditBills.Where((c) =>createBillString(c).Contains(billSearch,StringComparison.OrdinalIgnoreCase) ).ToList();
+
+        creditReciptTypes.creditBills[index].showSuggestion = filteredCreditBills.Any();
+        StateHasChanged();
+    }
+    public string createBillString(CreditBill credit)
+    {
+        return ((credit.branch == "Sivakasi" ? "SFR" : "BPR") + credit.billNo.ToString().PadLeft(4,'0'));
+    }
+    public void HandleCreditKey(KeyboardEventArgs e,int index)
+    {
+        creditReciptTypes.creditBills[index].creditListRef?.HandleKeyDown(e);
+    }
+}

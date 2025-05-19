@@ -37,10 +37,9 @@
         </button>
 
         <!-- Progress Bar -->
-        @if (isProcessing)
-        {
-            <Loader/>
-        }
+       
+            <Loader show="isProcessing" customText="Logging"/>
+        
 
         <p class="no-account">
             @(isLogin ? "Doesn't have an account?" : "Already have an account?")

@@ -1,6 +1,4 @@
 @page "/product/view"
-@using AutoDynamics.Shared.Modals
-@using AutoDynamics.Shared.Services
 @inject ICurrentData CurrentCustomer
 
 <div class="container mt-4">
@@ -29,10 +27,5 @@
 
 @code
 {
-    ProductType product { get; set; } = new ProductType();
-
-    protected override void OnInitialized()
-    {
-        product = CurrentCustomer.Get<ProductType>(CurrentType.Product) ?? new();
-    }
+    [Parameter] public ProductType product { get; set; } = new ProductType();
 }

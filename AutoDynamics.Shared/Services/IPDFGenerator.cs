@@ -1,4 +1,4 @@
-﻿using AutoDynamics.Shared.Modals;
+﻿using AutoDynamics.Shared.Modals.Billing;
 using Microsoft.JSInterop;
 namespace AutoDynamics.Shared.Services
 {

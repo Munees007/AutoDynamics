@@ -1,6 +1,4 @@
-﻿using AutoDynamics.Shared.Modals;
-using AutoDynamics.Shared.Modals.PurchaseTypes;
-using AutoDynamics.Shared.Services;
+﻿using AutoDynamics.Shared.Services;
 using ClosedXML.Excel;
 using DocumentFormat.OpenXml.Spreadsheet;
 using iTextSharp.text.pdf.qrcode;

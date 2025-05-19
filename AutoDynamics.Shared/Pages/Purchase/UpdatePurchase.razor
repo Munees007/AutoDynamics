@@ -1,17 +1,9 @@
 @page "/updatePurchase"
-@using AutoDynamics.Shared.Services
-@using AutoDynamics.Shared.Modals
-@using AutoDynamics.Shared.Modals.PurchaseTypes
-@inject ICurrentData CurrentCustomer
 <h1>Update Customer</h1>
 
 <AddPurchase isUpdating="true" updateData="updatingPurchase"></AddPurchase>
 
 @code {
-	private PurchaseDetails  updatingPurchase { set; get; } = new();
-	protected override void OnInitialized()
-	{
-		updatingPurchase = CurrentCustomer.Get<PurchaseDetails>(CurrentType.Purchase) ?? new();
-	}
+	[Parameter] public PurchaseDetails  updatingPurchase { set; get; } = new();
 }
 

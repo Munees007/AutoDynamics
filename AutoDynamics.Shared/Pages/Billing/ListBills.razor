@@ -1,8 +1,4 @@
 ﻿@page "/bill/view"
-@using AutoDynamics.Shared.Modals
-@using AutoDynamics.Shared.Modals.ComponentsTypes
-@using AutoDynamics.Shared.Pages.Components
-@using AutoDynamics.Shared.Services
 @using System.Diagnostics
 @inject IDatabaseHandler DatabaseHandler
 @inject IAlertService AlertService
@@ -18,7 +14,7 @@
 <h3 class="text-center mb-4">Billing Details</h3>
 <DialoBox dialogBox="excelDialog"></DialoBox>
 <div class="mb-3">
-    <input type="text" @bind="searchQuery" class="form-control" placeholder="Search by Bill No" />
+    <input type="text" @bind="searchQuery" @oninput="SearchBills" class="form-control" placeholder="Search by Bill No" />
 </div>
 
 <div class="mb-3">
@@ -47,7 +43,7 @@
 }
 else
 {
-    <div class="col">
+    <div class="col ">
         @if (isAdmin || showSivakasi)
         {
             <div class="col-md-6 w-100">
@@ -56,7 +52,7 @@ else
                         <h5 class="mb-0">Sivakasi Branch</h5>
                     </div>
                     <div class="card-body">
-                        @if (sivakasiBills.Any())
+                        @if (filteredSivakasiBills.Any())
                         {
                             <table class="table table-bordered table-hover">
                                 <thead class="table-dark">
@@ -113,7 +109,7 @@ else
                         <h5 class="mb-0">Bypass Branch</h5>
                     </div>
                     <div class="card-body">
-                        @if (bypassBills.Any())
+                        @if (filteredBypassBills.Any())
                         {
                             <table class="table table-bordered table-hover">
                                 <thead class="table-dark">
@@ -164,14 +160,19 @@ else
     </div>
 }
 
+
+<Loader purpose="Loader.LoaderType.Loading" customText="@loaderText" show="isLoading"/>
+
+
 @code {
+
     List<BillDetails> billDetails = new();
     List<BillDetails> sivakasiBills = new();
     List<BillDetails> bypassBills = new();
     List<BillDetails> filteredSivakasiBills = new();
     List<BillDetails> filteredBypassBills = new();
 
-    bool isAdmin = false;
+    bool isAdmin = false,isLoading = false;
     string branch = "";
     bool showSivakasi = false;
     bool showByPass = false;
@@ -183,30 +184,37 @@ else
     string excelBranch = "Sivakasi";
     int excelMonth = 1;
     int excelYear = 2025;
-
+    string loaderText = "";
     Dictionary<string, dynamic> Parameters;
 
     CustomDialogBox excelDialog = new CustomDialogBox();
 
-    public void generateExcel()
+    public void SearchBills(ChangeEventArgs e)
+    {
+        searchQuery = e.Value.ToString();
+        filteredSivakasiBills = sivakasiBills.Where((b) => CreateBillNo(b).Contains(searchQuery)).ToList();
+        filteredBypassBills = bypassBills.Where((b) => CreateBillNo(b).Contains(searchQuery)).ToList();
+    }
+
+    public string CreateBillNo(BillDetails bill)
+    {
+        return (((bill.Bill.Branch == "Sivakasi" ? "SFR" : "BPR") + bill.Bill.BillNo.ToString().PadLeft(4,'0')));
+    }
+    public async void generateExcel()
     {
         try
         {
+            loaderText = "Generating Excel...";
+            isLoading = true;
             var filtered = excelBranch == "Sivakasi" ? sivakasiBills : bypassBills;
 
             // Parse selected month and year from dropdown (assuming excelMonth and excelYear are integers)
             int selectedMonth = excelMonth;
             int selectedYear = excelYear;
 
-            DateTime startOfMonth = new DateTime(selectedYear, selectedMonth, 1);
-            DateTime endOfMonth = new DateTime(selectedYear, selectedMonth, DateTime.DaysInMonth(selectedYear, selectedMonth));
+            DateTime monthDate = new DateTime(selectedYear, selectedMonth, 1);
 
-            Debug.WriteLine(startOfMonth);
-            Debug.WriteLine(endOfMonth);
-
-            filtered = filtered
-            .Where(b => b.Bill.BillDate.Date >= startOfMonth && b.Bill.BillDate.Date <= endOfMonth)
-            .ToList();
+            filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.CustomMonthYear,customMonthYear:monthDate);
 
             string temp = $"{DateTime.Today:MMMM-yyyy}";
             string savedPath = DownloadExcel.DownloadExcelToDevice(filtered.ToArray(), temp, excelBranch);
@@ -217,11 +225,15 @@ else
             ToastService.ShowToast(e.Message, ToastType.error);
         }
 
+        isLoading = false;
+        loaderText = "";
+        StateHasChanged();
+
     }
 
     private void ViewBill(BillDetails bill)
     {
-		string billNo = ( bill.Bill.Branch == "Sivakasi" ? "SFR" : "BPR") + bill.Bill.BillNo.ToString().PadLeft(4,'0');
+        string billNo = ( bill.Bill.Branch == "Sivakasi" ? "SFR" : "BPR") + bill.Bill.BillNo.ToString().PadLeft(4,'0');
         Parameters = new Dictionary<string, dynamic>
             {
             {"billData",bill}
@@ -330,72 +342,80 @@ else
         {
             Debug.WriteLine("Desktop");
         }
-        billDetails = await DatabaseHandler.GetAllBillsAsync();
+        billDetails = new List<BillDetails>();
         isAdmin = await MyLocalStorageService.GetItemAsync("IsAdmin") == "true";
         branch = await MyLocalStorageService.GetItemAsync("Branch") ?? "";
         showSivakasi = branch == "Sivakasi";
         showByPass = !showSivakasi;
-        sivakasiBills = billDetails.Where(b => b.Bill.Branch == "Sivakasi").ToList();
-        bypassBills = billDetails.Where(b => b.Bill.Branch == "ByPass").ToList();
-        ApplyFilters();
+
+        //ApplyFilters();
     }
 
-    void ApplyFilters()
+    async void ApplyFilters()
     {
-        filteredSivakasiBills = FilterBills(sivakasiBills);
+        loaderText = "Fetching Bills";
+        isLoading = true;
+        billDetails = await FilterBills();
+        filteredSivakasiBills = billDetails.Where((b)=> b.Bill.Branch == "Sivakasi").ToList();
+
         filteredSivakasiBills = filteredSivakasiBills.OrderBy((sb) => sb.Bill.BillNo).ToList();
-        filteredBypassBills = FilterBills(bypassBills);
+        filteredBypassBills = billDetails.Where((b) => b.Bill.Branch == "ByPass").ToList();
         filteredBypassBills = filteredBypassBills.OrderBy((bb)=>bb.Bill.BillNo).ToList();
+        sivakasiBills = filteredSivakasiBills;
+		bypassBills = filteredBypassBills;
+        isLoading = false;
+        loaderText = "";
+        StateHasChanged();
     }
 
-    List<BillDetails> FilterBills(List<BillDetails> bills)
+    async Task<List<BillDetails>> FilterBills()
     {
-        var today = DateTime.Today;
-        var filtered = bills;
-
-        if (!string.IsNullOrEmpty(searchQuery))
+        try
         {
-            filtered = filtered.Where(b => b.Bill.BillNo.ToString().Contains(searchQuery)).ToList();
+            var today = DateTime.Today;
+            List<BillDetails> filtered = new();
+
+            
+
+            if (selectedSortOption == "date")
+            {
+                filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.Today);
+            }
+
+            if (selectedSortOption == "yesterday")
+            {
+                filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.Yesterday);
+            }
+
+            if (selectedSortOption == "month")
+            {
+
+
+                filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.ThisMonth);
+            }
+            if (selectedSortOption == "year")
+            {
+
+
+                filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.ThisYear);
+            }
+
+
+            if (selectedSortOption == "range" && startDate.HasValue && endDate.HasValue)
+            {
+                Debug.WriteLine($"Start Date: {startDate.Value.Date}, End Date: {endDate.Value.Date}");
+                Debug.WriteLine($"{billDetails[0].Bill.BillDate.Date}");
+                filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.CustomRange, startDate, endDate);
+            }
+            ToastService.ShowToast("Bills Fetched Successfully", ToastType.sucess);
+            return filtered.OrderBy(b => b.Bill.BillDate).ToList();
+        }
+        catch(Exception e)
+        {
+            ToastService.ShowToast(e.Message, ToastType.error);
+            return new List<BillDetails>();
         }
 
-        if(selectedSortOption == "date")
-        {
-            filtered = filtered.Where(b => b.Bill.BillDate.Date == today.Date).ToList();
-        }
-
-        if(selectedSortOption == "yesterday")
-        {
-            filtered = filtered.Where(b => b.Bill.BillDate.Date == today.AddDays(-1)).ToList();
-        }
-
-        if (selectedSortOption == "month")
-        {
-            DateTime startOfMonth = new DateTime(today.Year, today.Month, 1);
-
-            filtered = filtered
-                .Where(b => b.Bill.BillDate.Date >= startOfMonth && b.Bill.BillDate.Date <= today.Date)
-                .ToList();
-        }
-        if (selectedSortOption == "year")
-        {
-            int startYear = today.Month >= 4 ? today.Year : today.Year - 1; // Determine the financial year start
-            DateTime startOfFinancialYear = new DateTime(startYear, 4, 1); // April 1 of the determined year
-            DateTime endOfFinancialYear = new DateTime(startYear + 1, 3, 31); // March 31 of the next year
-
-            filtered = filtered
-                .Where(b => b.Bill.BillDate.Date >= startOfFinancialYear && b.Bill.BillDate.Date <= endOfFinancialYear)
-                .ToList();
-        }
-
-
-        if (selectedSortOption == "range" && startDate.HasValue && endDate.HasValue)
-        {
-            Debug.WriteLine($"Start Date: {startDate.Value.Date}, End Date: {endDate.Value.Date}");
-            Debug.WriteLine($"{billDetails[0].Bill.BillDate.Date}");
-            filtered = filtered.Where(b => b.Bill.BillDate.Date >= startDate.Value.Date && b.Bill.BillDate.Date <= endDate.Value.Date).ToList();
-        }
-
-        return filtered.OrderBy(b => b.Bill.BillDate).ToList();
     }
 
 }

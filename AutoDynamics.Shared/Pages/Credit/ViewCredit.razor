@@ -1,9 +1,8 @@
 @page "/credit/details"
-@using AutoDynamics.Shared.Modals
-@using AutoDynamics.Shared.Services
 @inject IDatabaseHandler DatabaseHandler
 @inject ICurrentData CurrentData
 @inject NavigationManager Navigation
+@inject ITabService TabService
 
 <div class="container mt-4">
     <h2 class="text-center mb-4">Credit Record</h2> <!-- Title Added -->
@@ -76,7 +75,7 @@
             <div class="card shadow-lg">
                 <div class="d-flex justify-content-between align-items-center card-header bg-success text-white">
                     <h5 class="mb-0">Bypass Branch</h5>
-					<h5>Total Amount = @bypassCreditTotal</h5>
+                    <h5>Total Amount = @bypassCreditTotal</h5>
                 </div>
                 <div class="card-body">
                     @if (filteredBypassRecords.Any())
@@ -127,7 +126,7 @@
         </div>
     }
 </div>
-
+<Loader show="isLoading" customText="Fetching Credit Record"/>
 
 @code {
     List<CreditRecord> records = new List<CreditRecord>();
@@ -141,13 +140,13 @@
 
     decimal sivakasiCreditTotal = 0m;
     decimal bypassCreditTotal = 0m;
-
+    bool isLoading = false;
     bool showSivakasi = true;
     bool showByPass = true;
     void FilterRecord(ChangeEventArgs e)
     {
         sivakasiCreditTotal = 0m;
-		bypassCreditTotal = 0m;
+        bypassCreditTotal = 0m;
         string text = e.Value.ToString();
 
         filteredSivakasiRecords = sivakasiRecords.Where(r =>
@@ -162,8 +161,8 @@
     r.Customer.Name.Contains(text, StringComparison.OrdinalIgnoreCase)
     ).ToList();
 
-		filteredSivakasiRecords.ForEach(s => sivakasiCreditTotal += s.CreditAmount);
-		filteredBypassRecords.ForEach(b => bypassCreditTotal += b.CreditAmount);
+        filteredSivakasiRecords.ForEach(s => sivakasiCreditTotal += s.CreditAmount);
+        filteredBypassRecords.ForEach(b => bypassCreditTotal += b.CreditAmount);
         StateHasChanged();
     }
     protected override async Task OnInitializedAsync()
@@ -173,13 +172,18 @@
     }
     public void CreditSelect(UserModal data)
     {
-        CurrentData.Set(CurrentType.Customer, data);
-        Navigation.NavigateTo("/view/credit-customer");
+        Dictionary<string, dynamic> parameters = new Dictionary<string, dynamic>
+        {
+            {"data",data}
+        };
+        TabService.OpenWithParameter($"Credit : {data.Name}",typeof(ViewCustomerDetails), parameters);
+
     }
     public async Task FetchData()
     {
+        isLoading = true;
         sivakasiCreditTotal = 0m;
-		bypassCreditTotal = 0m;
+        bypassCreditTotal = 0m;
         string fetchQuery = "SELECT c.*,cu.*,b.* FROM CreditRecord c JOIN Customers cu ON c.CustomerID = cu.CustomerID LEFT JOIN Bills b ON c.BillID = b.BillID";
 
         var result = await DatabaseHandler.ExecuteQueryAsync(fetchQuery);
@@ -226,20 +230,11 @@
         filteredBypassRecords = bypassRecords;
 
         filteredSivakasiRecords.ForEach(s => sivakasiCreditTotal += s.CreditAmount);
-		filteredBypassRecords.ForEach(b => bypassCreditTotal += b.CreditAmount);
+        filteredBypassRecords.ForEach(b => bypassCreditTotal += b.CreditAmount);
+
+        isLoading = false;
     }
 
 
-    public void UpdateProduct(BrandType data)
-    {
-        CurrentData.Set(CurrentType.Brand,data);
-        Navigation.NavigateTo("/brand/update");
-    }
-
-    public async Task DeleteProduct(string brandID)
-    {
-        string deleteQuery = $"DELETE FROM Brands WHERE BrandID = {brandID}";
-
-        await DatabaseHandler.ExecuteQueryAsync(deleteQuery);
-    }
+    
 }

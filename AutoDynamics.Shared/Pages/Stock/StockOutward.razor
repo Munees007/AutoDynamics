@@ -1,19 +1,29 @@
-@page "/stock/outward"
-@using AutoDynamics.Shared.Services
-@using AutoDynamics.Shared.Modals
-@using AutoDynamics.Shared.Modals.ComponentsTypes
-@using AutoDynamics.Shared.Pages.Components
-@using AutoDynamics.Shared.Modals.PurchaseTypes
+﻿@page "/stock/outward"
 @using System.Diagnostics
 @inject IDatabaseHandler DatabaseHandler
 @inject IMyLocalStorageService MyLocalStorageService
 @inject IToastService ToastService
 <div class="position-relative">
     <div class="container mt-4">
-        <div class="mb-3">
-            <p><strong>From:</strong> @stockOutward.From</p>
-            <p><strong>To:</strong> @stockOutward.To</p>
-        </div>
+        @if(isAdmin)
+        {
+            <div class="d-flex align-items-center">
+                
+                <div class="mb-3">
+                    <p><strong>From:</strong> @stockOutward.From</p>
+                    <p><strong>To:</strong> @stockOutward.To</p>
+                </div>
+                <button class="" @onclick="SwapFromTo">🔄</button>
+            </div>
+        }
+        else
+        {
+            <div class="mb-3">
+                <p><strong>From:</strong> @stockOutward.From</p>
+                <p><strong>To:</strong> @stockOutward.To</p>
+            </div>
+        }
+
 
         <div class="mb-3">
             <button class="btn btn-success btn-sm" @onclick="AddNewItem">Add Item</button>
@@ -121,10 +131,9 @@
         </div>
     </div>
 
-    @if(isProcessing)
-    {
-        <Loader/>
-    }
+   
+        <Loader show="isProcessing" customText="@(isUpdating ? "Updating Outward" : "Creating Outward")"/>
+    
 </div>
 @code{
     [Parameter] public StockOutwardType stockOutward { set; get; } = new StockOutwardType();
@@ -138,6 +147,7 @@
 
     string selectedBranch = "";
     string userName = "";
+    bool isAdmin = false;
     public void HandleProductKey(KeyboardEventArgs e, int index)
     {
         stockOutward.Outwards[index].ProductListRef?.HandleKeyDown(e);
@@ -146,6 +156,14 @@
     public void HandleBrandKey(KeyboardEventArgs e, int index)
     {
         stockOutward.Outwards[index].BrandListRef?.HandleKeyDown(e);
+    }
+
+    public void SwapFromTo()
+    {
+        string temp = stockOutward.From;
+        stockOutward.From = stockOutward.To;
+        stockOutward.To = temp;
+        StateHasChanged();
     }
 
     private void CheckStock(Outward item, ChangeEventArgs e)
@@ -325,17 +343,18 @@
                     stockOutward.Outwards[i].BrandID = tempBrand.BrandID;
                     stockOutward.Outwards[i].AvailableQuantity = tempProduct.AvailableQuantity;
                     stockOutward.Outwards[i].Product = tempProduct;
-					stockOutward.Outwards[i].Quantity = stockOutward.Outwards[i].Quantity;
+                    stockOutward.Outwards[i].Quantity = stockOutward.Outwards[i].Quantity;
                     stockOutward.Outwards[i].ProductIDValid = true;
-					stockOutward.Outwards[i].isItemSelected = true;
-					stockOutward.Outwards[i].itemOutOfStock = false;
-				}
+                    stockOutward.Outwards[i].isItemSelected = true;
+                    stockOutward.Outwards[i].itemOutOfStock = false;
+                }
             }
         }
     }
 
     protected override async Task OnInitializedAsync()
     {
+        isAdmin = await MyLocalStorageService.GetItemAsync("IsAdmin") == "true" ? true : false;
         selectedBranch = await MyLocalStorageService.GetItemAsync("Branch") ?? "";
         userName = await MyLocalStorageService.GetItemAsync("Username") ?? "";
         stockOutward.From = selectedBranch;

@@ -1,0 +1,9 @@
+﻿global using AutoDynamics.Shared.Modals;
+global using AutoDynamics.Shared.Modals.Billing;
+global using AutoDynamics.Shared.Modals.ComponentsTypes;
+global using AutoDynamics.Shared.Modals.Credit;
+global using AutoDynamics.Shared.Modals.Customer;
+global using AutoDynamics.Shared.Modals.Product;
+global using AutoDynamics.Shared.Modals.PurchaseTypes;
+global using AutoDynamics.Shared.Modals.Stock;
+global using AutoDynamics.Shared.Modals.Vehicle;

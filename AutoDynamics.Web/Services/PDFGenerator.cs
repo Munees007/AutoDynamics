@@ -1,5 +1,4 @@
 ﻿using AutoDynamics.Shared.Services;
-using AutoDynamics.Shared.Modals;
 using iTextSharp.text;
 using iTextSharp.text.pdf;
 using System.Text;
@@ -8,6 +7,7 @@ using Microsoft.JSInterop;
 using Microsoft.AspNetCore.Components;
 using System.Runtime.InteropServices.JavaScript;
 using AutoDynamics.Web.Helper;
+using AutoDynamics.Shared.Modals.Billing;
 namespace AutoDynamics.Web.Services
 {
     public class PDFGenerator : IPDFGenerator

@@ -1,6 +1,4 @@
 @using System.Diagnostics
-@using AutoDynamics.Shared.Services
-@using AutoDynamics.Shared.Modals
 @inject IMyLocalStorageService MyLocalStorageService
 @inject IDatabaseHandler DatabaseHandler
 @inject IAlertService AlertService
@@ -125,13 +123,12 @@
 
         <button type="button" @onclick="HandleSubmit" class="btn btn-primary w-100">@(isUpdating ? "Update" : "Submit")</button>
     </EditForm>
-    @if (isProcessing)
-    {
-        <div class="position-absolute rounded-2 w-100 bg-black h-100 bg-opacity-10 top-0 d-flex justify-content-center align-items-center">
-            <Loader/>
-        </div>
+    
+        
+            <Loader show="isProcessing" customText="@(isUpdating ? "Updating Supplier" : "Adding Supplier")"/>
+        
 
-    }
+
 </div>
 
 
