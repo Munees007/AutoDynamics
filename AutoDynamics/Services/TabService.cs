@@ -5,6 +5,7 @@ using AutoDynamics.Shared.Modals;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Diagnostics;
 
 public class TabService : ITabService
 {
@@ -16,29 +17,37 @@ public class TabService : ITabService
     
     public void OpenTab(string title, Type componentType, bool isClosable = true)
     {
-        var existing = Tabs.FirstOrDefault(t => t.Title == title && t.ComponentType == componentType);
-        if (existing != null)
+        try
         {
-            Selected = existing;
-        }
-        else
-        {
-            var newTab = new TabItem
+            var existing = Tabs.FirstOrDefault(t => t.Title == title && t.ComponentType == componentType);
+            if (existing != null)
             {
-                Title = title,
-                Content = builder =>
+                Selected = existing;
+            }
+            else
+            {
+                var newTab = new TabItem
                 {
-                    builder.OpenComponent(0, componentType);
-                    builder.CloseComponent();
-                },
-                ComponentType = componentType,
-                IsClosable = isClosable
-            };
-            Tabs.Add(newTab);
-            Selected = newTab;
-        }
+                    Title = title,
+                    Content = builder =>
+                    {
+                        builder.OpenComponent(0, componentType);
+                        builder.CloseComponent();
+                    },
+                    ComponentType = componentType,
+                    IsClosable = isClosable
+                };
+                Tabs.Add(newTab);
+                Selected = newTab;
+            }
 
-        NotifyStateChanged();
+            NotifyStateChanged();
+        }
+        catch(Exception e)
+        {
+            Debug.WriteLine(e.Message);
+        }
+        
     }
 
     public void OpenWithParameter(string title, Type componentType, Dictionary<string,dynamic> parameters, bool isClosable = true)

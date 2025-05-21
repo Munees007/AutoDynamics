@@ -1,6 +1,7 @@
 ﻿@page "/home"
 @inject IApiService ApiService
 @inject IMyLocalStorageService MyLocalStorageService
+@inject ITabService TabService
 
 <div class="container text-center" style="padding:10px; position:relative; min-height:80vh;">
     <p class="text-primary"  style="text-align:right">Today: @todayData</p>
@@ -50,6 +51,7 @@
     </div>
 </div>
 
+<button class="btn btn-outline-info" @onclick="Temp">Check Customer Form</button>
 
 @code {
     private string UserName = ""; // Dynamic user data
@@ -57,6 +59,10 @@
     private string todayData = "";
     private ThirukkuralType Thirukkural = new();
 
+    public void Temp()
+    {
+        TabService.OpenTab("Add",typeof(CustomerAdd));
+    }
     protected override async Task OnInitializedAsync()
     {
         todayData = @DateTime.Now.ToString("dddd, dd MMMM yyyy");

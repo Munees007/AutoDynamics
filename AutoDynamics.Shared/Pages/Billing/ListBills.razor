@@ -206,7 +206,7 @@ else
         {
             loaderText = "Generating Excel...";
             isLoading = true;
-            var filtered = excelBranch == "Sivakasi" ? sivakasiBills : bypassBills;
+
 
             // Parse selected month and year from dropdown (assuming excelMonth and excelYear are integers)
             int selectedMonth = excelMonth;
@@ -214,8 +214,8 @@ else
 
             DateTime monthDate = new DateTime(selectedYear, selectedMonth, 1);
 
-            filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.CustomMonthYear,customMonthYear:monthDate);
-
+            var filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.CustomMonthYear,customMonthYear:monthDate);
+            filtered = filtered.Where((b) => b.Bill.Branch == excelBranch).ToList();
             string temp = $"{DateTime.Today:MMMM-yyyy}";
             string savedPath = DownloadExcel.DownloadExcelToDevice(filtered.ToArray(), temp, excelBranch);
             ToastService.ShowToast("Excel Genreated Successfully", ToastType.sucess);

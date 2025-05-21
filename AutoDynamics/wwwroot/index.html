@@ -61,12 +61,9 @@
     </div>
     <script>
         window.scrollControl = {
-            let scrollPosition = { top: 0, left: 0 };
+            
             disableScroll: function () {
-                scrollPosition = {
-                    top: window.pageYOffset || document.documentElement.scrollTop,
-                    left: window.pageXOffset || document.documentElement.scrollLeft
-                };
+                
                 window.scrollTo(0, 0);
                 document.body.style.overflow = 'hidden';
                 document.documentElement.style.overflow = 'hidden';
@@ -74,7 +71,7 @@
             enableScroll: function () {
                 document.body.style.overflow = '';
                 document.documentElement.style.overflow = '';
-                window.scrollTo(scrollPosition.left, scrollPosition.top);
+                
             }
         };
     </script>

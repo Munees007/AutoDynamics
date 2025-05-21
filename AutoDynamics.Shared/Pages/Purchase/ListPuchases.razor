@@ -6,8 +6,10 @@
 @inject ICurrentData CurrentData
 @inject IFormFactor FormFactor
 @inject ITabService TabService
+@inject IDownloadExcel DownloadExcel
+@inject IToastService ToastService
 <h3 class="text-center mb-4">Purchase Details</h3>
-
+<DialoBox dialogBox="excelDialog"></DialoBox>
 <div class="mb-3">
     <input type="text" @bind="searchQuery" @oninput="SearchBills" class="form-control" placeholder="Search by Bill No" />
 </div>
@@ -30,7 +32,7 @@
 </div>
 <div class="w-100 d-flex justify-content-between align-items-md-center">
     <button class="btn btn-primary mb-3" @onclick="ApplyFilters">Apply Filters</button>
-
+    <button class="btn btn-success mb-3" @onclick="()=>{excelDialog.showDialog = true;StateHasChanged();}">Download Excel</button>
 </div>
 @if (purchaseDetails == null || !purchaseDetails.Any())
 {
@@ -174,12 +176,50 @@ else
     DateTime? startDate;
     DateTime? endDate;
 
+    string excelBranch = "Sivakasi";
+    int excelMonth = 1;
+    int excelYear = 2025;
+
+    CustomDialogBox excelDialog = new CustomDialogBox();
+
     public List<PurchaseDetails> sivakasiBills = new();
     public List<PurchaseDetails> bypassBills = new();
 
     public List<PurchaseDetails> filteredSivakasiBills = new();
     public List<PurchaseDetails> filteredBypassBills = new();
 
+    public async void generateExcel()
+    {
+        try
+        {
+            loaderText = "Generating Excel...";
+            isLoading = true;
+
+
+            // Parse selected month and year from dropdown (assuming excelMonth and excelYear are integers)
+            int selectedMonth = excelMonth;
+            int selectedYear = excelYear;
+
+            DateTime monthDate = new DateTime(selectedYear, selectedMonth, 1);
+
+            var filtered = await FetchData(BillDateFilterType.CustomMonthYear,customMonthYear:monthDate);
+
+            filtered = filtered.Where((b) => b.purchase.Branch == excelBranch).ToList();
+            filtered = filtered.OrderBy((b) => b.purchase.BillNo).ToList();
+            string temp = $"{DateTime.Today:MMMM-yyyy}";
+            string savedPath = DownloadExcel.DownloadExcelPurchaseToDevice(filtered.ToArray(), temp, excelBranch);
+            ToastService.ShowToast("Excel Genreated Successfully", ToastType.sucess);
+        }
+        catch (Exception e)
+        {
+            ToastService.ShowToast(e.Message, ToastType.error);
+        }
+
+        isLoading = false;
+        loaderText = "";
+        StateHasChanged();
+
+    }
     public void SearchBills(ChangeEventArgs e)
     {
         searchQuery = e.Value.ToString();
@@ -200,7 +240,63 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        excelDialog = new CustomDialogBox
+                {
+                    Title = "Download Excel",
+                    body = @<div class="mb-3">
+        <label class="form-label">Select Branch, Month, and Year</label>
 
+        <div class="d-flex gap-3">
+            <select id="branchSelect" class="form-select" @bind="excelBranch">
+                <option value="Sivakasi">Sivakasi</option>
+                <option value="ByPass">ByPass</option>
+            </select>
+
+            <select id="monthSelect" class="form-select" @bind="excelMonth">
+                <option value="1">January</option>
+                <option value="2">February</option>
+                <option value="3">March</option>
+                <option value="4">April</option>
+                <option value="5">May</option>
+                <option value="6">June</option>
+                <option value="7">July</option>
+                <option value="8">August</option>
+                <option value="9">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+            </select>
+
+            <select id="yearSelect" class="form-select" @bind="excelYear">
+                @for (int year = DateTime.Now.Year - 5; year <= DateTime.Now.Year + 1; year++)
+            {
+                <option value="@year">@year</option>
+            }
+            </select>
+        </div>
+    </div>
+
+
+    ,
+            footers = new List<FooterBtn>
+            {
+                new FooterBtn
+                {
+                    Button = @<button class="btn btn-danger" @onclick="()=>{excelDialog.showDialog = false; StateHasChanged();}">CANCEL</button>
+                },
+                new FooterBtn
+                {
+                          Button = @<button class="btn btn-primary" @onclick="generateExcel">OK</button>
+	        	},
+            },
+            OnCloase = EventCallback.Factory.Create(this, async () =>
+            {
+                excelDialog.showDialog = false;
+                excelBranch = "";
+
+                StateHasChanged();
+            }),
+        };
 
         isAdmin = await MyLocalStorageService.GetItemAsync("IsAdmin") == "true";
         branch = await MyLocalStorageService.GetItemAsync("Branch") ?? "";
@@ -239,15 +335,15 @@ else
     {
         loaderText = "Fetching Purchase Bills...";
         isLoading = true;
-        var bills = await FilterBills();
-        Debug.WriteLine(bills.Count);
-        filteredSivakasiBills = bills.Where((b)=> b.purchase.Branch == "Sivakasi").ToList();
-        filteredBypassBills = bills.Where((b) => b.purchase.Branch == "ByPass").ToList();
+        purchaseDetails = await FilterBills();
+        Debug.WriteLine(purchaseDetails.Count);
+        filteredSivakasiBills = purchaseDetails.Where((b) => b.purchase.Branch == "Sivakasi").ToList();
+        filteredBypassBills = purchaseDetails.Where((b) => b.purchase.Branch == "ByPass").ToList();
 
         filteredSivakasiBills = filteredSivakasiBills.OrderBy((sb) => sb.purchase.BillNo).ToList();
         filteredBypassBills = filteredBypassBills.OrderBy((bb) => bb.purchase.BillNo).ToList();
         sivakasiBills = filteredSivakasiBills;
-		bypassBills = filteredBypassBills;
+        bypassBills = filteredBypassBills;
         isLoading = false;
         loaderText = "";
         StateHasChanged();
@@ -261,19 +357,19 @@ else
 
         if (selectedSortOption == "date")
         {
-            await FetchData(BillDateFilterType.Today);
+            filtered = await FetchData(BillDateFilterType.Today);
         }
 
         if (selectedSortOption == "yesterday")
         {
-            await FetchData(BillDateFilterType.Yesterday);
+            filtered = await FetchData(BillDateFilterType.Yesterday);
         }
 
         if (selectedSortOption == "month")
         {
             DateTime startOfMonth = new DateTime(today.Year, today.Month, 1);
 
-            await FetchData(BillDateFilterType.ThisMonth);
+            filtered = await FetchData(BillDateFilterType.ThisMonth);
         }
         if (selectedSortOption == "year")
         {
@@ -281,25 +377,25 @@ else
             DateTime startOfFinancialYear = new DateTime(startYear, 4, 1); // April 1 of the determined year
             DateTime endOfFinancialYear = new DateTime(startYear + 1, 3, 31); // March 31 of the next year
 
-            await FetchData(BillDateFilterType.ThisYear);
+            filtered = await FetchData(BillDateFilterType.ThisYear);
         }
 
 
         if (selectedSortOption == "range" && startDate.HasValue && endDate.HasValue)
         {
 
-            await FetchData(BillDateFilterType.CustomRange, startDate, endDate);
+            filtered = await FetchData(BillDateFilterType.CustomRange, startDate, endDate);
         }
-        filtered = purchaseDetails;
+        
         return filtered;
     }
 
 
-    public async Task FetchData(BillDateFilterType filterType, DateTime? startDate = null, DateTime? endDate = null, DateTime? customMonthYear = null)
+    public async Task<List<PurchaseDetails>> FetchData(BillDateFilterType filterType, DateTime? startDate = null, DateTime? endDate = null, DateTime? customMonthYear = null)
     {
         try
         {
-            purchaseDetails.Clear();
+            List<PurchaseDetails> purchaseBills = new();
             string whereClause = "";
             DateTime today = DateTime.Today;
             switch (filterType)
@@ -370,7 +466,7 @@ JOIN Suppliers s ON pb.SupplierID = s.SupplierID {whereClause}";
                         GrandTotal = Convert.ToDecimal(billRow["GrandTotal"]),
                         Notes = billRow["Notes"].ToString() ??""
                     };
-                
+
                 // 2. Fetch items for each bill
                 string itemsQuery = @"
             SELECT
@@ -417,12 +513,13 @@ WHERE
                         });
                 }
 
-                purchaseDetails.Add(new PurchaseDetails
+                purchaseBills.Add(new PurchaseDetails
                 {
                     purchase = purchaseBill,
                     purchaseItems = itemList
                 });
             }
+            return purchaseBills;
         }
         catch (Exception ex)
         {

@@ -8,10 +8,10 @@
             <label for="contact" class="form-label">Mobile Number: 
                 @if(ShowWarning)
                 {
-                    <p class="text-danger">Customer Already Exists</p>
+                    <p class="text-danger">Customer Already Exists (there are @customerCount customers in this mobile number)</p>
                 }
             </label>
-            <input autocomplete="new-password" @oninput="CheckContactThere" type="text" id="contact" class="form-control" maxlength="10" required @bind="formData.Contact">
+            <input autocomplete="new-password"  @oninput="CheckContactThere" type="text" id="contact" class="form-control" maxlength="10" required @bind="formData.Contact">
         </div>
 
         <div class="mb-3">
@@ -141,41 +141,44 @@
         <button type="button" @onclick="HandleSubmit" class="btn btn-primary w-100">@(isUpdating ? "Update" : "Submit")</button>
     </EditForm>
 
-    <Loader show="isProcessing" customText="@loaderText")"/>
-</div>
 
+</div>
+<Loader show="isProcessing" customText="@loaderText" />
 
 @code {
-    [Parameter] public bool isUpdating { get; set; }
+    [Parameter] public bool isUpdating { get; set; } =false;
     [Parameter] public UserModal? userData { get; set; }
-    [Parameter] public bool isBilling { get; set; }
+    [Parameter] public bool isBilling { get; set; } = false;
     [Parameter] public EventCallback<UserModal> submitForm { get; set; }
     private List<UserModal> customers = new List<UserModal>();
     public bool ShowWarning = false;
+    public int customerCount = 0;
     public string loaderText = "";
-    public IReadOnlyDictionary<string, object> additionalAttributes = new Dictionary<string, object>
-    {
-        {"autocomplete","off"}
-    }; 
     public bool isProcessing = false;
 
     public UserModal formData { get; set; } = new UserModal();
 
     protected override async void OnInitialized()
     {
-        loaderText = "Fetching Data";
-        isProcessing = true;
-        if(isUpdating)
+        try
         {
-            formData = userData;
-            StateHasChanged();
+
+            loaderText = "Fetching Data";
+            isProcessing = true;
+            if (isUpdating)
+            {
+                formData = userData;
+                StateHasChanged();
+            }
+
+            loaderText = "";
+            isProcessing = false;
         }
-        else
+        catch(Exception e)
         {
-            await FetchData();
+            Debug.WriteLine(e.Message);
         }
-        loaderText = "";
-        isProcessing = false;
+
     }
 
     private void ValidateGSTIN(ChangeEventArgs e)
@@ -203,12 +206,30 @@
             }
         }
     }
-    public void CheckContactThere(ChangeEventArgs e)
+    public async Task CheckContactThere(ChangeEventArgs e)
     {
         formData.Contact = e.Value.ToString();
         Debug.WriteLine(formData.Contact);
-        List<UserModal> temp = customers.Where(c => c.Contact == formData.Contact).ToList();
-        ShowWarning = temp.Any();
+        if(formData.Contact.Length == 10)
+        {
+            string checkQuery = $"SELECT * FROM Customers WHERE Contact = '{formData.Contact}'";
+            var res = await DatabaseHandler.ExecuteQueryAsync(checkQuery);
+            if(res.Count > 0)
+            {
+                ShowWarning = true;
+                customerCount = res.Count;
+            }
+            else
+            {
+                ShowWarning = false;
+            }
+        }
+        else
+        {
+            ShowWarning = false;
+        }
+        // List<UserModal> temp = customers.Where(c => c.Contact == formData.Contact).ToList();
+        // ShowWarning = temp.Any();
         StateHasChanged();
     }
 

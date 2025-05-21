@@ -50,7 +50,7 @@
         else
         {
             <li title="@sub.Name" style="cursor:pointer;user-select:none;" class="text-black rounded-3"
-                @onclick="() => TabService.OpenTab(sub.Name, sub.type)">
+                @onclick="() =>{Debug.WriteLine(sub.Name);Debug.WriteLine(sub.type); TabService.OpenTab(sub.Name, sub.type);}">
                 <Marquee text="@sub.Name" marqueeTextTriggerLength="7"/>
             </li>
 
@@ -86,11 +86,11 @@
 
     Dictionary<int, MenuType> groupMenuOBJ = new Dictionary<int, MenuType>
 {
-    { 1, new MenuType("Customer", "#") {
+    { 1, new MenuType("Customers", "#") {
         SubMenus = new List<MenuType> {
             new MenuType("Customer", "#") {
                 SubMenus = new List<MenuType> {
-                    new MenuType("Add", "/customer/add", typeof(CustomerAdd)),
+                    new MenuType("Add Customer", "/customer/add", typeof(CustomerAdd)),
                     new MenuType("Manage Users", "/customer/manage", typeof(CustomerView)),
                 }
             },
@@ -116,9 +116,9 @@
             new MenuType("Stock", "#") {
                 SubMenus = new List<MenuType> {
                     new MenuType("View Stock", "/stock", typeof(ViewStock)),
-                    new MenuType("Stock Outward", "/stock/outward", typeof(StockOutward)),
-                    new MenuType("View Outwards", "/stock/viewOutwards", typeof(ViewStockOutwards)),
-                    new MenuType("Stock Inward", "/stock/inward", typeof(StockInward))
+                    //new MenuType("Stock Outward", "/stock/outward", typeof(StockOutward)),
+                    //new MenuType("View Outwards", "/stock/viewOutwards", typeof(ViewStockOutwards)),
+                    //new MenuType("Stock Inward", "/stock/inward", typeof(StockInward))
                 }
             },
             new MenuType("Suppliers", "#") {
@@ -154,16 +154,16 @@
                     new MenuType("Add Recipt", "/receipt-entry", typeof(AddRecipt)),
                 }
             },
-            
+
         }
     }},
 
     { 5, new MenuType("Others", "#") {
         SubMenus = new List<MenuType> {
-            
+
             new MenuType("Services", "/services", typeof(Services)),
             new MenuType("Credit Record", "/credit/details", typeof(ViewCredit)),
-            
+
         }
     }},
 };
@@ -171,21 +171,29 @@
 
     void MenuClicked(MenuType menuV)
     {
-        if(menuV.SubMenus.Count == 0)
+        try
         {
-            TabService.OpenTab(menuV.Name,menuV.type);
-			//Navigation.NavigateTo(menuV.Path);
+            if (menuV.SubMenus.Count == 0)
+            {
+                TabService.OpenTab(menuV.Name, menuV.type);
+                //Navigation.NavigateTo(menuV.Path);
+            }
+            else
+            {
+                // var menu = groupMenuOBJ.Values.FirstOrDefault(m => m.Name == menuV.Name);
+                // if (menu != null)
+                // {
+                //     menu.IsExpanded = !menu.IsExpanded;
+                // }
+                menuV.IsExpanded = !menuV.IsExpanded;
+                StateHasChanged();
+            }
         }
-        else
+        catch(Exception e)
         {
-            // var menu = groupMenuOBJ.Values.FirstOrDefault(m => m.Name == menuV.Name);
-            // if (menu != null)
-            // {
-            //     menu.IsExpanded = !menu.IsExpanded; 
-            // }
-            menuV.IsExpanded = !menuV.IsExpanded;
-            StateHasChanged();
+            Debug.WriteLine(e.Message);
         }
+        
         
     }
 
