@@ -1,7 +1,7 @@
 .page {
     position: relative;
     display: flex;
-    flex-direction: column;
+    flex-direction: row !important;
 }
 .tab-item:hover {
     background-color: #e2e6ea !important;
@@ -31,6 +31,7 @@ main {
     background-color: #287271;
     position:relative;
     overflow:visible;
+    height:100%;
 }
 
 .top-row {

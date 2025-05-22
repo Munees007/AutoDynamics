@@ -9,10 +9,10 @@
 @inject IToastService ToastService
 @inject IJSRuntime JS
 @inject IDatabaseHandler DatabaseHandler
-<div class="position-absolute" style="max-width:100%">
+<div style="max-width:100%">
     <h3 class="text-primary">Purchase</h3>
 
-    <div class="container w-100">
+    <div class="container w-100 m-3">
         <div class="row mb-4">
             <div class="col-md-4">
                 <label class="form-label">Invoice No:</label>
@@ -115,7 +115,7 @@
                                 </SearchSelect>
                             </td>
                             <td style="min-width:140px">
-                                <input disabled="@isViewing" value="@item.ProductName" @onkeydown="(e)=>{HandleProductKey(e,item.index);}"  autocomplete="off" type="text"   @oninput="(e)=>{OnProductsSearch(e,item.index);}" class="form-control " placeholder="Search by ID, Name" required>
+                                <input title="@item.ProductName" disabled="@isViewing" value="@item.ProductName" @onkeydown="(e)=>{HandleProductKey(e,item.index);}"  autocomplete="off" type="text"   @oninput="(e)=>{OnProductsSearch(e,item.index);}" class="form-control " placeholder="Search by ID, Name" required>
                                 <SearchSelect @ref="item.productListRef" Items="filteredProducts" OnSelect="@(c=> {
 
                                                                                                         item.ProductID = c.ProductID;ProductSearch = $"{c.Brand} {c.Size} - {c.Pattern} ({c.TubeOrTubeless})";item.ProductName = $"{c.Brand} {c.Size} - {c.Pattern} ({c.TubeOrTubeless})";item.Product = c;
@@ -184,11 +184,12 @@
                                     cgst = item.TaxRate == TaxRate.TAX_18 ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
                                     sgst = item.TaxRate == TaxRate.TAX_18 ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
                                     item.TotalPrice = Math.Round(item.TaxableValue + cgst + sgst);
+                                    
                                 }
 
                             }
 
-                            <td>@item.TaxableValue</td>
+                            <td>@item.TaxableValue.ToString("F2")</td>
                             <td>@cgst.ToString("F2")</td>
                             <td>@sgst.ToString("F2")</td>
                             <td>@item.TotalPrice</td>
@@ -198,6 +199,7 @@
                             </td>
                         </tr>
                     }
+                    
                 </tbody>
 
             </table>
@@ -205,16 +207,25 @@
         <hr />
         <!-- Total and Submit -->
         <div class="row">
-
-            <div class="col-md-6">
-                <h4>Total: ₹@TotalAmount</h4>
+            <div class="col-md-8">
+                <div class="card border-primary shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">Purchase Summary</h5>
+                        <p class="card-text mb-1"><strong>Total Taxable Value:</strong> ₹@taxableTotal.ToString("N2")</p>
+                        <p class="card-text mb-1"><strong>CGST Total:</strong> ₹@cgstTotal.ToString("N2")</p>
+                        <p class="card-text mb-1"><strong>SGST Total:</strong> ₹@sgstTotal.ToString("N2")</p>
+                        <hr />
+                        <h4 class="card-text text-success"><strong>Grand Total: ₹@TotalAmount.ToString("N2")</strong></h4>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-6 text-end">
-                <button  class="btn btn-primary" @onclick="HandleSubmit">Submit Purchase</button>
+
+            <div class="col-md-4 d-flex align-items-end justify-content-end">
+                <button class="btn btn-primary mb-2" @onclick="HandleSubmit">Submit Purchase</button>
             </div>
         </div>
 
-        
+
 
 
     </div>
@@ -240,7 +251,9 @@
     private decimal TotalAmount => purchaseItems.Sum(x => x.TotalPrice);
     private decimal Discount = 0;
     private bool restrictCashBox = false;
-    private decimal GrandTotal => TotalAmount * (1 - purchase.DiscountAmount / 100);
+    private decimal taxableTotal => purchaseItems.Sum(x=> x.TaxableValue);
+    private decimal cgstTotal => purchaseItems.Sum(item => item.TaxRate == TaxRate.TAX_18 ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2));
+    private decimal sgstTotal => purchaseItems.Sum(item => item.TaxRate == TaxRate.TAX_18 ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2));
     private decimal CashAmount = 0, BankAmount = 0, CardAmount = 0, UPIAmount = 0;
     private bool showCustomerForm = false;
     private bool showVehicleForm = false;
