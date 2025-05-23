@@ -241,11 +241,12 @@
     private async Task HandleUpdateClick()
     {
         
-        string UpdateQuery = @"UPDATE Stock Set AvailableQuantity = @AvailableQuantity WHERE ProductID = @ProductID";
+        string UpdateQuery = @"UPDATE Stock Set AvailableQuantity = @AvailableQuantity WHERE ProductID = @ProductID AND Branch = @Branch";
         Dictionary<string,object> param = new Dictionary<string, object>
         {
             {"@AvailableQuantity",CurrentStock.AvailableQuantity},
-            {"@ProductID",CurrentStock.ProductID}
+            {"@ProductID",CurrentStock.ProductID},
+            {"@Branch",CurrentStock.Branch}
         };
 
         await DatabaseHandler.ExecuteQueryAsync(UpdateQuery, param);

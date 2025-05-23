@@ -172,7 +172,7 @@
                             </SearchSelect>
                         </td>
                         <td style="min-width:140px">
-                            <input disabled="@isViewing" value="@item.ProductName" @onkeydown="(e)=>{HandleProductKey(e,item.index);}" autocomplete="off" type="text" @oninput="(e)=>{OnProductsSearch(e,item.index);}" class="form-control " style=@(!item.ProductIDValid ? "border: 1px solid red;" : "") placeholder="Search by ID, Name" required>
+                            <input disabled="@isViewing" title="@item.ProductName" value="@item.ProductName" @onkeydown="(e)=>{HandleProductKey(e,item.index);}" autocomplete="off" type="text" @oninput="(e)=>{OnProductsSearch(e,item.index);}" class="form-control " style=@(!item.ProductIDValid ? "border: 1px solid red;" : "") placeholder="Search by ID, Name" required>
                             <SearchSelect @ref="item.productListRef" Items="filteredProducts" OnSelect="@(c=> {
                                                                                                         item.ProductIDValid = true;
                                                                                                         item.ItemID = c.ProductID;ProductSearch = $"{c.Brand} - {c.Size} - {c.Pattern} ({c.TubeOrTubeless})";
