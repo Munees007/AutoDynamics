@@ -1,4 +1,6 @@
-﻿using AutoDynamics.Shared.Modals.Billing;
+﻿using AutoDynamics.Shared.Modals.Accounts.Recipt;
+using AutoDynamics.Shared.Modals.Accounts;
+using AutoDynamics.Shared.Modals.Billing;
 using AutoDynamics.Shared.Modals.PurchaseTypes;
 using AutoDynamics.Shared.Modals.Stock;
 using System;
@@ -16,8 +18,8 @@ namespace AutoDynamics.Shared.Services
 
         Task<int> ExecuteNonQueryAsync(string query, Dictionary<string, object>? parameters = null);
         Task<List<Dictionary<string, object>>> ExecuteQueryAsync(string query, Dictionary<string, object>? parameters = null);
-        Task<int[]> InsertBillAsync(Bill bill, List<BillItem> billItems, BillPayment billPayment,bool isUpdating);
-        Task<int> InsertPurchaseBillAsync(Purchase purchaseBill, List<PurchaseItems> purchaseItems, bool isUpdating);
+        Task<int[]> InsertBillAsync(Bill bill, List<BillItem> billItems, BillPayment billPayment, bool isUpdating, List<Ledger> ledgers);
+        Task<int> InsertPurchaseBillAsync(Purchase purchaseBill, List<PurchaseItems> purchaseItems, bool isUpdating,List<Ledger> ledgers);
         Task<List<BillDetails>> GetAllBillsAsync();
         Task<List<BillDetails>> GetFilteredBillsAsync(BillDateFilterType filterType, DateTime? startDate = null, DateTime? endDate = null, DateTime? customMonthYear = null);
         Task<List<BillDetails>> GetCustomerBillsAsync(string id);
@@ -28,5 +30,13 @@ namespace AutoDynamics.Shared.Services
         Task UpdateStockOutwardAsync(int stockOutwardId, StockOutwardType outward, List<Outward> outwardItems);
         Task<List<StockInwardType>> GetStockInwards();
         Task AcceptInward(StockInwardType stockInward);
+
+        Task<int> InsertReceipt(CreditReciptType creditRecipt, bool isUpdating, List<Ledger> ledgers);
+        Task<List<CreditReciptType>> GetCreditReceipts(bool isCustomerOnly, string? CustomerID);
+
+        Task<int> InsertPayment(PaymentReciptType creditRecipt, bool isUpdating, List<Ledger> ledgers);
+
+        Task<List<int>> InsertOrUpdateMultipleLedger(List<Ledger> ledgers);
+
     }
 }

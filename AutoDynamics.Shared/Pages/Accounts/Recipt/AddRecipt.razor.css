@@ -1,0 +1,14 @@
+input[type="date"] {
+    max-width: 100%;
+}
+
+.table td,
+.table th {
+    vertical-align: middle;
+    padding: 0.75rem;
+}
+
+.table input,
+.table select {
+    width: 100%;
+}

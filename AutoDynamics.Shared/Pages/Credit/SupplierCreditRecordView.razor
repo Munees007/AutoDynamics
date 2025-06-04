@@ -1,0 +1,247 @@
+@page "/supplier/credit"
+@inject IDatabaseHandler DatabaseHandler
+@inject ICurrentData CurrentData
+@inject NavigationManager Navigation
+@inject ITabService TabService
+
+
+<div class="container mt-4">
+    <h2 class="text-center mb-4">Supplier Credit Record</h2> <!-- Title Added -->
+
+    <div class="col-md-12 mb-4">
+        <input type="text" @oninput="(e)=>{FilterRecord(e);}" class="form-control" placeholder="Search by Customer Id, Name, Contact" />
+    </div>
+    <!-- Sivakasi Branch Table -->
+    @if (showSivakasi)
+    {
+        <div class="col-md-12 mb-4">
+            <div class="card shadow-lg">
+                <div class="d-flex justify-content-between align-items-center card-header bg-primary text-white">
+                    <h5 class="mb-0">Sivakasi Branch</h5>
+                    <h5>Total Amount = @sivakasiCreditTotal.ToString("N2")</h5>
+                </div>
+                <div class="card-body">
+                    @if (filteredSivakasiRecords.Any())
+                    {
+                        int sno = 1;
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>S. No.</th>
+                                    
+                                    
+                                    <th>Supplier Name</th>
+                                    <th>Supplier Mobile</th>
+                                    <th>Credit Amount</th>
+                                    <th>Paid Amount</th>
+                                    <th>Remaining Balance</th>
+                                    <th>Due Date</th>
+                                    <th>Status</th>
+                                    <th>Created At</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var record in filteredSivakasiRecords)
+                                {
+                                    <tr style="cursor:pointer" @onclick="()=> CreditSelect(record.Supplier)">
+                                        <td>@(sno++)</td>
+                                        
+                                        
+                                        <td>@record.Supplier.Name</td>
+                                        <td>@record.Supplier.Contact</td>
+                                        <td>@record.CreditAmount.ToString("N2")</td>
+                                        <td>@record.PaidAmount.ToString("N2")</td>
+                                        <td>@record.RemainingBalance</td>
+                                        <td>@record.DueDate</td>
+                                        <td>@record.Status</td>
+                                        <td>@record.CreatedAt</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <p class="text-muted text-center">No records for Sivakasi.</p>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Bypass Branch Table -->
+    @if (showByPass)
+    {
+        <div class="col-md-12 mb-4">
+            <div class="card shadow-lg">
+                <div class="d-flex justify-content-between align-items-center card-header bg-success text-white">
+                    <h5 class="mb-0">Bypass Branch</h5>
+                    <h5>Total Amount = @bypassCreditTotal</h5>
+                </div>
+                <div class="card-body">
+                    @if (filteredBypassRecords.Any())
+                    {
+                        int sno = 1;
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>S. No.</th>
+                                    
+                                    
+                                    <th>Supplier Name</th>
+                                    <th>Supplier Mobile</th>
+                                    <th>Credit Amount</th>
+                                    <th>Paid Amount</th>
+                                    <th>Remaining Balance</th>
+                                    <th>Due Date</th>
+                                    <th>Status</th>
+                                    <th>Created At</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var record in filteredBypassRecords)
+                                {
+                                    <tr style="cursor:pointer" @onclick="()=> CreditSelect(record.Supplier)">
+                                        <td>@(sno++)</td>
+                                        
+                                        
+                                        <td>@record.Supplier.Name</td>
+                                        <td>@record.Supplier.Contact</td>
+                                        <td>@record.CreditAmount</td>
+                                        <td>@record.PaidAmount</td>
+                                        <td>@record.RemainingBalance</td>
+                                        <td>@record.DueDate</td>
+                                        <td>@record.Status</td>
+                                        <td>@record.CreatedAt</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <p class="text-muted text-center">No records for Bypass.</p>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+<Loader show="isLoading" customText="Fetching Credit Record" />
+
+@code {
+    List<SupplierCreditRecord> records = new List<SupplierCreditRecord>();
+
+    List<SupplierCreditRecord> sivakasiRecords = new List<SupplierCreditRecord>();
+    List<SupplierCreditRecord> bypassRecords = new List<SupplierCreditRecord>();
+
+
+    List<SupplierCreditRecord> filteredSivakasiRecords = new List<SupplierCreditRecord>();
+    List<SupplierCreditRecord> filteredBypassRecords = new List<SupplierCreditRecord>();
+
+    decimal sivakasiCreditTotal = 0m;
+    decimal bypassCreditTotal = 0m;
+    bool isLoading = false;
+    bool showSivakasi = true;
+    bool showByPass = true;
+    void FilterRecord(ChangeEventArgs e)
+    {
+        sivakasiCreditTotal = 0m;
+        bypassCreditTotal = 0m;
+        string text = e.Value.ToString();
+
+        filteredSivakasiRecords = sivakasiRecords.Where(r =>
+    r.Supplier.Contact.Contains(text, StringComparison.OrdinalIgnoreCase) ||
+    r.Supplier.SupplierID.Contains(text, StringComparison.OrdinalIgnoreCase) ||
+    r.Supplier.Name.Contains(text, StringComparison.OrdinalIgnoreCase)
+    ).ToList();
+
+        filteredBypassRecords = bypassRecords.Where(r =>
+    r.Supplier.Contact.Contains(text, StringComparison.OrdinalIgnoreCase) ||
+    r.Supplier.SupplierID.Contains(text, StringComparison.OrdinalIgnoreCase) ||
+    r.Supplier.Name.Contains(text, StringComparison.OrdinalIgnoreCase)
+    ).ToList();
+
+        filteredSivakasiRecords.ForEach(s => sivakasiCreditTotal += s.CreditAmount);
+        filteredBypassRecords.ForEach(b => bypassCreditTotal += b.CreditAmount);
+        StateHasChanged();
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        await FetchData();
+        StateHasChanged();
+    }
+    public void CreditSelect(Supplier data)
+    {
+        Dictionary<string, dynamic> parameters = new Dictionary<string, dynamic>
+        {
+            {"data",data}
+        };
+        // TabService.OpenWithParameter($"Credit : {data.Name}", typeof(Supplier), parameters);
+
+    }
+
+    public async Task InsertSupplierCreditRecord()
+    {
+        
+    }
+    public async Task FetchData()
+    {
+        isLoading = true;
+        sivakasiCreditTotal = 0m;
+        bypassCreditTotal = 0m;
+        string fetchQuery = "SELECT c.*,cu.*,b.* FROM SupplierCreditRecord c JOIN Suppliers cu ON c.SupplierID = cu.SupplierID LEFT JOIN PurchaseBills b ON c.PurchaseBillID = b.PurchaseBillID";
+
+        var result = await DatabaseHandler.ExecuteQueryAsync(fetchQuery);
+        if (result.Count > 0)
+        {
+
+            var groupedRecords = result
+                .GroupBy(row => row["SupplierID"].ToString())  // Group by CustomerID
+                .Select(group => new SupplierCreditRecord
+                    {
+                        SupplierID = group.Key,  // Group key is the CustomerID
+                        PurchaseBillID = ulong.Parse(group.FirstOrDefault()?["PurchaseBillID"].ToString() ?? "0"),
+                        Invoice = group.FirstOrDefault()?["InvoiceNumber"].ToString(),
+                        Branch = group.FirstOrDefault()?["Branch"].ToString(),
+                        CreditAmount = group.Sum(row => Convert.ToDecimal(row["CreditAmount"])),  // Sum of CreditAmount
+                        PaidAmount = group.Sum(row => Convert.ToDecimal(row["PaidAmount"])),  // Sum of PaidAmount
+                        RemainingBalance = group.Sum(row => Convert.ToDecimal(row["RemainingBalance"] ?? 0)),  // Sum of RemainingBalance
+                        DueDate = group.FirstOrDefault()?["DueDate"] == DBNull.Value ? DateTime.MinValue : Convert.ToDateTime(group.FirstOrDefault()?["DueDate"]),
+                        Status = group.FirstOrDefault()?["Status"].ToString(),
+                        CreatedAt = group.FirstOrDefault()?["CreatedAt"] == DBNull.Value ? DateTime.MinValue : Convert.ToDateTime(group.FirstOrDefault()?["CreatedAt"]),
+                        Supplier = new Supplier
+                        {
+                            SupplierID = group.Key,
+                            Name = group.FirstOrDefault()?["Name"].ToString() ?? "",
+                            Contact = group.FirstOrDefault()?["Contact"].ToString() ?? "",
+                            GSTIN = group.FirstOrDefault()?["GSTIN"].ToString() ?? "",
+                            Address = group.FirstOrDefault()?["Address"].ToString() ?? "",
+                            Area = group.FirstOrDefault()?["Area"].ToString() ?? "",
+                            City = group.FirstOrDefault()?["City"].ToString() ?? "",
+                            State = group.FirstOrDefault()?["State"].ToString() ?? "",
+                            Country = group.FirstOrDefault()?["Country"].ToString() ?? "",
+                            District = group.FirstOrDefault()?["District"].ToString() ?? "",
+                            Nationality = group.FirstOrDefault()?["Nationality"].ToString() ?? "",
+                            PinCode = group.FirstOrDefault()?["PinCode"].ToString() ?? "",
+                            
+                            Email = group.FirstOrDefault()?["Email"].ToString() ?? "",
+                        }
+                    }).ToList(); // Convert grouped data to list
+
+            records = groupedRecords;
+        }
+        sivakasiRecords = records.Where(r => r.Branch.ToLower() == "sivakasi").ToList();
+        bypassRecords = records.Where(r => r.Branch.ToLower() == "bypass").ToList();
+        filteredSivakasiRecords = sivakasiRecords;
+        filteredBypassRecords = bypassRecords;
+
+        filteredSivakasiRecords.ForEach(s => sivakasiCreditTotal += s.CreditAmount);
+        filteredBypassRecords.ForEach(b => bypassCreditTotal += b.CreditAmount);
+
+        isLoading = false;
+    }
+
+
+
+}

@@ -154,6 +154,17 @@
                     new MenuType("Add Recipt", "/receipt-entry", typeof(AddRecipt)),
                 }
             },
+            new MenuType("Payment", "#") {
+                SubMenus = new List<MenuType> {
+                    new MenuType("Add Payment", "/payment-entry", typeof(AddPayment)),
+                }
+            },
+            new MenuType("Ledger", "#") {
+                SubMenus = new List<MenuType> {
+                    new MenuType("Ledger Entry","/ledger-entry", typeof(AddLedger)),
+                    new MenuType("View Ledger", "/ledger", typeof(ViewLedger)),
+                }
+            },
 
         }
     }},
@@ -163,6 +174,7 @@
 
             new MenuType("Services", "/services", typeof(Services)),
             new MenuType("Credit Record", "/credit/details", typeof(ViewCredit)),
+            new MenuType("Supplier Credit", "/supplier/credit", typeof(SupplierCreditRecordView)),
 
         }
     }},

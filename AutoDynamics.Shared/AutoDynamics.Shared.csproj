@@ -26,7 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Pages\Accounts\Recipt\" />
+    <Folder Include="Pages\Accounts\Ledger\" />
     <Folder Include="Pages\Credit\" />
     <Folder Include="Pages\Stock\" />
     <Folder Include="Pages\Product\" />

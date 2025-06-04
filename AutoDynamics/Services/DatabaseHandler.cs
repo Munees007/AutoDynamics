@@ -2,6 +2,10 @@
 using System.Data;
 using MySqlConnector;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
+using AutoDynamics.Shared.Modals.Accounts;
+using AutoDynamics.Shared.Modals.Billing;
+using AutoDynamics.Shared.Pages.Billing;
 
 
 namespace AutoDynamics.Services
@@ -75,7 +79,570 @@ namespace AutoDynamics.Services
             }
         }
 
-        public async Task<int> InsertPurchaseBillAsync(Purchase purchaseBill, List<PurchaseItems> purchaseItems, bool isUpdating)
+        public async Task<List<int>> InsertOrUpdateMultipleLedger(List<Ledger> ledgers)
+        {
+            List<int> insertedOrUpdatedIds = new List<int>();
+
+            using (var connection = new MySqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+
+                using (var transaction = await connection.BeginTransactionAsync())
+                {
+                    try
+                    {
+                        string insertQuery = @"
+                INSERT INTO CashBankLedger 
+                (Date, AccountID, Branch, TransactionType, ReferenceID, Particulars, DrAmount, CrAmount, Balance) 
+                VALUES (@Date, @AccountID, @Branch, @TransactionType, @ReferenceID, @Particulars, @DrAmount, @CrAmount, @Balance);
+                SELECT LAST_INSERT_ID();";
+
+                        string updateQuery = @"
+                UPDATE CashBankLedger 
+                SET Date = @Date, AccountID = @AccountID, Branch = @Branch,
+                    TransactionType = @TransactionType, ReferenceID = @ReferenceID,
+                    Particulars = @Particulars, DrAmount = @DrAmount, CrAmount = @CrAmount, Balance = @Balance 
+                WHERE LedgerID = @LedgerID;";
+
+                        foreach (var ledger in ledgers)
+                        {
+                            if (ledger == null) continue;
+
+                            using (var command = new MySqlCommand(ledger.LedgerID > 0 ? updateQuery : insertQuery, connection, transaction))
+                            {
+                                if (ledger.LedgerID > 0)
+                                {
+                                    command.Parameters.AddWithValue("@LedgerID", ledger.LedgerID);
+                                }
+
+                                command.Parameters.AddWithValue("@Date", ledger.Date);
+                                command.Parameters.AddWithValue("@AccountID", ledger.AccountID);
+                                command.Parameters.AddWithValue("@Branch", ledger.Branch);
+                                command.Parameters.AddWithValue("@TransactionType", ledger.TransactionType.ToString());
+                                command.Parameters.AddWithValue("@ReferenceID", ledger.ReferenceID);
+                                command.Parameters.AddWithValue("@Particulars", ledger.Particulars);
+                                command.Parameters.AddWithValue("@DrAmount", ledger.DR_Amount);
+                                command.Parameters.AddWithValue("@CrAmount", ledger.CR_Amount);
+                                command.Parameters.AddWithValue("@Balance", ledger.Balance);
+
+                                if (ledger.LedgerID > 0)
+                                {
+                                    await command.ExecuteNonQueryAsync();
+                                    insertedOrUpdatedIds.Add(ledger.LedgerID);
+                                }
+                                else
+                                {
+                                    var result = await command.ExecuteScalarAsync();
+                                    int newId = Convert.ToInt32(result);
+                                    if (newId == 0) throw new Exception("Ledger insert failed");
+                                    insertedOrUpdatedIds.Add(newId);
+                                }
+                            }
+                        }
+
+                        await transaction.CommitAsync();
+                    }
+                    catch
+                    {
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                }
+            }
+
+            return insertedOrUpdatedIds;
+        }
+
+
+        public async Task<List<int>> InsertOrUpdateMultipleLedgerAsync(
+    MySqlConnection connection,
+    MySqlTransaction transaction,
+    List<Ledger> ledgers)
+        {
+            string insertQuery = @"
+        INSERT INTO CashBankLedger 
+        (Date, AccountID, Branch, TransactionType, ReferenceID, Particulars, DrAmount, CrAmount, Balance) 
+        VALUES (@Date, @AccountID, @Branch, @TransactionType, @ReferenceID, @Particulars, @DrAmount, @CrAmount, @Balance);
+        SELECT LAST_INSERT_ID();";
+
+            string updateQuery = @"
+        UPDATE CashBankLedger 
+        SET Date = @Date, AccountID = @AccountID, Branch = @Branch,
+            TransactionType = @TransactionType, ReferenceID = @ReferenceID,
+            Particulars = @Particulars, DrAmount = @DrAmount, CrAmount = @CrAmount, Balance = @Balance 
+        WHERE LedgerID = @LedgerID;";
+
+            List<int> insertedOrUpdatedIds = new List<int>();
+
+            foreach (var ledger in ledgers)
+            {
+                if (ledger == null) continue;
+
+                if (ledger.LedgerID > 0) // update
+                {
+                    using (var command = new MySqlCommand(updateQuery, connection, transaction))
+                    {
+                        command.Parameters.AddWithValue("@LedgerID", ledger.LedgerID);
+                        command.Parameters.AddWithValue("@Date", ledger.Date);
+                        command.Parameters.AddWithValue("@AccountID", ledger.AccountID);
+                        command.Parameters.AddWithValue("@Branch", ledger.Branch);
+                        command.Parameters.AddWithValue("@TransactionType", ledger.TransactionType.ToString());
+                        command.Parameters.AddWithValue("@ReferenceID", ledger.ReferenceID);
+                        command.Parameters.AddWithValue("@Particulars", ledger.Particulars);
+                        command.Parameters.AddWithValue("@DrAmount", ledger.DR_Amount);
+                        command.Parameters.AddWithValue("@CrAmount", ledger.CR_Amount);
+                        command.Parameters.AddWithValue("@Balance", ledger.Balance);
+
+                        await command.ExecuteNonQueryAsync();
+                        insertedOrUpdatedIds.Add(ledger.LedgerID);
+                    }
+                }
+                else // insert
+                {
+                    using (var command = new MySqlCommand(insertQuery, connection, transaction))
+                    {
+                        command.Parameters.AddWithValue("@Date", ledger.Date);
+                        command.Parameters.AddWithValue("@AccountID", ledger.AccountID);
+                        command.Parameters.AddWithValue("@Branch", ledger.Branch);
+                        command.Parameters.AddWithValue("@TransactionType", ledger.TransactionType.ToString());
+                        command.Parameters.AddWithValue("@ReferenceID", ledger.ReferenceID);
+                        command.Parameters.AddWithValue("@Particulars", ledger.Particulars);
+                        command.Parameters.AddWithValue("@DrAmount", ledger.DR_Amount);
+                        command.Parameters.AddWithValue("@CrAmount", ledger.CR_Amount);
+                        command.Parameters.AddWithValue("@Balance", ledger.Balance);
+
+                        var result = await command.ExecuteScalarAsync();
+                        int newId = Convert.ToInt32(result);
+                        if (newId == 0) throw new Exception("Ledger insert failed");
+                        insertedOrUpdatedIds.Add(newId);
+                    }
+                }
+            }
+
+            return insertedOrUpdatedIds;
+        }
+
+
+        public async Task<List<CreditReciptType>> GetCreditReceipts(bool isCustomerOnly, string? CustomerID)
+        {
+            var receipts = new List<CreditReciptType>();
+
+            using (var connection = new MySqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+
+                string query = @"
+            SELECT 
+                r.ReceiptID, r.CustomerID, r.PaymentDate, r.TotalAmountPaid, r.LedgerID,r.Branch,
+                c.Name,
+                rb.BillID, rb.AmountPaid, rb.BalanceAmount,
+                cr.CreditID, cr.PaidAmount, cr.Status
+            FROM Receipts r
+            JOIN Customers c ON r.CustomerID = c.CustomerID
+            LEFT JOIN ReceiptBills rb ON r.ReceiptID = rb.ReceiptID
+            LEFT JOIN CreditRecord cr ON rb.BillID = cr.BillID";
+
+                if (isCustomerOnly && !string.IsNullOrEmpty(CustomerID))
+                {
+                    query += " WHERE r.CustomerID = @CustomerID";
+                }
+
+                using (var command = new MySqlCommand(query, connection))
+                {
+                    if (isCustomerOnly && !string.IsNullOrEmpty(CustomerID))
+                    {
+                        command.Parameters.AddWithValue("@CustomerID", CustomerID);
+                    }
+
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        var receiptDict = new Dictionary<int, CreditReciptType>();
+
+                        while (await reader.ReadAsync())
+                        {
+                            int receiptId = reader.GetInt32("ReceiptID");
+
+                            if (!receiptDict.ContainsKey(receiptId))
+                            {
+                                var receipt = new CreditReciptType
+                                {
+                                    ReceiptId = receiptId,
+                                    Branch = reader.GetString("Branch"),
+                                    ReciptDate = reader.GetDateTime("PaymentDate"),
+                                    TotalAmountPaid = reader.GetDecimal("TotalAmountPaid"),
+                                    customer = new UserModal
+                                    {
+                                        CustomerId = reader.GetString("CustomerID"),
+                                        Name = reader.GetString("Name")
+                                    },
+                                    creditBills = new List<CreditBill>()
+                                };
+
+                                receiptDict[receiptId] = receipt;
+                            }
+
+                            // Add CreditBill if present
+                            if (!reader.IsDBNull(reader.GetOrdinal("BillID")))
+                            {
+                                var bill = new CreditBill
+                                {
+                                    billId = reader.GetInt32("BillID"),
+                                    amountPayed = reader.GetDecimal("AmountPaid"),
+                                    dueAmount = reader.GetDecimal("BalanceAmount") + reader.GetDecimal("AmountPaid"),
+                                    creditId = reader.GetInt32("CreditID"),
+                                    CreditStatus = Enum.TryParse(reader.GetString("Status"), out CreditStatus status) ? status : CreditStatus.Pending
+                                };
+
+                                receiptDict[receiptId].creditBills.Add(bill);
+                            }
+                        }
+
+                        receipts = receiptDict.Values.ToList();
+                    }
+                }
+            }
+
+            return receipts;
+        }
+
+
+
+        public async Task<int> InsertReceipt(CreditReciptType creditRecipt, bool isUpdating, List<Ledger> ledgers)
+        {
+            using (var connection = new MySqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+
+                using (var transaction = await connection.BeginTransactionAsync())
+                {
+                    try
+                    {
+                        int receiptId = creditRecipt.ReceiptId;
+
+                        if (isUpdating)
+                        {
+                            List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
+                            int mainLedgerId = ledgerIds[0];
+
+                            // 1. Fetch existing ReceiptBills
+                            var existingReceipts = new List<(long CreditID, decimal AmountPaid)>();
+                            string fetchReceiptBills = @"SELECT rb.BillID, cr.CreditID, rb.AmountPaid 
+                                                 FROM ReceiptBills rb
+                                                 JOIN CreditRecord cr ON rb.BillID = cr.BillID
+                                                 WHERE rb.ReceiptID = @ReceiptID";
+
+                            using (var command = new MySqlCommand(fetchReceiptBills, connection, (MySqlTransaction)transaction))
+                            {
+                                command.Parameters.AddWithValue("@ReceiptID", receiptId);
+                                using (var reader = await command.ExecuteReaderAsync())
+                                {
+                                    while (await reader.ReadAsync())
+                                    {
+                                        existingReceipts.Add((
+                                            CreditID: reader.GetInt64("CreditID"),
+                                            AmountPaid: reader.GetDecimal("AmountPaid")
+                                        ));
+                                    }
+                                }
+                            }
+
+                            // 2. Reverse CreditRecord updates
+                            foreach (var entry in existingReceipts)
+                            {
+                                string reverseCredit = @"UPDATE CreditRecord 
+                                                 SET PaidAmount = PaidAmount - @PaidAmount 
+                                                 WHERE CreditID = @CreditID";
+
+                                using (var command = new MySqlCommand(reverseCredit, connection, (MySqlTransaction)transaction))
+                                {
+                                    command.Parameters.AddWithValue("@PaidAmount", entry.AmountPaid);
+                                    command.Parameters.AddWithValue("@CreditID", entry.CreditID);
+                                    await command.ExecuteNonQueryAsync();
+                                }
+                            }
+
+                            // 3. Delete old ReceiptBills
+                            string deleteOldReceipts = @"DELETE FROM ReceiptBills WHERE ReceiptID = @ReceiptID";
+                            using (var command = new MySqlCommand(deleteOldReceipts, connection, (MySqlTransaction)transaction))
+                            {
+                                command.Parameters.AddWithValue("@ReceiptID", receiptId);
+                                await command.ExecuteNonQueryAsync();
+                            }
+
+                            // 4. Update the CreditRecipt table
+                            string updateReceipt = @"UPDATE CreditRecipt 
+                                             SET CustomerID = @CustomerID, PaymentDate = @PaymentDate, 
+                                                 TotalAmountPaid = @TotalAmountPaid, LedgerID = @LedgerID 
+                                             WHERE ReceiptID = @ReceiptID";
+                            using (var command = new MySqlCommand(updateReceipt, connection, (MySqlTransaction)transaction))
+                            {
+                                command.Parameters.AddWithValue("@CustomerID", creditRecipt.customer.CustomerId);
+                                command.Parameters.AddWithValue("@PaymentDate", creditRecipt.ReciptDate);
+                                command.Parameters.AddWithValue("@TotalAmountPaid", creditRecipt.creditBills.Sum(x => x.amountPayed));
+                                command.Parameters.AddWithValue("@LedgerID", mainLedgerId);
+                                command.Parameters.AddWithValue("@ReceiptID", receiptId);
+                                await command.ExecuteNonQueryAsync();
+                            }
+
+                            // 5. Update reference in CashBankLedger
+                            //string updateLedgerRefQuery = @"UPDATE CashBankLedger SET ReferenceID = @ReferenceID WHERE LedgerID = @LedgerID";
+                            //using (var updateCmd = new MySqlCommand(updateLedgerRefQuery, connection, (MySqlTransaction)transaction))
+                            //{
+                            //    updateCmd.Parameters.AddWithValue("@ReferenceID", receiptId);
+                            //    updateCmd.Parameters.AddWithValue("@LedgerID", mainLedgerId);
+                            //    await updateCmd.ExecuteNonQueryAsync();
+                            //}
+                        }
+                        else
+                        {
+                            List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
+                            int mainLedgerId = ledgerIds[0];
+
+                            // Insert new receipt
+                            string insertQuery = @"INSERT INTO Receipts (CustomerID, PaymentDate, TotalAmountPaid, LedgerID,Branch) 
+                                           VALUES (@CustomerID, @PaymentDate, @TotalAmountPaid, @LedgerID,@Branch); 
+                                           SELECT LAST_INSERT_ID();";
+
+                            using (var command = new MySqlCommand(insertQuery, connection, (MySqlTransaction)transaction))
+                            {
+                                command.Parameters.AddWithValue("@CustomerID", creditRecipt.customer.CustomerId);
+                                command.Parameters.AddWithValue("@PaymentDate", creditRecipt.ReciptDate);
+                                command.Parameters.AddWithValue("@TotalAmountPaid", creditRecipt.creditBills.Sum(x => x.amountPayed));
+                                command.Parameters.AddWithValue("@LedgerID", mainLedgerId);
+                                command.Parameters.AddWithValue("@Branch", creditRecipt.Branch);
+                                var result = await command.ExecuteScalarAsync();
+                                receiptId = int.Parse(result?.ToString() ?? "0");
+
+                                if (receiptId == 0)
+                                    throw new Exception("Unable to Insert Receipt, Please try again");
+                            }
+
+                            // Set receipt reference in ledgers
+                            foreach(int id in ledgerIds)
+                            {
+                                string updateLedgerRefQuery = @"UPDATE CashBankLedger SET ReferenceID = @ReferenceID, EntryID = @EntryID WHERE LedgerID = @LedgerID";
+                                using (var updateCmd = new MySqlCommand(updateLedgerRefQuery, connection, (MySqlTransaction)transaction))
+                                {
+                                    updateCmd.Parameters.AddWithValue("@ReferenceID", receiptId);
+                                    updateCmd.Parameters.AddWithValue("@LedgerID", id);
+                                    updateCmd.Parameters.AddWithValue("@EntryID", mainLedgerId);
+                                    await updateCmd.ExecuteNonQueryAsync();
+                                }
+                            }
+                            
+                        }
+
+                        // Insert ReceiptBills and update CreditRecords
+                        foreach (var item in creditRecipt.creditBills)
+                        {
+                            string insertReceiptBill = @"INSERT INTO ReceiptBills (ReceiptID, BillID, AmountPaid, BalanceAmount) 
+                                                 VALUES (@ReceiptID, @BillID, @AmountPaid, @BalanceAmount);";
+
+                            using (var command = new MySqlCommand(insertReceiptBill, connection, (MySqlTransaction)transaction))
+                            {
+                                command.Parameters.AddWithValue("@ReceiptID", receiptId);
+                                command.Parameters.AddWithValue("@BillID", item.billId);
+                                command.Parameters.AddWithValue("@AmountPaid", item.amountPayed);
+                                command.Parameters.AddWithValue("@BalanceAmount", item.dueAmount - item.amountPayed);
+                                await command.ExecuteNonQueryAsync();
+                            }
+
+                            string updateCreditRecord = @"UPDATE CreditRecord 
+                                                  SET PaidAmount = PaidAmount + @PaidAmount, 
+                                                      Status = @Status 
+                                                  WHERE CreditID = @CreditID";
+
+                            using (var command = new MySqlCommand(updateCreditRecord, connection, (MySqlTransaction)transaction))
+                            {
+                                command.Parameters.AddWithValue("@PaidAmount", item.amountPayed);
+                                command.Parameters.AddWithValue("@Status", item.CreditStatus.ToString());
+                                command.Parameters.AddWithValue("@CreditID", item.creditId);
+                                await command.ExecuteNonQueryAsync();
+                            }
+                        }
+
+                        await transaction.CommitAsync();
+                        return receiptId;
+                    }
+                    catch (Exception)
+                    {
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                }
+            }
+        }
+
+        public async Task<int> InsertPayment(PaymentReciptType creditRecipt, bool isUpdating, List<Ledger> ledgers)
+        {
+            using (var connection = new MySqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+
+                using (var transaction = await connection.BeginTransactionAsync())
+                {
+                    try
+                    {
+                        int paymentID = creditRecipt.PaymentId;
+
+                        if (isUpdating)
+                        {
+                            List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
+                            int mainLedgerId = ledgerIds[0];
+
+                            // 1. Fetch existing ReceiptBills
+                            var existingReceipts = new List<(long CreditID, decimal AmountPaid)>();
+                            string fetchReceiptBills = @"SELECT rb.PurchaseBillID, cr.SupplierCreditID, rb.AmountPaid 
+                                                 FROM PaymentBills rb
+                                                 JOIN SupplierCreditRecord cr ON rb.PurchaseBillID = cr.PurchaseBillID
+                                                 WHERE rb.PaymentID = @PaymentID";
+
+                            using (var command = new MySqlCommand(fetchReceiptBills, connection, (MySqlTransaction)transaction))
+                            {
+                                command.Parameters.AddWithValue("@PaymentID", paymentID);
+                                using (var reader = await command.ExecuteReaderAsync())
+                                {
+                                    while (await reader.ReadAsync())
+                                    {
+                                        existingReceipts.Add((
+                                            CreditID: reader.GetInt64("SupplierCreditID"),
+                                            AmountPaid: reader.GetDecimal("AmountPaid")
+                                        ));
+                                    }
+                                }
+                            }
+
+                            // 2. Reverse CreditRecord updates
+                            foreach (var entry in existingReceipts)
+                            {
+                                string reverseCredit = @"UPDATE SupplierCreditRecord 
+                                                 SET PaidAmount = PaidAmount - @PaidAmount 
+                                                 WHERE SupplierCreditID = @SupplierCreditID";
+
+                                using (var command = new MySqlCommand(reverseCredit, connection, (MySqlTransaction)transaction))
+                                {
+                                    command.Parameters.AddWithValue("@PaidAmount", entry.AmountPaid);
+                                    command.Parameters.AddWithValue("@SupplierCreditID", entry.CreditID);
+                                    await command.ExecuteNonQueryAsync();
+                                }
+                            }
+
+                            // 3. Delete old ReceiptBills
+                            string deleteOldReceipts = @"DELETE FROM PaymentBills WHERE PaymentID = @PaymentID";
+                            using (var command = new MySqlCommand(deleteOldReceipts, connection, (MySqlTransaction)transaction))
+                            {
+                                command.Parameters.AddWithValue("@PaymentID", paymentID);
+                                await command.ExecuteNonQueryAsync();
+                            }
+
+                            // 4. Update the CreditRecipt table
+                            string updateReceipt = @"UPDATE SupplierCreditRecord
+                                             SET SupplierID = @SupplierID, PaymentDate = @PaymentDate, 
+                                                 TotalAmountPaid = @TotalAmountPaid, LedgerID = @LedgerID 
+                                             WHERE SupplierCreditID = @SupplierCreditID";
+                            using (var command = new MySqlCommand(updateReceipt, connection, (MySqlTransaction)transaction))
+                            {
+                                command.Parameters.AddWithValue("@SupplierID", creditRecipt.supplier.SupplierID);
+                                command.Parameters.AddWithValue("@PaymentDate", creditRecipt.PaymentDate);
+                                command.Parameters.AddWithValue("@TotalAmountPaid", creditRecipt.paymentBills.Sum(x => x.amountPayed));
+                                command.Parameters.AddWithValue("@LedgerID", mainLedgerId);
+                                command.Parameters.AddWithValue("@PaymentID", paymentID);
+                                await command.ExecuteNonQueryAsync();
+                            }
+
+                            // 5. Update reference in CashBankLedger
+                            //string updateLedgerRefQuery = @"UPDATE CashBankLedger SET ReferenceID = @ReferenceID WHERE LedgerID = @LedgerID";
+                            //using (var updateCmd = new MySqlCommand(updateLedgerRefQuery, connection, (MySqlTransaction)transaction))
+                            //{
+                            //    updateCmd.Parameters.AddWithValue("@ReferenceID", receiptId);
+                            //    updateCmd.Parameters.AddWithValue("@LedgerID", mainLedgerId);
+                            //    await updateCmd.ExecuteNonQueryAsync();
+                            //}
+                        }
+                        else
+                        {
+                            List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
+                            int mainLedgerId = ledgerIds[0];
+
+                            // Insert new receipt
+                            string insertQuery = @"INSERT INTO Payments (SupplierID, PaymentDate, TotalAmountPaid, LedgerID,Branch) 
+                                           VALUES (@SupplierID, @PaymentDate, @TotalAmountPaid, @LedgerID,@Branch); 
+                                           SELECT LAST_INSERT_ID();";
+
+                            using (var command = new MySqlCommand(insertQuery, connection, (MySqlTransaction)transaction))
+                            {
+                                command.Parameters.AddWithValue("@SupplierID", creditRecipt.supplier.SupplierID);
+                                command.Parameters.AddWithValue("@PaymentDate", creditRecipt.PaymentDate);
+                                command.Parameters.AddWithValue("@TotalAmountPaid", creditRecipt.paymentBills.Sum(x => x.amountPayed));
+                                command.Parameters.AddWithValue("@LedgerID", mainLedgerId);
+                                command.Parameters.AddWithValue("@Branch", creditRecipt.Branch);
+                                var result = await command.ExecuteScalarAsync();
+                                paymentID = int.Parse(result?.ToString() ?? "0");
+
+                                if (paymentID == 0)
+                                    throw new Exception("Unable to Insert Receipt, Please try again");
+                            }
+
+                            // Set receipt reference in ledgers
+                            foreach (int id in ledgerIds)
+                            {
+                                string updateLedgerRefQuery = @"UPDATE CashBankLedger SET ReferenceID = @ReferenceID, EntryID = @EntryID WHERE LedgerID = @LedgerID";
+                                using (var updateCmd = new MySqlCommand(updateLedgerRefQuery, connection, (MySqlTransaction)transaction))
+                                {
+                                    updateCmd.Parameters.AddWithValue("@ReferenceID", paymentID);
+                                    updateCmd.Parameters.AddWithValue("@LedgerID", id);
+                                    updateCmd.Parameters.AddWithValue("@EntryID", mainLedgerId);
+                                    await updateCmd.ExecuteNonQueryAsync();
+                                }
+                            }
+
+                        }
+
+                        // Insert ReceiptBills and update CreditRecords
+                        foreach (var item in creditRecipt.paymentBills)
+                        {
+                            string insertReceiptBill = @"INSERT INTO PaymentBills (PaymentID, PurchaseBillID, AmountPaid, BalanceAmount) 
+                                                 VALUES (@PaymentID, @PurchaseBillID, @AmountPaid, @BalanceAmount);";
+
+                            using (var command = new MySqlCommand(insertReceiptBill, connection, (MySqlTransaction)transaction))
+                            {
+                                command.Parameters.AddWithValue("@PaymentID", paymentID);
+                                command.Parameters.AddWithValue("@PurchaseBillID", item.purchaseBillID);
+                                command.Parameters.AddWithValue("@AmountPaid", item.amountPayed);
+                                command.Parameters.AddWithValue("@BalanceAmount", item.dueAmount - item.amountPayed);
+                                await command.ExecuteNonQueryAsync();
+                            }
+
+                            string updateCreditRecord = @"UPDATE SupplierCreditRecord 
+                                                  SET PaidAmount = PaidAmount + @PaidAmount, 
+                                                      Status = @Status 
+                                                  WHERE SupplierCreditID = @SupplierCreditID";
+
+                            using (var command = new MySqlCommand(updateCreditRecord, connection, (MySqlTransaction)transaction))
+                            {
+                                command.Parameters.AddWithValue("@PaidAmount", item.amountPayed);
+                                command.Parameters.AddWithValue("@Status", item.CreditStatus.ToString());
+                                command.Parameters.AddWithValue("@SupplierCreditID", item.paymentId);
+                                await command.ExecuteNonQueryAsync();
+                            }
+                        }
+
+                        await transaction.CommitAsync();
+                        return paymentID;
+                    }
+                    catch (Exception)
+                    {
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                }
+            }
+        }
+
+
+
+
+        public async Task<int> InsertPurchaseBillAsync(Purchase purchaseBill, List<PurchaseItems> purchaseItems, bool isUpdating,List<Ledger> ledgers)
         {
             int newBillNo = 1; // Default if no previous bills exist
             int purchaseBillId = 0; // Stores the newly inserted PurchaseBillID
@@ -214,6 +781,53 @@ namespace AutoDynamics.Services
                                     await deleteCommand.ExecuteNonQueryAsync();
                                 }
 
+                                if (purchaseBill.type == PaymentType.CREDIT)
+                                {
+                                    string updateCreditQuery = @"Update SupplierCreditRecord  SET CreditAmount = @CreditAmount WHERE PurchaseBillID = @PurchaseBillID";
+                                    using (var updateCommand = new MySqlCommand(updateCreditQuery, connection, (MySqlTransaction)transaction))
+                                    {
+
+                                        updateCommand.Parameters.AddWithValue("@PurchaseBillID", purchaseBillId);
+                                        updateCommand.Parameters.AddWithValue("@CreditAmount", purchaseBill.TotalAmount);
+                                        
+                                        await updateCommand.ExecuteNonQueryAsync();
+                                    }
+                                }
+                                else
+                                {
+                                    string deleteCreditQuery = @"DELETE FROM SupplierCreditRecord WHERE PurchaseBillID = @PurchaseBillID";
+                                    using(var deleteCommand = new MySqlCommand(deleteCreditQuery,connection,(MySqlTransaction)transaction))
+                                    {
+                                        deleteCommand.Parameters.AddWithValue("@PurchaseBillID",purchaseBillId);
+                                        await deleteCommand.ExecuteNonQueryAsync();
+                                    }
+                                }
+
+                                //delete existing ledger entry
+                                string deleteLedgerQuery = @"DELETE FROM CashBankLedger WHERE ReferenceID = @ReferenceID AND TransactionType = @TransactionType";
+                                using (var deleteCommand = new MySqlCommand(deleteLedgerQuery, connection, (MySqlTransaction)transaction))
+                                {
+                                    deleteCommand.Parameters.AddWithValue("@ReferenceID", purchaseBillId);
+                                    deleteCommand.Parameters.AddWithValue("@TransactionType", TransactionType.PURCHASE.ToString());
+
+                                    await deleteCommand.ExecuteNonQueryAsync();
+                                }
+                                // 5. Update Bill Reference in CashBankLedger
+                                List<int> ledgersId = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
+                                int mainID = ledgersId[0];
+                                foreach (int id in ledgersId)
+                                {
+                                    string updateLedgerRefQuery = @"UPDATE CashBankLedger SET ReferenceID = @ReferenceID,EntryID = @EntryID WHERE LedgerID = @LedgerID";
+                                    using (var updateCmd = new MySqlCommand(updateLedgerRefQuery, connection, (MySqlTransaction)transaction))
+                                    {
+                                        updateCmd.Parameters.AddWithValue("@ReferenceID", purchaseBillId);
+                                        updateCmd.Parameters.AddWithValue("@LedgerID", id);
+                                        updateCmd.Parameters.AddWithValue("@EntryID", mainID);
+                                        await updateCmd.ExecuteNonQueryAsync();
+                                    }
+                                }
+
+
 
                                 //// Update stock for the purchase items
                                 //foreach (var item in purchaseItems)
@@ -230,12 +844,41 @@ namespace AutoDynamics.Services
                             }
                             else
                             {
+                                List<int> ledgersId = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
+                                int mainID = ledgersId[0];
                                 // Insert new purchase bill
                                 var result = await command.ExecuteScalarAsync();
                                 purchaseBillId = Convert.ToInt32(result);
-                                if(purchaseBillId <=0)
+                                if (purchaseBillId <= 0)
                                 {
                                     throw new Exception("Failed to insert Purchase Bill");
+                                }
+                                else
+                                {
+                                    if(purchaseBill.type == PaymentType.CREDIT)
+                                    {
+                                        string insertCredit = @"INSERT INTO SupplierCreditRecord (SupplierID,PurchaseBillID,CreditAmount,DueDate,Status) VALUES(@SupplierID,@PurchaseBillID,@CreditAmount,@DueDate,'Pending')";
+                                        using (var insertCommand = new MySqlCommand(insertCredit, connection, (MySqlTransaction)transaction))
+                                        {
+                                            insertCommand.Parameters.AddWithValue("@SupplierID", purchaseBill.SupplierID);
+                                            insertCommand.Parameters.AddWithValue("@PurchaseBillID", purchaseBillId);
+                                            insertCommand.Parameters.AddWithValue("@CreditAmount", purchaseBill.TotalAmount);
+                                            insertCommand.Parameters.AddWithValue("@DueDate", purchaseBill.PurchaseDate);
+                                            await insertCommand.ExecuteNonQueryAsync();
+                                        }
+                                    }
+
+                                    foreach (int id in ledgersId)
+                                    {
+                                        string updateLedgerRefQuery = @"UPDATE CashBankLedger SET ReferenceID = @ReferenceID,EntryID = @EntryID WHERE LedgerID = @LedgerID";
+                                        using (var updateCmd = new MySqlCommand(updateLedgerRefQuery, connection, (MySqlTransaction)transaction))
+                                        {
+                                            updateCmd.Parameters.AddWithValue("@ReferenceID", purchaseBillId);
+                                            updateCmd.Parameters.AddWithValue("@LedgerID", id);
+                                            updateCmd.Parameters.AddWithValue("@EntryID", mainID);
+                                            await updateCmd.ExecuteNonQueryAsync();
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -301,7 +944,7 @@ namespace AutoDynamics.Services
         }
 
 
-        public async Task<int[]> InsertBillAsync(Bill bill, List<BillItem> billItems, BillPayment billPayment,bool isUpdating)
+        public async Task<int[]> InsertBillAsync(Bill bill, List<BillItem> billItems, BillPayment billPayment, bool isUpdating, List<Ledger> ledgers)
         {
             int newBillNo = 1; // Default if no previous bills exist
             int billId; // Stores the newly inserted BillID
@@ -313,6 +956,7 @@ namespace AutoDynamics.Services
             {
                 try
                 {
+                    
                     // 1. Update Bill
                     string updateBillQuery = @"
         UPDATE Bills 
@@ -480,9 +1124,32 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                             await command.ExecuteNonQueryAsync();
                         }
                     }
+                    //delete existing ledger entry
+                    string deleteLedgerQuery = @"DELETE FROM CashBankLedger WHERE ReferenceID = @ReferenceID AND TransactionType = @TransactionType";
+                    using (var deleteCommand = new MySqlCommand(deleteLedgerQuery, connection, (MySqlTransaction)transaction))
+                    {
+                        deleteCommand.Parameters.AddWithValue("@ReferenceID", bill.BillID);
+                        deleteCommand.Parameters.AddWithValue("@TransactionType", TransactionType.BILL.ToString());
+                        
+                        await deleteCommand.ExecuteNonQueryAsync();
+                    }
+                    // 5. Update Bill Reference in CashBankLedger
+                    List<int> ledgersId = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
+                    int mainID = ledgersId[0];
+                    foreach (int id in ledgersId)
+                    {
+                        string updateLedgerRefQuery = @"UPDATE CashBankLedger SET ReferenceID = @ReferenceID,EntryID = @EntryID WHERE LedgerID = @LedgerID";
+                        using (var updateCmd = new MySqlCommand(updateLedgerRefQuery, connection, (MySqlTransaction)transaction))
+                        {
+                            updateCmd.Parameters.AddWithValue("@ReferenceID", bill.BillID);
+                            updateCmd.Parameters.AddWithValue("@LedgerID", id);
+                            updateCmd.Parameters.AddWithValue("@EntryID", mainID);
+                            await updateCmd.ExecuteNonQueryAsync();
+                        }
+                    }
 
-                        // 7. Commit Transaction
-                     await transaction.CommitAsync();
+                    // 7. Commit Transaction
+                    await transaction.CommitAsync();
 
                     int[] returnData = { 0, 0 };
 
@@ -499,6 +1166,8 @@ WHERE ProductID = @ProductID AND Branch = @Branch
             {
                 try
                 {
+                    List<int> ledgersId = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
+                    int mainID = ledgersId[0];
                     // Determine the correct BillingYear based on April 1st financial year
                     int currentYear = DateTime.Now.Year;
                     int currentMonth = DateTime.Now.Month;
@@ -543,6 +1212,7 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                         command.Parameters.AddWithValue("@Discount", bill.Discount);
                         command.Parameters.AddWithValue("@GrandTotal", bill.GrandTotal);
                         command.Parameters.AddWithValue("@Notes", bill.Notes);
+                        
 
                         await command.ExecuteNonQueryAsync();
                         
@@ -557,6 +1227,19 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                             throw new Exception("Failed to insert Bill");
                         }
                     }
+
+                    foreach(int id in ledgersId)
+                    {
+                        string updateLedgerRefQuery = @"UPDATE CashBankLedger SET ReferenceID = @ReferenceID,EntryID = @EntryID WHERE LedgerID = @LedgerID";
+                        using (var updateCmd = new MySqlCommand(updateLedgerRefQuery, connection, (MySqlTransaction)transaction))
+                        {
+                            updateCmd.Parameters.AddWithValue("@ReferenceID", billId);
+                            updateCmd.Parameters.AddWithValue("@LedgerID", id);
+                            updateCmd.Parameters.AddWithValue("@EntryID", mainID);
+                            await updateCmd.ExecuteNonQueryAsync();
+                        }
+                    }
+                    
 
                     if (billPayment.BankAmount > 0)
                     {
@@ -686,7 +1369,7 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                     break;
                 case BillDateFilterType.CustomRange:
                     if (startDate.HasValue && endDate.HasValue)
-                        whereClause = $"WHERE DATE(b.BillDate) BETWEEN '{startDate.Value:yyyy-MM-dd}' AND '{endDate.Value:yyyy-MM-dd}'";
+                        whereClause = $"WHERE DATE(b.BillDate) BETWEEN '{startDate.Value:yyyy-MM-dd HH:mm:ss}' AND '{endDate.Value:yyyy-MM-dd HH:mm:ss}'";
                     break;
                 case BillDateFilterType.All:
                 default:

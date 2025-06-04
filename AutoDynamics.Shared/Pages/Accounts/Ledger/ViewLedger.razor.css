@@ -1,0 +1,19 @@
+<style >
+.ledger-table {
+    font-family: 'Courier New', monospace;
+    font-size: 0.95rem;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.ledger-table th,
+.ledger-table td {
+    padding: 0.5rem;
+    border: 1px solid #dee2e6;
+}
+
+.ledger-table th {
+    cursor: pointer;
+}
+
+</style >

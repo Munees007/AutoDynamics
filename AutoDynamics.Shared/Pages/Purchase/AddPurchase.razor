@@ -184,7 +184,7 @@
                                     cgst = item.TaxRate == TaxRate.TAX_18 ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
                                     sgst = item.TaxRate == TaxRate.TAX_18 ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
                                     item.TotalPrice = Math.Round(item.TaxableValue + cgst + sgst);
-                                    
+
                                 }
 
                             }
@@ -199,7 +199,7 @@
                             </td>
                         </tr>
                     }
-                    
+
                 </tbody>
 
             </table>
@@ -275,6 +275,8 @@
     private List<BrandType> filteredBrands { set; get; } = new List<BrandType>();
 
     private SearchSelect<Supplier> customerListRef;
+
+    private List<LedgerAcccounts> AccountTypes = new();
 
     private SearchSelect<BrandType> brandListRef;
     public void HandleCustomerKey(KeyboardEventArgs e)
@@ -400,6 +402,54 @@
 
         purchase.TotalAmount = TotalAmount;
 
+        List<Ledger> ledgers = new List<Ledger>();
+
+        if(purchase.type == PaymentType.CASH)
+        {
+            Ledger cashLedger = new Ledger
+            {
+                    AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "CASH A/C")?.AcccountId ?? 0,
+
+                    DR_Amount = purchase.TotalAmount,
+                    Particulars = $"Payed cash for {purchase.Supplier.Name}",
+                    TransactionType = TransactionType.PURCHASE,
+                    Date = purchase.PurchaseDate,
+                    Balance = 0,
+                    Branch = purchase.Branch,
+                    CR_Amount = 0,
+            };
+            ledgers.Add(cashLedger);
+        }
+        else
+        {
+            Ledger bankLedger = new Ledger
+            {
+                    AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "BANK A/C")?.AcccountId ?? 0,
+
+                    DR_Amount = purchase.TotalAmount,
+                    Particulars = $"Payed through Bank for {purchase.Supplier.Name}",
+                    TransactionType = TransactionType.PURCHASE,
+                    Date = purchase.PurchaseDate,
+                    Balance = 0,
+                    Branch = purchase.Branch,
+                    CR_Amount = 0,
+            };
+            ledgers.Add(bankLedger);
+        }
+
+        Ledger purchaseLedger = new Ledger
+        {
+                AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "PURCHASE A/C")?.AcccountId ?? 0,
+            
+                CR_Amount = purchase.TotalAmount,
+                Particulars = $"Purchased from {purchase.Supplier.Name}",
+                TransactionType = TransactionType.BILL,
+                Date = purchase.PurchaseDate,
+                Balance = 0,
+                Branch = purchase.Branch,
+                DR_Amount = 0,
+        };
+        ledgers.Add(purchaseLedger);
 
 
 
@@ -412,12 +462,12 @@
         {
             if (isUpdating)
             {
-                await DatabaseHandler.InsertPurchaseBillAsync(finalBill.purchase, finalBill.purchaseItems, true);
+                await DatabaseHandler.InsertPurchaseBillAsync(finalBill.purchase, finalBill.purchaseItems, true,ledgers);
                 ToastService.ShowToast("Purchase added successfully", ToastType.sucess);
             }
             else
             {
-                int billNo = await DatabaseHandler.InsertPurchaseBillAsync(finalBill.purchase, finalBill.purchaseItems, false);
+                int billNo = await DatabaseHandler.InsertPurchaseBillAsync(finalBill.purchase, finalBill.purchaseItems, false,ledgers);
                 string billNoString = finalBill.purchase.Branch == "Sivakasi" ? "SFRP" + billNo.ToString().PadLeft(4, '0') : "BPRP"+billNo.ToString().PadLeft(4, '0');
                 ToastService.ShowToast($"Purchase updated successfully: BillNo = {billNoString}", ToastType.sucess);
             }
@@ -455,8 +505,11 @@
         string customerQuery = @"SELECT * FROM Suppliers";
         string productsQuery = @"SELECT * FROM Product p JOIN Brands b ON b.BrandID = p.BrandID";
 
+        string accountQuery = @"SELECT * FROM LedgerAccounts";
+
         var res1 = await DatabaseHandler.ExecuteQueryAsync(customerQuery);
         var res4 = await DatabaseHandler.ExecuteQueryAsync(productsQuery);
+        var res6 = await DatabaseHandler.ExecuteQueryAsync(accountQuery);
 
         suppliers = new List<Supplier>();
 
@@ -497,6 +550,21 @@
                 });
             }
             brands = brands.DistinctBy(brand => brand.BrandName ).ToList();
+        }
+        if (res6.Count > 0)
+        {
+            foreach (var row in res6)
+            {
+                LedgerAccountsType at;
+                Enum.TryParse<LedgerAccountsType>(row["AccountType"].ToString(), out at);
+                AccountTypes.Add(new LedgerAcccounts
+                    {
+                        AcccountId = Int32.Parse(row["AccountID"].ToString() ?? "0"),
+                        AccountName = row["AccountName"].ToString(),
+                        AccountType = at,
+                        isActive = bool.Parse(row["IsActive"].ToString() ?? "true")
+                    });
+            }
         }
     }
 

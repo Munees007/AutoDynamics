@@ -8,7 +8,9 @@
 @inject ITabService TabService
 @inject IDownloadExcel DownloadExcel
 @inject IToastService ToastService
+
 <h3 class="text-center mb-4">Purchase Details</h3>
+<button class="btn btn-outline-info mb-3" @onclick="InsertSupplierCreditRecord">Create CreditButton</button>
 <DialoBox dialogBox="excelDialog"></DialoBox>
 <div class="mb-3">
     <input type="text" @bind="searchQuery" @oninput="SearchBills" class="form-control" placeholder="Search by Bill No" />
@@ -202,10 +204,10 @@ else
 
             DateTime monthDate = new DateTime(selectedYear, selectedMonth, 1);
 
-            var filtered = await FetchData(BillDateFilterType.CustomMonthYear,customMonthYear:monthDate);
+            var filtered = await FetchData(BillDateFilterType.CustomMonthYear,customMonthYear:monthDate,isExcel:true);
 
             filtered = filtered.Where((b) => b.purchase.Branch == excelBranch).ToList();
-            filtered = filtered.OrderBy((b) => b.purchase.BillNo).ToList();
+            filtered = filtered.OrderBy((b) => b.purchase.PurchaseDate.Ticks).ToList();
             string temp = $"{DateTime.Today:MMMM-yyyy}";
             string savedPath = DownloadExcel.DownloadExcelPurchaseToDevice(filtered.ToArray(), temp, excelBranch);
             ToastService.ShowToast("Excel Genreated Successfully", ToastType.sucess);
@@ -217,6 +219,56 @@ else
 
         isLoading = false;
         loaderText = "";
+        StateHasChanged();
+
+    }
+
+    public async Task InsertSupplierCreditRecord()
+    {
+
+
+        try
+        {
+            isLoading = true;
+            loaderText = "Inserting Credit...";
+            List<PurchaseDetails> purchaseBills = new List<PurchaseDetails>();
+            purchaseBills = await FetchData(BillDateFilterType.All);
+            foreach (var item in purchaseBills)
+            {
+
+
+                if (item.purchase.type == PaymentType.CREDIT)
+                {
+                    string insertQuery = @"INSERT INTO SupplierCreditRecord (SupplierID,PurchaseBillID,CreditAmount,DueDate,Status) VALUES(@SupplierID,@PurchaseBillID,@CreditAmount,@DueDate,'Pending')";
+
+                    var parameters = new Dictionary<string, object>
+                    {
+                    { "@SupplierID", item.purchase.SupplierID },
+                    { "@PurchaseBillID", item.purchase.PurchaseBillID },
+                    { "@CreditAmount", item.purchase.TotalAmount },
+                    { "@DueDate", item.purchase.PurchaseDate.AddDays(30) } // Assuming due date is 30 days from purchase date
+                    };
+                    await DatabaseHandler.ExecuteNonQueryAsync(insertQuery, parameters);
+
+                    //Ledger bankLedger = new Ledger { };
+                }
+                // else
+                // {
+                //     Ledger cashLedger = new Ledger { };
+                // }
+
+                //Ledger purchaseLedger = new Ledger { };
+            }
+            isLoading = false;
+            loaderText = "";
+            ToastService.ShowToast("Supplier Credit Records Inserted Successfully", ToastType.sucess);
+        }
+        catch(Exception e)
+        {
+            isLoading = false;
+            loaderText = "";
+            ToastService.ShowToast(e.Message, ToastType.error);
+        }
         StateHasChanged();
 
     }
@@ -383,52 +435,91 @@ else
 
         if (selectedSortOption == "range" && startDate.HasValue && endDate.HasValue)
         {
-
-            filtered = await FetchData(BillDateFilterType.CustomRange, startDate, endDate);
+            startDate = startDate.Value.Date;
+            endDate = endDate.Value.Date.AddHours(23).AddMinutes(59).AddSeconds(59);
+            filtered = await FetchData(BillDateFilterType.CustomRange, startDate:startDate, endDate:endDate);
         }
-        
+
         return filtered;
     }
 
 
-    public async Task<List<PurchaseDetails>> FetchData(BillDateFilterType filterType, DateTime? startDate = null, DateTime? endDate = null, DateTime? customMonthYear = null)
+    public async Task<List<PurchaseDetails>> FetchData(BillDateFilterType filterType, DateTime? startDate = null, DateTime? endDate = null, DateTime? customMonthYear = null,bool isExcel = false)
     {
         try
         {
             List<PurchaseDetails> purchaseBills = new();
             string whereClause = "";
             DateTime today = DateTime.Today;
-            switch (filterType)
+            if(isExcel)
             {
-                case BillDateFilterType.Today:
-                    whereClause = $"WHERE DATE(pb.CreatedAt) = '{today:yyyy-MM-dd}'";
-                    break;
-                case BillDateFilterType.Yesterday:
-                    whereClause = $"WHERE DATE(pb.CreatedAt) = '{today.AddDays(-1):yyyy-MM-dd}'";
-                    break;
-                case BillDateFilterType.ThisMonth:
-                    whereClause = $"WHERE MONTH(pb.CreatedAt) = {today.Month} AND YEAR(pb.CreatedAt) = {today.Year}";
-                    break;
-                case BillDateFilterType.ThisYear:
-                    whereClause = $"WHERE YEAR(pb.CreatedAt) = {today.Year}";
-                    break;
-                case BillDateFilterType.CustomMonthYear:
-                    if (customMonthYear.HasValue)
-                        whereClause = $"WHERE MONTH(pb.CreatedAt) = {customMonthYear.Value.Month} AND YEAR(pb.CreatedAt) = {customMonthYear.Value.Year}";
-                    break;
-                case BillDateFilterType.CustomDate:
-                    if (startDate.HasValue)
-                        whereClause = $"WHERE DATE(pb.CreatedAt) = '{startDate.Value:yyyy-MM-dd}'";
-                    break;
-                case BillDateFilterType.CustomRange:
-                    if (startDate.HasValue && endDate.HasValue)
-                        whereClause = $"WHERE DATE(pb.CreatedAt) BETWEEN '{startDate.Value:yyyy-MM-dd}' AND '{endDate.Value:yyyy-MM-dd}'";
-                    break;
-                case BillDateFilterType.All:
-                default:
-                    // No filter
-                    break;
+                switch (filterType)
+                {
+                    case BillDateFilterType.Today:
+                        whereClause = $"WHERE DATE(pb.PurchaseDate) = '{today:yyyy-MM-dd}'";
+                        break;
+                    case BillDateFilterType.Yesterday:
+                        whereClause = $"WHERE DATE(pb.PurchaseDate) = '{today.AddDays(-1):yyyy-MM-dd}'";
+                        break;
+                    case BillDateFilterType.ThisMonth:
+                        whereClause = $"WHERE MONTH(pb.PurchaseDate) = {today.Month} AND YEAR(pb.PurchaseDate) = {today.Year}";
+                        break;
+                    case BillDateFilterType.ThisYear:
+                        whereClause = $"WHERE YEAR(pb.PurchaseDate) = {today.Year}";
+                        break;
+                    case BillDateFilterType.CustomMonthYear:
+                        if (customMonthYear.HasValue)
+                            whereClause = $"WHERE MONTH(pb.PurchaseDate) = {customMonthYear.Value.Month} AND YEAR(pb.PurchaseDate) = {customMonthYear.Value.Year}";
+                        break;
+                    case BillDateFilterType.CustomDate:
+                        if (startDate.HasValue)
+                            whereClause = $"WHERE DATE(pb.PurchaseDate) = '{startDate.Value:yyyy-MM-dd}'";
+                        break;
+                    case BillDateFilterType.CustomRange:
+                        if (startDate.HasValue && endDate.HasValue)
+                            whereClause = $"WHERE DATE(pb.PurchaseDate) BETWEEN '{startDate.Value:yyyy-MM-dd HH:mm:ss}' AND '{endDate.Value:yyyy-MM-dd HH:mm:ss}'";
+                        break;
+                    case BillDateFilterType.All:
+                    default:
+                        // No filter
+                        break;
+                }
             }
+            else
+            {
+                switch (filterType)
+                {
+                    case BillDateFilterType.Today:
+                        whereClause = $"WHERE DATE(pb.CreatedAt) = '{today:yyyy-MM-dd}'";
+                        break;
+                    case BillDateFilterType.Yesterday:
+                        whereClause = $"WHERE DATE(pb.CreatedAt) = '{today.AddDays(-1):yyyy-MM-dd}'";
+                        break;
+                    case BillDateFilterType.ThisMonth:
+                        whereClause = $"WHERE MONTH(pb.CreatedAt) = {today.Month} AND YEAR(pb.CreatedAt) = {today.Year}";
+                        break;
+                    case BillDateFilterType.ThisYear:
+                        whereClause = $"WHERE YEAR(pb.CreatedAt) = {today.Year}";
+                        break;
+                    case BillDateFilterType.CustomMonthYear:
+                        if (customMonthYear.HasValue)
+                            whereClause = $"WHERE MONTH(pb.CreatedAt) = {customMonthYear.Value.Month} AND YEAR(pb.CreatedAt) = {customMonthYear.Value.Year}";
+                        break;
+                    case BillDateFilterType.CustomDate:
+                        if (startDate.HasValue)
+                            whereClause = $"WHERE DATE(pb.CreatedAt) = '{startDate.Value:yyyy-MM-dd}'";
+                        break;
+                    case BillDateFilterType.CustomRange:
+                        if (startDate.HasValue && endDate.HasValue)
+                            whereClause = $"WHERE DATE(pb.CreatedAt) BETWEEN '{startDate.Value:yyyy-MM-dd HH:mm:ss}' AND '{endDate.Value:yyyy-MM-dd HH:mm:ss}'";
+                        break;
+                    case BillDateFilterType.All:
+                    default:
+                        // No filter
+                        break;
+                }
+            }
+            
             // 1. Fetch all purchase bills
             string billsQuery = $@"SELECT pb.*,pb.CreatedAt AS PurchaseCreatedAt,s.*,s.CreatedAt AS SupplierCreatedAt
 FROM PurchaseBills pb

@@ -7,3 +7,5 @@ global using AutoDynamics.Shared.Modals.Product;
 global using AutoDynamics.Shared.Modals.PurchaseTypes;
 global using AutoDynamics.Shared.Modals.Stock;
 global using AutoDynamics.Shared.Modals.Vehicle;
+global using AutoDynamics.Shared.Modals.Accounts.Recipt;
+global using AutoDynamics.Shared.Modals.Accounts;

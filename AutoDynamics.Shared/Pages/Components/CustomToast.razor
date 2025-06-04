@@ -1,6 +1,6 @@
 @if (customToast.showToast)
 {
-    <div class="@GetToastClass(customToast.type) position-fixed top-0 end-0 m-3" style="z-index: 1050;">
+    <div class="@GetToastClass(customToast.type) position-fixed top-0 end-0 m-3" style="z-index: 1250;">
         <div class="d-flex justify-content-between w-100 align-items-center">
             <p class="m-0 flex-grow-1">@customToast.message</p>
             <button type="button" class="btn btn-sm close-btn" @onclick="HideToast">X</button>

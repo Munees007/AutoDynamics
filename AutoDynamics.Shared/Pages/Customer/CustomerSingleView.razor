@@ -75,8 +75,10 @@
 	List<BillDetails> sivakasiBills { get; set; } = new List<BillDetails>();
 	List<BillDetails> bypassBills { get; set; } = new List<BillDetails>();
 	List<CreditRecord> creditRecords { get; set; } = new List<CreditRecord>();
-
-	RenderFragment vehiclesFront, recordsFront, billsFront;
+	List<CreditReciptType> creditRecipts { get; set; } = new List<CreditReciptType>();
+	List<CreditReciptType> sivakasiCreditRecipts { get; set; } = new List<CreditReciptType>();
+	List<CreditReciptType> bypassCreditRecipts { get; set; } = new List<CreditReciptType>();
+	RenderFragment vehiclesFront, recordsFront, billsFront,ReceiptFront;
 
 	List<RenderFragment> components = new List<RenderFragment>();
 
@@ -85,6 +87,7 @@
 		new ButtonType{Text="Vehicles",componentNumber=0},
 		new ButtonType{Text="Bills",componentNumber=1},
 		new ButtonType{Text="Credit",componentNumber=2},
+		new ButtonType{ Text = "Receipt",componentNumber=3}
 	};
 	bool isLoading = false;
 	int currentComponent = 0;
@@ -97,7 +100,7 @@
 
 	protected override void OnInitialized()
 	{
-		
+
 		vehiclesFront =
 			@<div class="container mt-4">
 				<div class="card-header bg-primary text-white">
@@ -287,9 +290,99 @@
 </div>
 	;
 
+		ReceiptFront =@<div class="col-md-6 w-100">
+		<div class="card shadow-lg mt-4">
+			<div class="card-header bg-primary text-white">
+				<h5 class="mb-0">Sivakasi Branch</h5>
+			</div>
+			<div class="card-body">
+				@if (sivakasiCreditRecipts.Any())
+			{
+				<table class="table table-bordered table-hover">
+					<thead class="table-dark">
+						<tr>
+							<th>Receipt ID</th>
+							<th>Receipt Date</th>
+							<th>Customer ID</th>
+							<th>Name</th>
+							<th>Total Amount Paid</th>
+
+						</tr>
+					</thead>
+					<tbody>
+						@foreach (var bill in sivakasiCreditRecipts)
+					{
+						<tr>
+							<td style="cursor:pointer;">@("R_SFR" + (bill.ReceiptId.ToString().PadLeft(7, '0')))</td>
+							<td>@bill.ReciptDate.ToString("dd-MMM-yyyy")</td>
+							<td>@bill.customer.CustomerId</td>
+							<td>@bill.customer.Name</td>
+
+							<td>₹@bill.TotalAmountPaid</td>
+
+
+
+						</tr>
+					}
+					</tbody>
+				</table>
+			}
+			else
+			{
+				<p class="text-muted text-center">No receipts for Sivakasi.</p>
+			}
+			</div>
+		</div>
+
+		<div class="card shadow-lg mt-4">
+			<div class="card-header bg-primary text-white">
+				<h5 class="mb-0">ByPass Branch</h5>
+			</div>
+			<div class="card-body">
+				@if (bypassCreditRecipts.Any())
+			{
+				<table class="table table-bordered table-hover">
+					<thead class="table-dark">
+						<tr>
+							<th>Receipt ID</th>
+							<th>Receipt Date</th>
+							<th>Customer ID</th>
+							<th>Name</th>
+							<th>Total Amount Paid</th>
+
+						</tr>
+					</thead>
+					<tbody>
+						@foreach (var bill in bypassCreditRecipts)
+					{
+						<tr>
+							<td style="cursor:pointer;">@("R_SFR" + (bill.ReceiptId.ToString().PadLeft(7, '0')))</td>
+							<td>@bill.ReciptDate.ToString("dd-MMM-yyyy")</td>
+							<td>@bill.customer.CustomerId</td>
+							<td>@bill.customer.Name</td>
+
+							<td>₹@bill.TotalAmountPaid</td>
+
+
+
+						</tr>
+					}
+					</tbody>
+				</table>
+			}
+			else
+			{
+				<p class="text-muted text-center">No receipt for ByPass.</p>
+			}
+			</div>
+		</div>
+	</div>
+	;
+
 		components.Add(vehiclesFront);
 		components.Add(billsFront);
 		components.Add(recordsFront);
+		components.Add(ReceiptFront);
 
 		if(isCredit)
 		{
@@ -300,7 +393,7 @@
 			currentComponent = 1;
 		}
 
-		
+
 
 	}
 
@@ -335,7 +428,7 @@
 		vehicles.Clear();
 		creditRecords.Clear();
 		bills.Clear();
-		
+		creditRecipts.Clear();
 		bills = await DatabaseHandler.GetCustomerBillsAsync(customerData.CustomerId);
 
 		sivakasiBills = bills.Where((b => b.Bill.Branch == "Sivakasi")).ToList();
@@ -391,9 +484,13 @@
 					});
 			}
 		}
+		creditRecipts = await DatabaseHandler.GetCreditReceipts(true, customerData.CustomerId);
+		sivakasiCreditRecipts = creditRecipts.Where((cr) => cr.Branch == "Sivakasi").ToList();
+		bypassCreditRecipts = creditRecipts.Where((cr) => cr.Branch == "ByPass").ToList();
 		Debug.WriteLine(vehicles.Count);
 		Debug.WriteLine(bills.Count);
 		Debug.WriteLine(creditRecords.Count);
+		Debug.WriteLine(creditRecipts.Count);
 		isLoading = false;
 	}
 }

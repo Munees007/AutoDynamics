@@ -1,0 +1,155 @@
+﻿@page "/ledger"
+@inject IDatabaseHandler DatabaseHandler
+
+<h3 class="mb-3">Ledger Entries</h3>
+
+<select @onchange="OnFilterChanged" class="form-select w-25 mb-3">
+    <option value="">All</option>
+    
+</select>
+
+<div style="overflow-x:auto;">
+    <table class="table table-bordered table-hover text-center align-middle ledger-table">
+        <thead class="table-secondary">
+            <tr>
+                <th @onclick="() => SortBy(nameof(Ledger.Date))">Date</th>
+                <th>Account Type</th>
+                <th>Transaction Type</th>
+                
+                <th>Particulars</th>
+                <th @onclick="() => SortBy(nameof(Ledger.DR_Amount))">Dr (₹)</th>
+                <th @onclick="() => SortBy(nameof(Ledger.CR_Amount))">Cr (₹)</th>
+                <th>Balance</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var ledger in sortedLedgers)
+            {
+                <tr>
+                    <td>@ledger.Date.ToString("dd-MM-yyyy")</td>
+                    <td>@ledger.AccountType?.AccountName</td>
+                    <td>@ledger.TransactionType</td>
+                    
+                    <td>@ledger.Particulars</td>
+                    <td class="text-end">@ledger.DR_Amount.ToString("N2")</td>
+                    <td class="text-end">@ledger.CR_Amount.ToString("N2")</td>
+                    <td class="text-end">@GetFormattedBalance(ledger.Balance)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    List<Ledger> ledgers = new();
+    List<Ledger> sortedLedgers = new();
+    List<LedgerAcccounts> AccountTypes = new();
+    string currentSortColumn = nameof(Ledger.Date);
+    bool sortAscending = true;
+    string selectedAccountType = "";
+
+    string GetFormattedBalance(decimal balance)
+    {
+        if (balance == 0)
+            return "0.00";
+
+        var suffix = balance > 0 ? " Dr" : " Cr";
+        return Math.Abs(balance).ToString("N2") + suffix;
+    }
+    protected override async Task OnInitializedAsync()
+    {
+
+        var fetch = @"SELECT * FROM LedgerAccounts";
+        var query = @"SELECT LedgerID, Date, AccountID, Branch, TransactionType, ReferenceID, Particulars, CrAmount, DrAmount, Balance
+                      FROM CashBankLedger";
+        var res = await DatabaseHandler.ExecuteQueryAsync(query);
+        var res1 = await DatabaseHandler.ExecuteQueryAsync(fetch);
+        if(res1.Count > 0)
+        {
+            foreach (var row in res1)
+            {
+                LedgerAccountsType at;
+                Enum.TryParse<LedgerAccountsType>(row["AccountType"].ToString(), out at);
+                AccountTypes.Add(new LedgerAcccounts
+                    {
+                        AcccountId = Int32.Parse(row["AccountID"].ToString() ?? "0"),
+                        AccountName = row["AccountName"].ToString(),
+                        AccountType = at,
+                        isActive = bool.Parse(row["IsActive"].ToString() ?? "true")
+                    });
+            }
+        }
+        if(res.Count > 0)
+        {
+            foreach (var row in res)
+            {
+                ledgers.Add(new Ledger
+                    {
+                        LedgerID = Convert.ToInt32(row["LedgerID"]),
+                        Date = Convert.ToDateTime(row["Date"]),
+                        AccountID = Convert.ToInt32(row["AccountID"]),
+                        AccountType = AccountTypes.FirstOrDefault((b)=> b.AcccountId == Convert.ToInt32(row["AccountID"] ?? "0")),
+                        Branch = row["Branch"]?.ToString() ?? "",
+                        TransactionType = Enum.TryParse<TransactionType>(row["TransactionType"].ToString(), out var tran) ? tran : TransactionType.OTHER,
+                        ReferenceID = row["ReferenceID"] != DBNull.Value ? Convert.ToInt32(row["ReferenceID"]) : 0,
+                        Particulars = row["Particulars"]?.ToString() ?? "",
+                        CR_Amount = Convert.ToDecimal(row["CrAmount"]),
+                        DR_Amount = Convert.ToDecimal(row["DrAmount"]),
+                        Balance = Convert.ToDecimal(row["Balance"])
+                    });
+            }
+        }
+        
+
+        ApplySortingAndFilter();
+    }
+
+    void OnFilterChanged(ChangeEventArgs e)
+    {
+        selectedAccountType = e.Value?.ToString() ?? "";
+        ApplySortingAndFilter();
+    }
+
+    void SortBy(string columnName)
+    {
+        if (currentSortColumn == columnName)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            currentSortColumn = columnName;
+            sortAscending = true;
+        }
+        ApplySortingAndFilter();
+    }
+
+    void ApplySortingAndFilter()
+    {
+        IEnumerable<Ledger> filtered = ledgers;
+
+        // if (!string.IsNullOrEmpty(selectedAccountType) && Enum.TryParse<LedgerAccountType>(selectedAccountType, out var filterType))
+        // {
+        //     filtered = filtered.Where(x => x.AccountType == filterType);
+        // }
+
+        var sorted = currentSortColumn switch
+        {
+            nameof(Ledger.Date) => sortAscending ? filtered.OrderBy(x => x.Date).ToList() : filtered.OrderByDescending(x => x.Date).ToList(),
+            nameof(Ledger.DR_Amount) => sortAscending ? filtered.OrderBy(x => x.DR_Amount).ToList() : filtered.OrderByDescending(x => x.DR_Amount).ToList(),
+            nameof(Ledger.CR_Amount) => sortAscending ? filtered.OrderBy(x => x.CR_Amount).ToList() : filtered.OrderByDescending(x => x.CR_Amount).ToList(),
+            _ => filtered.ToList()
+        };
+
+        // ✅ Compute running balance
+        decimal runningBalance = 0;
+        foreach (var item in sorted)
+        {
+            runningBalance += item.DR_Amount - item.CR_Amount;
+            item.Balance = runningBalance;
+        }
+
+        sortedLedgers = sorted;
+
+    }
+}

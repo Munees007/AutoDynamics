@@ -5,6 +5,7 @@
 @inject IAlertService AlertService
 @inject IMyLocalStorageService MyLocalStorageService
 @inject ITabService TabService
+@inject IToastService ToastService
 
 <h1 class="text-center mt-3">Customer List</h1>
 
@@ -140,18 +141,25 @@
         {
             {"customerData",user}
         };
-        
+
         TabService.OpenWithParameter("Viewing " + user.Name, typeof(CustomerSingleView), parameters);
-		
+
     }
 
     private async Task DeleteCustomer(string customerId)
     {
-        string query = $"DELETE FROM Customers WHERE CustomerID = '{customerId}'";
-        await DatabaseHandler.ExecuteQueryAsync(query);
-        await AlertService.ShowAlertAsync("Delete Customer:", "Deleted Successfully", "OK");
-        await fetchData();
-        StateHasChanged();
+        try
+        {
+            string query = $"DELETE FROM Customers WHERE CustomerID = '{customerId}'";
+            await DatabaseHandler.ExecuteQueryAsync(query);
+            await AlertService.ShowAlertAsync("Delete Customer:", "Deleted Successfully", "OK");
+            await fetchData();
+            StateHasChanged();
+        }
+        catch(Exception e)
+        {
+            ToastService.ShowToast(e.Message, ToastType.error);
+        }
     }
 
     private void UpdateCustomer(UserModal user)

@@ -1,4 +1,5 @@
-﻿using AutoDynamics.Shared.Modals.Customer;
+﻿using AutoDynamics.Shared.Modals.Credit;
+using AutoDynamics.Shared.Modals.Customer;
 using AutoDynamics.Shared.Pages.Components;
 using System;
 using System.Collections.Generic;
@@ -8,32 +9,27 @@ using System.Threading.Tasks;
 
 namespace AutoDynamics.Shared.Modals.Accounts.Recipt
 {
-    public class CreditReciptType
+    public class PaymentReciptType
     {
-        public int ReceiptId { get; set; }
+        public int PaymentId { get; set; }
         public string Branch { get; set; }
-        public DateTime ReciptDate { get; set; } = DateTime.Now;
-        public UserModal customer { get; set; } = new();
+        public DateTime PaymentDate { get; set; } = DateTime.Now;
+        public Supplier supplier { get; set; } = new();
         public decimal TotalAmountPaid { get; set; } = new();
-        public List<CreditBill> creditBills { get; set; } = new();
+        public List<PaymentBill> paymentBills { get; set; } = new();
     }
 
-    public enum CreditStatus
-    {
-        Pending,
-        Partial,
-        Paid
-    }
+    
 
-    public class CreditBill
+    public class PaymentBill
     {
         public int index { get; set; } = 0;
-        public int creditId { get; set; } = 0;
-        public int billId { get; set; } = 0;
-        public int billNo { get; set; } = 0;
+        public int paymentId { get; set; } = 0;
+        public int purchaseBillID { get; set; } = 0;
+        public int invoice { get; set; } = 0;
         public string branch { get; set; } = "";
-        public DateTime BillDate { get; set; } = DateTime.Now;
-        public SearchSelect<CreditBill> creditListRef { get; set; }
+        public DateTime purchaseDate { get; set; } = DateTime.Now;
+        public SearchSelect<PaymentBill> creditListRef { get; set; }
         public bool showSuggestion { get; set; } = false;
         public CreditStatus CreditStatus { get; set; }
         public PaymentTypes paymentType { get; set; } = PaymentTypes.CASH;
@@ -58,5 +54,4 @@ namespace AutoDynamics.Shared.Modals.Accounts.Recipt
             }
         }
     }
-
 }

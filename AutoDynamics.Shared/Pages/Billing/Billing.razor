@@ -307,6 +307,9 @@
     private SearchSelect<VehicleType> vehicleListRef;
     private SearchSelect<ProductType> productListRef;
 
+
+    private List<LedgerAcccounts> AccountTypes = new();
+
     public void HandleProductKey(KeyboardEventArgs e, int index)
     {
         BillItems[index].productListRef?.HandleKeyDown(e);
@@ -538,10 +541,94 @@
             bill.Discount = Discount;
             bill.TotalAmount = TotalAmount;
             bill.GrandTotal = GrandTotal;
+            string BillNo = (bill.Branch == "Sivakasi" ? "SFR" : "BPR") + bill.BillNo.ToString().PadLeft(4,'0');
 
 
+            List<Ledger> ledgers = new List<Ledger>();
+            if (billPayment.CashAmount > 0)
+            {
+                Ledger cashLedger = new Ledger
+                    {
+                        AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "CASH A/C")?.AcccountId ?? 0,
+                    //AccountType = LedgerAccountType.CASH,
+                        DR_Amount = billPayment.CashAmount,
+                        Particulars = $"Received Cash From {bill.Customer.Name}",
+                        TransactionType = TransactionType.BILL,
+                        Date = bill.BillDate,
+                        Balance = 0,
+                        Branch = bill.Branch,
+                        CR_Amount = 0,
 
+                    };
+                ledgers.Add(cashLedger);
+            }
 
+            if (billPayment.UPIAmount > 0 || billPayment.CardAmount > 0)
+            {
+                Ledger bankLedger = new Ledger
+                    {
+                        AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "BANK A/C")?.AcccountId ?? 0,
+                    //AccountType = LedgerAccountType.BANK,
+                        DR_Amount = billPayment.UPIAmount,
+                        Particulars = $"Received in Bank",
+                        TransactionType = TransactionType.BILL,
+                        Date = bill.BillDate,
+                        Balance = 0,
+                        Branch = bill.Branch,
+                        CR_Amount = 0,
+
+                    };
+                ledgers.Add(bankLedger);
+            }
+            if(billPayment.CardAmount > 0)
+            {
+                Ledger cardLedger = new Ledger
+                    {
+                        AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "CARD A/C")?.AcccountId ?? 0,
+                    //AccountType = LedgerAccountType.BANK,
+                        DR_Amount =billPayment.CardAmount,
+                        Particulars = $"Received in Bank through card",
+                        TransactionType = TransactionType.BILL,
+                        Date = bill.BillDate,
+                        Balance = 0,
+                        Branch = bill.Branch,
+                        CR_Amount = 0,
+
+                    };
+                ledgers.Add(cardLedger);
+            }
+
+            if (billPayment.BankAmount > 0)
+            {
+                Ledger creditLedger = new Ledger
+                    {
+                        AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "CUSTOMER CREDIT A/C")?.AcccountId ?? 0,
+                    //AccountType = LedgerAccountType.CREDIT,
+                        CR_Amount = billPayment.BankAmount,
+                        Particulars = $"Amount to be Received later",
+                        TransactionType = TransactionType.BILL,
+                        Date = bill.BillDate,
+                        Balance = 0,
+                        Branch = bill.Branch,
+                        DR_Amount = 0,
+                    };
+                ledgers.Add(creditLedger);
+            }
+
+            Ledger salesLedger = new Ledger
+                {
+                    AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "SALES A/C")?.AcccountId ?? 0,
+                //AccountType = LedgerAccountType.SALES,
+                    CR_Amount = billPayment.UPIAmount + billPayment.CardAmount + billPayment.CashAmount,
+                    Particulars = $"Sales for {bill.Customer.Name}",
+                    TransactionType = TransactionType.BILL,
+                    Date = bill.BillDate,
+                    Balance = 0,
+                    Branch = bill.Branch,
+                    DR_Amount = 0,
+                };
+
+            ledgers.Add(salesLedger);
             BillDetails finalBill = new BillDetails
                 {
                     Bill = bill,
@@ -552,12 +639,15 @@
             {
                 if (isUpdating)
                 {
-                    int[] temp = await DatabaseHandler.InsertBillAsync(bill, BillItems, billPayment, true);
+                   
+                    int[] temp = await DatabaseHandler.InsertBillAsync(bill, BillItems, billPayment, true,ledgers);
                     ToastService.ShowToast("Bill Updated Successfully", ToastType.sucess);
                 }
                 else
                 {
-                    int[] data = await DatabaseHandler.InsertBillAsync(bill, BillItems, billPayment, false);
+                    
+
+                    int[] data = await DatabaseHandler.InsertBillAsync(bill, BillItems, billPayment, false,ledgers);
                     bill.BillID = data[0];
                     finalBill.Bill.BillID = data[0];
                     bill.BillNo = data[1];
@@ -606,18 +696,21 @@
         string serviceQuery = @"SELECT * FROM Services";
         string productsQuery = @"SELECT s.*, p.* FROM Stock s JOIN Product p ON p.ProductID = s.ProductID";
         string brandsQuery = @"SELECT * FROM Brands";
+        string accountQuery = @"SELECT * FROM LedgerAccounts";
 
         var res1 = await DatabaseHandler.ExecuteQueryAsync(customerQuery);
         var res2 = await DatabaseHandler.ExecuteQueryAsync(vehicleQuery);
         var res3 = await DatabaseHandler.ExecuteQueryAsync(serviceQuery);
         var res4 = await DatabaseHandler.ExecuteQueryAsync(productsQuery);
         var res5 = await DatabaseHandler.ExecuteQueryAsync(brandsQuery);
+        var res6 = await DatabaseHandler.ExecuteQueryAsync(accountQuery);
 
         customers = new List<UserModal>();
         vehicles = new List<VehicleType>();
         services = new List<ServiceModal>();
         products = new List<ProductType>();
         brands = new List<BrandType>();
+        AccountTypes = new List<LedgerAcccounts>();
 
         if(res1.Count>0)
         {
@@ -696,6 +789,23 @@
             }
             brands = brands.DistinctBy(b => b.BrandName).ToList();
         }
+        if(res6.Count > 0)
+        {
+            foreach (var row in res6)
+            {
+                LedgerAccountsType at;
+                Enum.TryParse<LedgerAccountsType>(row["AccountType"].ToString(), out at);
+                AccountTypes.Add(new LedgerAcccounts
+                    {
+                        AcccountId = Int32.Parse(row["AccountID"].ToString() ?? "0"),
+                        AccountName = row["AccountName"].ToString(),
+                        AccountType = at,
+                        isActive = bool.Parse(row["IsActive"].ToString() ?? "true")
+                    });
+            }
+        }
+
+        
     }
 
     private void AddNewItem()

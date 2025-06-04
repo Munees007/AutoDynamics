@@ -1,33 +1,33 @@
-﻿@page "/receipt-entry"
+@page "/payment-entry"
 @inject IDatabaseHandler DatabaseHandler
 @inject IMyLocalStorageService MyLocalStorageService
 @inject IToastService ToastService
 <div class="container p-3">
-    <h3 class="mb-4 fw-bold">Enter Receipt</h3>
+    <h3 class="mb-4 fw-bold">Enter Payment</h3>
 
     <!-- Date and Customer Search -->
     <div class="row g-4 mb-4">
         <div class="col-md-4">
             <label for="paymentDate" class="form-label">Date</label>
-            <input type="date" id="paymentDate" class="form-control" @bind="@creditReciptTypes.ReciptDate" />
+            <input type="date" id="paymentDate" class="form-control" @bind="@supplierCredits.PaymentDate" />
         </div>
 
 
 
         <div class="col-md-8">
-            <label for="Customer" class="form-label">Customer</label>
+            <label for="Customer" class="form-label">Supplier</label>
             <div class="input-group">
-                <input @onkeydown="HandleCustomerKey" autocomplete="off" type="text" id="Customer"
-                @bind="CustomerSearch" @oninput="OnCustomerSearch"
+                <input @onkeydown="HandleSupplierKey" autocomplete="off" type="text" id="Customer"
+                @bind="SupplierSearch" @oninput="OnSupplierSearch"
                 class="form-control" placeholder="Search by ID, Name, or Contact" required>
 
             </div>
-            <SearchSelect @ref="customerListRef" Items="filteredCustomers"
-            OnSelect="@(c=> SelectCustomer(c))" T="UserModal"
+            <SearchSelect @ref="supplierListRef" Items="filteredSuppliers"
+            OnSelect="@(c=> SelectSupplier(c))" T="Supplier"
             showSuggestions="ShowCustomerSuggestion"
             ShowSuggestionsChanged="@((bool val) => ShowCustomerSuggestion = val)">
                 <ItemTemplate Context="cust">
-                    <div>@cust.CustomerId - @cust.Name - @cust.Contact</div>
+                    <div>@cust.SupplierID - @cust.Name - @cust.Contact</div>
                 </ItemTemplate>
             </SearchSelect>
         </div>
@@ -58,18 +58,18 @@
                 </tr>
             </thead>
             <tbody>
-                @for (int i = 0; i < creditReciptTypes.creditBills.Count; i++)
+                @for (int i = 0; i < supplierCredits.paymentBills.Count; i++)
                 {
-                    var item = creditReciptTypes.creditBills[i];
+                    var item = supplierCredits.paymentBills[i];
                     item.index = i;
                     <tr>
                         <td>
                             <input type="checkbox" @bind="item.isSelected" class="form-check-input" style="width:25px;height:25px;cursor:pointer" />
                         </td>
                         <td>
-                            @((item.branch == "Sivakasi" ? "SFR" : "BPR") + item.billNo.ToString().PadLeft(4,'0'))
+                            @((item.branch == "Sivakasi" ? "SFR" : "BPR") + item.purchaseBillID.ToString().PadLeft(4, '0'))
                         </td>
-                        <td>@item.BillDate.ToString("MMM-dd-yyyy")</td>
+                        <td>@item.purchaseDate.ToString("MMM-dd-yyyy")</td>
 
                         <td>@item.dueAmount</td>
                         <td>@item.paidAmount</td>
@@ -98,21 +98,21 @@
     </div>
 </div>
 
-<Loader show="isLoading" customText="@loaderText"/>
-@code{
-    CreditReciptType creditReciptTypes = new();
-    List<UserModal> customers = new();
+<Loader show="isLoading" customText="@loaderText" />
+@code {
+    PaymentReciptType supplierCredits = new();
+    List<Supplier> suppliers = new();
 
-    private string CustomerSearch = "";
-    private List<UserModal> filteredCustomers { set; get; } = new List<UserModal>();
-    private SearchSelect<UserModal> customerListRef;
+    private string SupplierSearch = "";
+    private List<Supplier> filteredSuppliers { set; get; } = new List<Supplier>();
+    private SearchSelect<Supplier> supplierListRef;
     bool ShowCustomerSuggestion = false;
     decimal splitAmount = 0;
     List<LedgerAcccounts> AccountTypes = new List<LedgerAcccounts>();
 
     private string billSearch = "";
-    private List<CreditBill> creditBills { get; set; } = new();
-    private List<CreditBill> filteredCreditBills { get; set; } = new List<CreditBill>();
+    private List<PaymentBill> paymentBills { get; set; } = new();
+    private List<PaymentBill> filteredPaymentBills { get; set; } = new List<PaymentBill>();
     private SearchSelect<CreditBill> creditBillRef;
     bool showCreditSuggestion = false;
 
@@ -123,14 +123,14 @@
 
     public void HandleSplitAmount()
     {
-        if(splitAmount > 0)
+        if (splitAmount > 0)
         {
-            foreach (var bill in creditReciptTypes.creditBills)
+            foreach (var bill in supplierCredits.paymentBills)
             {
                 if (bill.remainingBalance > 0 && bill.remainingBalance <= splitAmount)
                 {
                     bill.amountPayed = bill.remainingBalance;
-					// splitAmount -= bill.remainingBalance;
+                    // splitAmount -= bill.remainingBalance;
                 }
             }
         }
@@ -138,7 +138,7 @@
 
     public void AddNewItem()
     {
-        creditReciptTypes.creditBills.Add(new CreditBill());
+        supplierCredits.paymentBills.Add(new PaymentBill());
     }
 
     protected override async Task OnInitializedAsync()
@@ -154,7 +154,7 @@
             StateHasChanged();
             ToastService.ShowToast("Fetch Successful", ToastType.sucess);
         }
-        catch(Exception e)
+        catch (Exception e)
         {
             ToastService.ShowToast(e.Message, ToastType.sucess);
         }
@@ -163,7 +163,7 @@
 
     async Task NecessaryData()
     {
-        string customerSelect = "SELECT * FROM Customers";
+        string customerSelect = "SELECT * FROM Suppliers";
         string fetch = "SELECT * FROM LedgerAccounts";
 
 
@@ -174,9 +174,9 @@
         {
             foreach (var row in res1)
             {
-                customers.Add(new UserModal
+                suppliers.Add(new Supplier
                     {
-                        CustomerId = row["CustomerID"].ToString() ?? "",
+                        SupplierID = row["SupplierID"].ToString() ?? "",
                         Name = row["Name"].ToString() ?? "",
                         Contact = row["Contact"].ToString() ?? "",
                     });
@@ -199,25 +199,25 @@
             }
         }
     }
-    public async void OnCustomerSearch(ChangeEventArgs e)
+    public async void OnSupplierSearch(ChangeEventArgs e)
     {
-        CustomerSearch = e.Value.ToString() ?? "";
+        SupplierSearch = e.Value.ToString() ?? "";
         // CustomerSearch.Replace(" ", "").Replace(".", "");
 
-        if (string.IsNullOrWhiteSpace(CustomerSearch))
+        if (string.IsNullOrWhiteSpace(SupplierSearch))
         {
             ShowCustomerSuggestion = false;
-            filteredCustomers.Clear();
+            filteredSuppliers.Clear();
             return;
         }
 
-        filteredCustomers = customers
-            .Where(c => c.CustomerId.Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase) ||
-                        c.Name.Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase) ||
-                        c.Contact.Contains(CustomerSearch, StringComparison.OrdinalIgnoreCase))
+        filteredSuppliers = suppliers
+            .Where(c => c.SupplierID.Contains(SupplierSearch, StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains(SupplierSearch, StringComparison.OrdinalIgnoreCase) ||
+                        c.Contact.Contains(SupplierSearch, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        ShowCustomerSuggestion = filteredCustomers.Any();
+        ShowCustomerSuggestion = filteredSuppliers.Any();
         StateHasChanged();
     }
 
@@ -228,7 +228,8 @@
             isLoading = true;
             loaderText = "Adding Receipt";
 
-            List<CreditBill> selectedBills = creditReciptTypes.creditBills
+            List<PaymentBill> selectedBills = supplierCredits.paymentBills
+
                 .Where(b => b.isSelected && b.amountPayed > 0)
                 .ToList();
             for (int i = 0; i < selectedBills.Count; i++)
@@ -236,36 +237,36 @@
                 decimal diff = selectedBills[i].remainingBalance - selectedBills[i].amountPayed;
                 selectedBills[i].CreditStatus = (Math.Abs(diff) < 0.01m) ? CreditStatus.Paid : CreditStatus.Partial;
             }
-            if(selectedBills.Count ==0)
+            if (selectedBills.Count == 0)
             {
                 isLoading = false;
                 loaderText = "";
                 throw new Exception("No Bills Selected");
             }
-            creditReciptTypes.creditBills = selectedBills;
+            supplierCredits.paymentBills = selectedBills;
             Ledger cashLedger = new Ledger
-            {
-					 DR_Amount = selectedBills.Where((b)=> b.paymentType == PaymentTypes.CASH).Sum(b => b.amountPayed),
-					CR_Amount = 0,
-					Branch = currentBranch,
-                    TransactionType = TransactionType.RECEIPT,
+                {
+                    DR_Amount = selectedBills.Where((b) => b.paymentType == PaymentTypes.CASH).Sum(b => b.amountPayed),
+                    CR_Amount = 0,
+                    Branch = currentBranch,
+                    TransactionType = TransactionType.PAYMENT,
                     AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "CASH A/C")?.AcccountId ?? 0,
                 //AccountType = LedgerAccountType.CASH,
-					Balance = 0,
-                    Particulars = $"Cash A/C Dr\n To {creditReciptTypes.customer.Name} A/C",
-                    Date = creditReciptTypes.ReciptDate,
-            };
+                    Balance = 0,
+                    Particulars = $"Cash A/C Dr\n To {supplierCredits.supplier.Name} A/C",
+                    Date = supplierCredits.PaymentDate,
+                };
             Ledger bankLedger = new Ledger
                 {
                     DR_Amount = selectedBills.Where((b) => b.paymentType != PaymentTypes.CASH).Sum(b => b.amountPayed),
                     CR_Amount = 0,
                     Branch = currentBranch,
-                    TransactionType = TransactionType.RECEIPT,
+                    TransactionType = TransactionType.PAYMENT,
                     AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "BANK A/C")?.AcccountId ?? 0,
                 //AccountType = LedgerAccountType.BANK,
                     Balance = 0,
-                    Particulars = $"Bank A/C Dr\n To {creditReciptTypes.customer.Name} A/C",
-                    Date = creditReciptTypes.ReciptDate,
+                    Particulars = $"Bank A/C Dr\n To {supplierCredits.supplier.Name} A/C",
+                    Date = supplierCredits.PaymentDate,
                 };
             // Credit: Customer (they paid, so reduce what they owe)
             Ledger customerCreditLedger = new Ledger
@@ -273,20 +274,20 @@
                     DR_Amount = 0,
                     CR_Amount = selectedBills.Sum(b => b.amountPayed),
                     Branch = currentBranch,
-                    TransactionType = TransactionType.RECEIPT,
-                    AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "CUSTOMER A/C")?.AcccountId ?? 0,
+                    TransactionType = TransactionType.PAYMENT,
+                    AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "SUPPLIER A/C")?.AcccountId ?? 0,
                     Balance = 0,
                     Particulars = "Being payment received", // optional
-                    Date = creditReciptTypes.ReciptDate,
+                    Date = supplierCredits.PaymentDate,
                 };
 
 
             List<Ledger> ledgers = new List<Ledger>();
-            if(cashLedger.DR_Amount > 0)
+            if (cashLedger.DR_Amount > 0)
             {
                 ledgers.Add(cashLedger);
             }
-            if(bankLedger.DR_Amount > 0)
+            if (bankLedger.DR_Amount > 0)
             {
                 ledgers.Add(bankLedger);
             }
@@ -294,9 +295,9 @@
 
 
 
-            creditReciptTypes.Branch = currentBranch;
-            await DatabaseHandler.InsertReceipt(creditReciptTypes, false, ledgers);
-            foreach(var item in creditReciptTypes.creditBills)
+            supplierCredits.Branch = currentBranch;
+            await DatabaseHandler.InsertPayment(supplierCredits, false, ledgers);
+            foreach (var item in supplierCredits.paymentBills)
             {
                 Debug.WriteLine($"Status: {item.CreditStatus}");
             }
@@ -304,90 +305,90 @@
             isLoading = false;
             loaderText = "";
         }
-        catch(Exception e)
+        catch (Exception e)
         {
             Debug.WriteLine(e.Message);
-            ToastService.ShowToast(e.Message,ToastType.error);
+            ToastService.ShowToast(e.Message, ToastType.error);
         }
     }
 
-    private async Task SelectCustomer(UserModal customer)
+    private async Task SelectSupplier(Supplier supplier)
     {
         try
         {
             loaderText = "Collecting Bills";
             isLoading = true;
-            CustomerSearch = customer.CustomerId;
-            creditReciptTypes.customer = customer;
-            string fetchCreditQuery = "SELECT * FROM CreditRecord cr JOIN Bills b ON b.BillID = cr.BillID WHERE cr.CustomerID = @CustomerID";
+            SupplierSearch = supplier.SupplierID;
+            supplierCredits.supplier = supplier;
+            string fetchCreditQuery = "SELECT * FROM SupplierCreditRecord cr JOIN PurchaseBills b ON b.PurchaseBillID = cr.PurchaseBillID WHERE cr.SupplierID = @SupplierID";
 
-			var bills = await DatabaseHandler.ExecuteQueryAsync(fetchCreditQuery, new Dictionary<string, object>
-			{
-				{ "@CustomerID", customer.CustomerId }
-			});
-            
+            var bills = await DatabaseHandler.ExecuteQueryAsync(fetchCreditQuery, new Dictionary<string, object>
+            {
+                { "@SupplierID", supplier.SupplierID }
+            });
+
             Debug.WriteLine(bills.Count);
             Debug.WriteLine(currentBranch);
             if (bills.Count > 0)
             {
-                List<CreditBill> credits = new List<CreditBill>();
+                List<PaymentBill> credits = new List<PaymentBill>();
                 foreach (var bill in bills)
                 {
-                    
-                    if (currentBranch == bill["Branch"].ToString() && bill["Status"].ToString() != "Paid" )
+
+                    if (currentBranch == bill["Branch"].ToString() && bill["Status"].ToString() != "Paid")
                     {
-                        CreditBill temp = new CreditBill
+                        PaymentBill temp = new PaymentBill
                             {
-                                creditId = Int32.Parse(bill["CreditID"].ToString() ?? "0"),
-                                billId = Int32.Parse(bill["BillID"].ToString() ?? "0"),
-                                billNo = Int32.Parse(bill["BillNo"].ToString() ?? "0"),
+                                paymentId = Int32.Parse(bill["SupplierCreditID"].ToString() ?? "0"),
+                                purchaseBillID = Int32.Parse(bill["PurchaseBillID"].ToString() ?? "0"),
+                                invoice = Int32.Parse(bill["InvoiceNumber"].ToString() ?? "0"),
                                 branch = bill["Branch"].ToString() ?? "",
-                                BillDate = DateTime.Parse(bill["BillDate"].ToString()),
+                                purchaseDate = DateTime.Parse(bill["PurchaseDate"].ToString()),
                                 amountPayed = 0,
                                 dueAmount = decimal.Parse(bill["CreditAmount"].ToString() ?? "0"),
-								paidAmount = decimal.Parse(bill["PaidAmount"].ToString() ?? "0"),
-								remainingBalance = decimal.Parse(bill["RemainingBalance"].ToString() ?? "0"),
+                                paidAmount = decimal.Parse(bill["PaidAmount"].ToString() ?? "0"),
+                                remainingBalance = decimal.Parse(bill["RemainingBalance"].ToString() ?? "0"),
                                 paymentType = Modals.PaymentTypes.CASH
                             };
-                            credits.Add(temp);
+                        credits.Add(temp);
                     }
 
                 }
-                creditReciptTypes.creditBills = credits;
+                supplierCredits.paymentBills = credits;
             }
             ShowCustomerSuggestion = false;
             isLoading = false;
             loaderText = "";
-            ToastService.ShowToast("Credi Bill Count = " + creditReciptTypes.creditBills.Count.ToString(), ToastType.sucess);
+            ToastService.ShowToast("Payment Bill Count = " + supplierCredits.paymentBills.Count.ToString(), ToastType.sucess);
             StateHasChanged();
         }
-        catch(Exception e)
+        catch (Exception e)
         {
-            ToastService.ShowToast(e.Message, ToastType.error);   
+            ToastService.ShowToast(e.Message, ToastType.error);
         }
-        
+
 
     }
-    public void HandleCustomerKey(KeyboardEventArgs e)
+    public void HandleSupplierKey(KeyboardEventArgs e)
     {
-        customerListRef?.HandleKeyDown(e);
+        supplierListRef?.HandleKeyDown(e);
     }
 
-    public void OnCreditBillSearch(ChangeEventArgs e,int index)
+    public void OnPaymentBillSearch(ChangeEventArgs e, int index)
     {
         billSearch = e.Value.ToString() ?? "";
 
-        filteredCreditBills = creditBills.Where((c) =>createBillString(c).Contains(billSearch,StringComparison.OrdinalIgnoreCase) ).ToList();
+        filteredPaymentBills = paymentBills.Where((c) => createBillString(c).Contains(billSearch, StringComparison.OrdinalIgnoreCase)).ToList();
 
-        creditReciptTypes.creditBills[index].showSuggestion = filteredCreditBills.Any();
+        supplierCredits.paymentBills[index].showSuggestion = filteredPaymentBills.Any();
         StateHasChanged();
     }
-    public string createBillString(CreditBill credit)
+    public string createBillString(PaymentBill credit)
     {
-        return ((credit.branch == "Sivakasi" ? "SFR" : "BPR") + credit.billNo.ToString().PadLeft(4,'0'));
+        return ((credit.branch == "Sivakasi" ? "SFRP" : "BPRP") + credit.purchaseBillID.ToString().PadLeft(4, '0'));
     }
-    public void HandleCreditKey(KeyboardEventArgs e,int index)
+    public void HandleCreditKey(KeyboardEventArgs e, int index)
     {
-        creditReciptTypes.creditBills[index].creditListRef?.HandleKeyDown(e);
+        supplierCredits.paymentBills[index].creditListRef?.HandleKeyDown(e);
     }
 }

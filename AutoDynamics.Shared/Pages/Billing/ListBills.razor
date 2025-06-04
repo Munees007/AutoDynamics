@@ -216,6 +216,8 @@ else
 
             var filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.CustomMonthYear,customMonthYear:monthDate);
             filtered = filtered.Where((b) => b.Bill.Branch == excelBranch).ToList();
+            Debug.WriteLine(filtered.Count);
+            filtered = filtered.OrderBy((b) => b.Bill.BillNo).ToList();
             string temp = $"{DateTime.Today:MMMM-yyyy}";
             string savedPath = DownloadExcel.DownloadExcelToDevice(filtered.ToArray(), temp, excelBranch);
             ToastService.ShowToast("Excel Genreated Successfully", ToastType.sucess);
@@ -362,7 +364,7 @@ else
         filteredBypassBills = billDetails.Where((b) => b.Bill.Branch == "ByPass").ToList();
         filteredBypassBills = filteredBypassBills.OrderBy((bb)=>bb.Bill.BillNo).ToList();
         sivakasiBills = filteredSivakasiBills;
-		bypassBills = filteredBypassBills;
+        bypassBills = filteredBypassBills;
         isLoading = false;
         loaderText = "";
         StateHasChanged();
@@ -375,7 +377,7 @@ else
             var today = DateTime.Today;
             List<BillDetails> filtered = new();
 
-            
+
 
             if (selectedSortOption == "date")
             {
@@ -403,9 +405,12 @@ else
 
             if (selectedSortOption == "range" && startDate.HasValue && endDate.HasValue)
             {
-                Debug.WriteLine($"Start Date: {startDate.Value.Date}, End Date: {endDate.Value.Date}");
-                Debug.WriteLine($"{billDetails[0].Bill.BillDate.Date}");
-                filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.CustomRange, startDate, endDate);
+                Debug.WriteLine($"Start Date: {startDate.Value:yyyy-MM-dd}, End Date: {endDate.Value:yyyy-MM-dd}");
+
+                startDate = startDate.Value.Date;
+                endDate = endDate.Value.Date.AddHours(23).AddMinutes(59).AddSeconds(59);
+
+                filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.CustomRange, startDate:startDate, endDate:endDate);
             }
             ToastService.ShowToast("Bills Fetched Successfully", ToastType.sucess);
             return filtered.OrderBy(b => b.Bill.BillDate).ToList();

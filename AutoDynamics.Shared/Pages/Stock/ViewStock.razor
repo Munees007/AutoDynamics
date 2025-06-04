@@ -348,6 +348,8 @@
     async Task FetchData()
     {
         stockDetails.Clear();
+        filteredBypassStocks.Clear();
+		filteredSivakasiStocks.Clear();
         string query = @"SELECT s.*, p.* FROM Stock s JOIN Product p ON p.ProductID = s.ProductID";
 
         var stocks = await DatabaseHandler.ExecuteQueryAsync(query);

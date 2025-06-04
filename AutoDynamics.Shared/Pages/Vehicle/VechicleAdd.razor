@@ -3,6 +3,7 @@
 @inject IDatabaseHandler DatabaseHandler
 @inject IMyLocalStorageService MyLocalStorageService
 @inject IAlertService AlertService
+@inject IToastService ToastService
 <EditForm Model="@vehicle">
     <DataAnnotationsValidator/>
     <h2 class="text-center mt-3">Create Vehicle</h2>
@@ -148,14 +149,16 @@
     }
     public async Task<bool> ManageDB(VehicleType data)
     {
-        loaderText = isUpdating ? "Updating Vehicle" : "Adding Vehicle";
-        isLoading = true;
-        string username = await MyLocalStorageService.GetItemAsync("Username") ?? "";
-        if (isUpdating)
+        try
         {
-            string updateQuery = @"UPDATE Vehicle SET CustomerID = @customerId, VehicleNo = @vehicleNo, VehicleMake = @vehicleMake,ModelName = @modelName, MfgYear = @mfgYear,Description = @description,CreatedBy = @createdBy, LastUpdatedBy = @lastUpdatedBy WHERE VehicleNo = @previousVehicleNo";
+            loaderText = isUpdating ? "Updating Vehicle" : "Adding Vehicle";
+            isLoading = true;
+            string username = await MyLocalStorageService.GetItemAsync("Username") ?? "";
+            if (isUpdating)
+            {
+                string updateQuery = @"UPDATE Vehicle SET CustomerID = @customerId, VehicleNo = @vehicleNo, VehicleMake = @vehicleMake,ModelName = @modelName, MfgYear = @mfgYear,Description = @description,CreatedBy = @createdBy, LastUpdatedBy = @lastUpdatedBy WHERE VehicleNo = @previousVehicleNo";
 
-            var updateParameter = new Dictionary<string, object>
+                var updateParameter = new Dictionary<string, object>
             {
                 {"@customerId",data.CustomerID},
                 {"@vehicleNo",data.VehicleNo},
@@ -168,15 +171,16 @@
                 {"@lastUpdatedBy",username}
             };
 
-            int rowsAffected = await DatabaseHandler.ExecuteNonQueryAsync(updateQuery, updateParameter);
-            await AlertService.ShowAlertAsync("Update Vehicle Details", "Updated Successfully", "Done");
-            return rowsAffected > 0;
+                int rowsAffected = await DatabaseHandler.ExecuteNonQueryAsync(updateQuery, updateParameter);
+                await AlertService.ShowAlertAsync("Update Vehicle Details", "Updated Successfully", "Done");
+                
+                return rowsAffected > 0;
 
-        }
-        else
-        {
-            string insertQuery = @"INSERT INTO Vehicle (CustomerID,VehicleNo,VehicleMake,ModelName,MfgYear,Description,CreatedBy) VALUES(@customerId,@vehicleNo,@vehicleMake,@modelName,@mfgYear,@description,@createdBy)";
-            var insertParameter = new Dictionary<string, object>
+            }
+            else
+            {
+                string insertQuery = @"INSERT INTO Vehicle (CustomerID,VehicleNo,VehicleMake,ModelName,MfgYear,Description,CreatedBy) VALUES(@customerId,@vehicleNo,@vehicleMake,@modelName,@mfgYear,@description,@createdBy)";
+                var insertParameter = new Dictionary<string, object>
             {
                 {"@customerId",data.CustomerID},
                 {"@vehicleNo",data.VehicleNo},
@@ -187,15 +191,29 @@
                 {"@createdBy",username},
             };
 
-            int result = await DatabaseHandler.ExecuteNonQueryAsync(insertQuery, insertParameter);
-            await AlertService.ShowAlertAsync("Adding Vehicle Details", "Added Successfully", "Done");
-            if(isBilling)
-            {
-                await SubmitForm.InvokeAsync(data);
+                int result = await DatabaseHandler.ExecuteNonQueryAsync(insertQuery, insertParameter);
+                await AlertService.ShowAlertAsync("Adding Vehicle Details", "Added Successfully", "Done");
+                if (isBilling)
+                {
+                    await SubmitForm.InvokeAsync(data);
+                }
+                
+                return result > 0;
             }
-            return result > 0;
+
+
         }
-        isLoading = false;
+        catch(Exception e)
+        {
+            ToastService.ShowToast(e.Message, ToastType.error);
+            return false;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+
     }
 
     public async Task HandleSubmit()

@@ -394,6 +394,11 @@ namespace AutoDynamics.Services
         }
 
 
+        //public Task GenerateCustomerStatement()
+        //{
+
+        //}
+
 
     }
 }
