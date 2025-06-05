@@ -26,7 +26,7 @@ namespace AutoDynamics.Shared.Modals.Accounts.Recipt
         public int index { get; set; } = 0;
         public int paymentId { get; set; } = 0;
         public int purchaseBillID { get; set; } = 0;
-        public int invoice { get; set; } = 0;
+        public string invoice { get; set; } = string.Empty;
         public string branch { get; set; } = "";
         public DateTime purchaseDate { get; set; } = DateTime.Now;
         public SearchSelect<PaymentBill> creditListRef { get; set; }

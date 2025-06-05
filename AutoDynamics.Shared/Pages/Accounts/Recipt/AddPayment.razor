@@ -253,21 +253,36 @@
                     AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "CASH A/C")?.AcccountId ?? 0,
                 //AccountType = LedgerAccountType.CASH,
                     Balance = 0,
-                    Particulars = $"Cash A/C Dr\n To {supplierCredits.supplier.Name} A/C",
+                    Particulars = $"By Cash",
                     Date = supplierCredits.PaymentDate,
+                    ForWho = supplierCredits.supplier.SupplierID
                 };
             Ledger bankLedger = new Ledger
                 {
-                    DR_Amount = selectedBills.Where((b) => b.paymentType != PaymentTypes.CASH).Sum(b => b.amountPayed),
+                    DR_Amount = selectedBills.Where((b) => b.paymentType != PaymentTypes.CASH && b.paymentType != PaymentTypes.CARD).Sum(b => b.amountPayed),
                     CR_Amount = 0,
                     Branch = currentBranch,
                     TransactionType = TransactionType.PAYMENT,
                     AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "BANK A/C")?.AcccountId ?? 0,
                 //AccountType = LedgerAccountType.BANK,
                     Balance = 0,
-                    Particulars = $"Bank A/C Dr\n To {supplierCredits.supplier.Name} A/C",
+                    Particulars = $"By Bank",
                     Date = supplierCredits.PaymentDate,
+                    ForWho = supplierCredits.supplier.SupplierID
                 };
+            Ledger cardLedger = new Ledger
+            {
+                    DR_Amount = selectedBills.Where((b) => b.paymentType == PaymentTypes.CARD).Sum(b => b.amountPayed),
+                    CR_Amount = 0,
+                    Branch = currentBranch,
+                    TransactionType = TransactionType.PAYMENT,
+                    AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "CARD A/C")?.AcccountId ?? 0,
+                //AccountType = LedgerAccountType.BANK,
+                    Balance = 0,
+                    Particulars = $"By Card",
+                    Date = supplierCredits.PaymentDate,
+                    ForWho = supplierCredits.supplier.SupplierID
+            };
             // Credit: Customer (they paid, so reduce what they owe)
             Ledger customerCreditLedger = new Ledger
                 {
@@ -277,8 +292,9 @@
                     TransactionType = TransactionType.PAYMENT,
                     AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "SUPPLIER A/C")?.AcccountId ?? 0,
                     Balance = 0,
-                    Particulars = "Being payment received", // optional
+                    Particulars = $"Payment Paid to {supplierCredits.supplier.Name}", // optional
                     Date = supplierCredits.PaymentDate,
+                    ForWho = supplierCredits.supplier.SupplierID
                 };
 
 
@@ -290,6 +306,10 @@
             if (bankLedger.DR_Amount > 0)
             {
                 ledgers.Add(bankLedger);
+            }
+            if(cardLedger.DR_Amount > 0)
+            {
+                ledgers.Add(cardLedger);
             }
             ledgers.Add(customerCreditLedger);
 
@@ -341,7 +361,7 @@
                             {
                                 paymentId = Int32.Parse(bill["SupplierCreditID"].ToString() ?? "0"),
                                 purchaseBillID = Int32.Parse(bill["PurchaseBillID"].ToString() ?? "0"),
-                                invoice = Int32.Parse(bill["InvoiceNumber"].ToString() ?? "0"),
+                                invoice = bill["InvoiceNumber"].ToString(),
                                 branch = bill["Branch"].ToString() ?? "",
                                 purchaseDate = DateTime.Parse(bill["PurchaseDate"].ToString()),
                                 amountPayed = 0,

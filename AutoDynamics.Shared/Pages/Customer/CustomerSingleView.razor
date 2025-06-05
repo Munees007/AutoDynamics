@@ -7,12 +7,15 @@
 @inject IAlertService AlertService
 @inject IJSRuntime JS
 @inject ITabService TabService
+@inject IToastService ToastService
+
 @using System.Diagnostics
 
 <div class="container mt-4">
 	<div class="card shadow-lg">
-		<div class="card-header bg-primary text-white">
+		<div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">
 			<h4 class="mb-0">Customer Details</h4>
+			<button class="btn btn-sm btn-dark" @onclick="DownloadStatement">💾 Download Statement</button>
 		</div>
 		<div class="card-body">
 			<div class="row">
@@ -420,6 +423,63 @@
 			await AlertService.ShowAlertAsync("Download PDF", path, "OK");
 		}
 
+	}
+	public async Task<decimal> GetOpeningBalanceAsync(string customerId, DateOnly statementStartDate)
+	{
+		string query = @"
+        SELECT COALESCE(SUM(CrAmount - DrAmount), 0) AS OpeningBalance
+        FROM CashBankLedger
+        WHERE ForWho = @customerId AND Date < @startDate Order By Date;"; // ✅ Optimized query
+
+		var parameters = new Dictionary<string, object>
+	{
+		{ "@customerId", customerId },
+		{ "@startDate", statementStartDate }
+	};
+
+		var result = await DatabaseHandler.ExecuteQueryAsync(query, parameters);
+
+		return result.Count > 0 ? Convert.ToDecimal(result[0]["OpeningBalance"]) : 0;
+	}
+
+	async void DownloadStatement()
+	{
+		List<CustomerStatement> customerStatements = new List<CustomerStatement>();
+
+
+		decimal openingBalance = await GetOpeningBalanceAsync(customerData.CustomerId, DateOnly.Parse("2025-05-28"));
+
+		string getString = $@"SELECT c.*,a.* FROM CashBankLedger c JOIN LedgerAccounts a ON a.AccountID = c.AccountID WHERE DATE(c.Date) BETWEEN '2025-05-28' AND '2025-06-10' AND c.ForWho = '{customerData.CustomerId}' ORDER BY
+  Date, LedgerID;";
+
+
+		var res = await DatabaseHandler.ExecuteQueryAsync(getString);
+
+		if(res.Count > 0)
+		{
+			foreach(var row in res)
+			{
+				customerStatements.Add(
+					new CustomerStatement
+					{
+						date = DateTime.Parse(row["Date"].ToString()),
+						credit = Convert.ToDecimal(row["CrAmount"]),
+						EntryID = Convert.ToInt32(row["EntryID"]),
+						debit = Convert.ToDecimal(row["DrAmount"]),
+						particulars= row["Particulars"].ToString(),
+						accountType = row["AccountName"].ToString(),
+						type = row["TransactionType"].ToString()
+					}
+				);
+			}
+			string path = await PDFGenerator.GenerateCustomerStatement(customerStatements,openingBalance,customerData);
+
+			ToastService.ShowToast($"SavedAt = {path}", ToastType.sucess);
+		}
+		else
+		{
+			ToastService.ShowToast("No Records There", ToastType.info);
+		}
 	}
 
 	protected override async Task OnInitializedAsync()

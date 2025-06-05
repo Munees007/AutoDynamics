@@ -411,12 +411,13 @@
                     AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "CASH A/C")?.AcccountId ?? 0,
 
                     DR_Amount = purchase.TotalAmount,
-                    Particulars = $"Payed cash for {purchase.Supplier.Name}",
+                    Particulars = $"By Cash",
                     TransactionType = TransactionType.PURCHASE,
                     Date = purchase.PurchaseDate,
                     Balance = 0,
                     Branch = purchase.Branch,
                     CR_Amount = 0,
+                    ForWho = purchase.Supplier.SupplierID
             };
             ledgers.Add(cashLedger);
         }
@@ -424,15 +425,16 @@
         {
             Ledger bankLedger = new Ledger
             {
-                    AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "BANK A/C")?.AcccountId ?? 0,
+                    AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "SUPPLIER CREDIT A/C")?.AcccountId ?? 0,
 
-                    DR_Amount = purchase.TotalAmount,
-                    Particulars = $"Payed through Bank for {purchase.Supplier.Name}",
+                    CR_Amount = purchase.TotalAmount,
+                    Particulars = $"By Credit",
                     TransactionType = TransactionType.PURCHASE,
                     Date = purchase.PurchaseDate,
                     Balance = 0,
                     Branch = purchase.Branch,
-                    CR_Amount = 0,
+                    DR_Amount = 0,
+                    ForWho = purchase.Supplier.SupplierID
             };
             ledgers.Add(bankLedger);
         }
@@ -442,12 +444,13 @@
                 AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "PURCHASE A/C")?.AcccountId ?? 0,
             
                 CR_Amount = purchase.TotalAmount,
-                Particulars = $"Purchased from {purchase.Supplier.Name}",
-                TransactionType = TransactionType.BILL,
+                Particulars = $"Purchased from {purchase.Supplier.Name}, Invoice: {purchase.InvoiceNumber}",
+                TransactionType = TransactionType.PURCHASE,
                 Date = purchase.PurchaseDate,
                 Balance = 0,
                 Branch = purchase.Branch,
                 DR_Amount = 0,
+                ForWho = purchase.Supplier.SupplierID
         };
         ledgers.Add(purchaseLedger);
 

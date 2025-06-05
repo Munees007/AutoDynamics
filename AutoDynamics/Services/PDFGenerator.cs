@@ -394,11 +394,135 @@ namespace AutoDynamics.Services
         }
 
 
-        //public Task GenerateCustomerStatement()
-        //{
 
-        //}
 
+        public async Task<string> GenerateCustomerStatement(List<CustomerStatement> customerStatements, decimal openingBalance, UserModal customer)
+        {
+            try
+            {
+                using (var memoryStream = new MemoryStream())
+                {
+                    string filePath = $"CustomerStatement_{DateTime.Now.Ticks}.pdf";
+
+                    Document document = new Document(PageSize.A4, 40, 40, 40, 40);
+                    PdfWriter writer = PdfWriter.GetInstance(document, memoryStream);
+                    document.Open();
+
+                    iTextSharp.text.Font fontHeader = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 14);
+                    iTextSharp.text.Font fontSubHeader = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 12);
+                    iTextSharp.text.Font fontRow = FontFactory.GetFont(FontFactory.HELVETICA, 10);
+
+                    // 🆕 Add Company & Customer Details at the Top
+                    Paragraph companyInfo = new Paragraph("AutoDynamics\nCustomer Statement", fontHeader)
+                    {
+                        Alignment = iTextSharp.text.Element.ALIGN_CENTER
+                    };
+                    document.Add(companyInfo);
+
+                    Paragraph customerInfo = new Paragraph($"Customer: {customer.Name}\nCustomer ID: {customer.CustomerId}\nDate: {DateTime.Now:dd-MM-yyyy}", fontSubHeader)
+                    {
+                        SpacingAfter = 10
+                    };
+                    document.Add(customerInfo);
+
+                    PdfPTable table = CreateStatementTable(fontSubHeader);
+                    decimal runningBalance = openingBalance; // 🆕 Start with opening balance
+
+                    // 🆕 Add Opening Balance Row
+                    AddCellWithoutBorder(table, "Opening Balance", fontRow);
+                    AddCellWithoutBorder(table, "", fontRow);
+                    AddCellWithoutBorder(table, "", fontRow);
+                    AddCellWithoutBorder(table, "", fontRow);
+                    AddCellWithoutBorder(table, runningBalance.ToString("0.00"), fontRow);
+
+                    // 🆕 Group Transactions by Entry ID
+                    var groupedStatements = customerStatements.GroupBy(s => s.EntryID);
+
+                    foreach (var group in groupedStatements)
+                    {
+                        var firstEntry = group.First();
+                        AddCellWithoutBorder(table, firstEntry.date.ToString("dd-MM-yyyy"), fontRow); // ✅ Show Date Once
+
+                        foreach (var entry in group)
+                        {
+                            runningBalance += entry.credit - entry.debit;
+
+                            AddCellWithoutBorder(table, entry.particulars, fontRow);
+                            AddCellWithoutBorder(table, entry.debit > 0 ? entry.debit.ToString("0.00") : "", fontRow);
+                            AddCellWithoutBorder(table, entry.credit > 0 ? entry.credit.ToString("0.00") : "", fontRow);
+                            AddCellWithoutBorder(table, runningBalance.ToString("0.00"), fontRow);
+                        }
+                    }
+
+                    // 🆕 Add Closing Balance Row
+                    AddBalanceRow(table, $"Closing Balance: ₹{runningBalance:0.00}", fontRow, true);
+
+                    document.Add(table);
+                    document.Close();
+                    writer.Close();
+
+                    byte[] pdfBytes = memoryStream.ToArray();
+                    string tempFilePath = Path.Combine(FileSystem.CacheDirectory, "CustomerStatement.pdf");
+                    await File.WriteAllBytesAsync(tempFilePath, pdfBytes);
+
+                    if (DeviceInfo.Platform == DevicePlatform.WinUI)
+                    {
+                        Process.Start(new ProcessStartInfo { FileName = tempFilePath, UseShellExecute = true });
+                        return "Print dialog opened successfully.";
+                    }
+
+                    return "Printing is only implemented for Windows.";
+                }
+            }
+            catch (Exception e)
+            {
+                return e.Message;
+            }
+        }
+
+        // 🆕 Helper Function to Add Row Without Borders
+        private static void AddCellWithoutBorder(PdfPTable table, string content, iTextSharp.text.Font font)
+        {
+            PdfPCell cell = new PdfPCell(new Phrase(content, font))
+            {
+                Border = Rectangle.NO_BORDER,
+                HorizontalAlignment = iTextSharp.text.Element.ALIGN_LEFT
+            };
+            table.AddCell(cell);
+        }
+
+        // 🆕 Helper Function to Add Balance Rows
+        private static void AddBalanceRow(PdfPTable table, string text, iTextSharp.text.Font font, bool addBorder)
+        {
+            PdfPCell cell = new PdfPCell(new Phrase(text, font))
+            {
+                Colspan = 5, // ✅ Adjusted column span for clean alignment
+                HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT,
+                Border = addBorder ? Rectangle.TOP_BORDER : Rectangle.NO_BORDER,
+                PaddingTop = 5f,
+                PaddingBottom = 5f
+            };
+            table.AddCell(cell);
+        }
+
+        // 🆕 Helper Function to Create Statement Table
+        private PdfPTable CreateStatementTable(iTextSharp.text.Font headerFont)
+        {
+            PdfPTable table = new PdfPTable(5)
+            {
+                WidthPercentage = 100
+            };
+            table.SetWidths(new float[] { 15f, 35f, 10f, 10f, 10f });
+
+            table.AddCell(new PdfPCell(new Phrase("Date", headerFont)));
+            table.AddCell(new PdfPCell(new Phrase("Particulars", headerFont)));
+            table.AddCell(new PdfPCell(new Phrase("Debit", headerFont)) { HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
+            table.AddCell(new PdfPCell(new Phrase("Credit", headerFont)) { HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
+            table.AddCell(new PdfPCell(new Phrase("Balance", headerFont)) { HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
+
+            return table;
+        }
 
     }
+
 }

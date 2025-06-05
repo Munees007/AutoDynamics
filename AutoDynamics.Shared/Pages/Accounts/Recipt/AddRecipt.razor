@@ -130,7 +130,7 @@
                 if (bill.remainingBalance > 0 && bill.remainingBalance <= splitAmount)
                 {
                     bill.amountPayed = bill.remainingBalance;
-					// splitAmount -= bill.remainingBalance;
+                    // splitAmount -= bill.remainingBalance;
                 }
             }
         }
@@ -243,6 +243,7 @@
                 throw new Exception("No Bills Selected");
             }
             creditReciptTypes.creditBills = selectedBills;
+
             Ledger cashLedger = new Ledger
             {
 					 DR_Amount = selectedBills.Where((b)=> b.paymentType == PaymentTypes.CASH).Sum(b => b.amountPayed),
@@ -252,21 +253,36 @@
                     AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "CASH A/C")?.AcccountId ?? 0,
                 //AccountType = LedgerAccountType.CASH,
 					Balance = 0,
-                    Particulars = $"Cash A/C Dr\n To {creditReciptTypes.customer.Name} A/C",
+                    Particulars = $"By Cash",
                     Date = creditReciptTypes.ReciptDate,
+                    ForWho = creditReciptTypes.customer.CustomerId
             };
             Ledger bankLedger = new Ledger
                 {
-                    DR_Amount = selectedBills.Where((b) => b.paymentType != PaymentTypes.CASH).Sum(b => b.amountPayed),
+                    DR_Amount = selectedBills.Where((b) => b.paymentType != PaymentTypes.CASH && b.paymentType != PaymentTypes.CARD).Sum(b => b.amountPayed),
                     CR_Amount = 0,
                     Branch = currentBranch,
                     TransactionType = TransactionType.RECEIPT,
                     AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "BANK A/C")?.AcccountId ?? 0,
                 //AccountType = LedgerAccountType.BANK,
                     Balance = 0,
-                    Particulars = $"Bank A/C Dr\n To {creditReciptTypes.customer.Name} A/C",
+                    Particulars = $"By Bank",
                     Date = creditReciptTypes.ReciptDate,
+                    ForWho = creditReciptTypes.customer.CustomerId
                 };
+            Ledger CardLedger = new Ledger
+            {
+                    AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "CARD A/C")?.AcccountId ?? 0,
+                //AccountType = LedgerAccountType.BANK,
+                    DR_Amount = selectedBills.Where((b) => b.paymentType == PaymentTypes.CARD).Sum(b => b.amountPayed),
+                    Particulars = $"By Card",
+                    TransactionType = TransactionType.RECEIPT,
+                    Date = creditReciptTypes.ReciptDate,
+                    Balance = 0,
+                    Branch = currentBranch,
+                    CR_Amount = 0,
+                    ForWho = creditReciptTypes.customer.CustomerId
+            };
             // Credit: Customer (they paid, so reduce what they owe)
             Ledger customerCreditLedger = new Ledger
                 {
@@ -276,8 +292,9 @@
                     TransactionType = TransactionType.RECEIPT,
                     AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "CUSTOMER A/C")?.AcccountId ?? 0,
                     Balance = 0,
-                    Particulars = "Being payment received", // optional
+                    Particulars = "To Receipt for Receipt: ", // optional
                     Date = creditReciptTypes.ReciptDate,
+                    ForWho = creditReciptTypes.customer.CustomerId
                 };
 
 
@@ -289,6 +306,10 @@
             if(bankLedger.DR_Amount > 0)
             {
                 ledgers.Add(bankLedger);
+            }
+            if(CardLedger.DR_Amount > 0)
+            {
+                ledgers.Add(CardLedger);
             }
             ledgers.Add(customerCreditLedger);
 

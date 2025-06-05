@@ -161,15 +161,15 @@ namespace AutoDynamics.Services
         {
             string insertQuery = @"
         INSERT INTO CashBankLedger 
-        (Date, AccountID, Branch, TransactionType, ReferenceID, Particulars, DrAmount, CrAmount, Balance) 
-        VALUES (@Date, @AccountID, @Branch, @TransactionType, @ReferenceID, @Particulars, @DrAmount, @CrAmount, @Balance);
+        (Date, AccountID, Branch, TransactionType, ReferenceID, Particulars, DrAmount, CrAmount, Balance,ForWho) 
+        VALUES (@Date, @AccountID, @Branch, @TransactionType, @ReferenceID, @Particulars, @DrAmount, @CrAmount, @Balance,@ForWho);
         SELECT LAST_INSERT_ID();";
 
             string updateQuery = @"
         UPDATE CashBankLedger 
         SET Date = @Date, AccountID = @AccountID, Branch = @Branch,
             TransactionType = @TransactionType, ReferenceID = @ReferenceID,
-            Particulars = @Particulars, DrAmount = @DrAmount, CrAmount = @CrAmount, Balance = @Balance 
+            Particulars = @Particulars, DrAmount = @DrAmount, CrAmount = @CrAmount, Balance = @Balance , ForWho = @ForWho
         WHERE LedgerID = @LedgerID;";
 
             List<int> insertedOrUpdatedIds = new List<int>();
@@ -192,7 +192,7 @@ namespace AutoDynamics.Services
                         command.Parameters.AddWithValue("@DrAmount", ledger.DR_Amount);
                         command.Parameters.AddWithValue("@CrAmount", ledger.CR_Amount);
                         command.Parameters.AddWithValue("@Balance", ledger.Balance);
-
+                        command.Parameters.AddWithValue("@ForWho", ledger.ForWho);
                         await command.ExecuteNonQueryAsync();
                         insertedOrUpdatedIds.Add(ledger.LedgerID);
                     }
@@ -210,7 +210,7 @@ namespace AutoDynamics.Services
                         command.Parameters.AddWithValue("@DrAmount", ledger.DR_Amount);
                         command.Parameters.AddWithValue("@CrAmount", ledger.CR_Amount);
                         command.Parameters.AddWithValue("@Balance", ledger.Balance);
-
+                        command.Parameters.AddWithValue("@ForWho", ledger.ForWho);
                         var result = await command.ExecuteScalarAsync();
                         int newId = Convert.ToInt32(result);
                         if (newId == 0) throw new Exception("Ledger insert failed");
@@ -395,12 +395,11 @@ namespace AutoDynamics.Services
                         }
                         else
                         {
-                            List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
-                            int mainLedgerId = ledgerIds[0];
+                           
 
                             // Insert new receipt
-                            string insertQuery = @"INSERT INTO Receipts (CustomerID, PaymentDate, TotalAmountPaid, LedgerID,Branch) 
-                                           VALUES (@CustomerID, @PaymentDate, @TotalAmountPaid, @LedgerID,@Branch); 
+                            string insertQuery = @"INSERT INTO Receipts (CustomerID, PaymentDate, TotalAmountPaid,Branch) 
+                                           VALUES (@CustomerID, @PaymentDate, @TotalAmountPaid,@Branch); 
                                            SELECT LAST_INSERT_ID();";
 
                             using (var command = new MySqlCommand(insertQuery, connection, (MySqlTransaction)transaction))
@@ -408,7 +407,7 @@ namespace AutoDynamics.Services
                                 command.Parameters.AddWithValue("@CustomerID", creditRecipt.customer.CustomerId);
                                 command.Parameters.AddWithValue("@PaymentDate", creditRecipt.ReciptDate);
                                 command.Parameters.AddWithValue("@TotalAmountPaid", creditRecipt.creditBills.Sum(x => x.amountPayed));
-                                command.Parameters.AddWithValue("@LedgerID", mainLedgerId);
+                                
                                 command.Parameters.AddWithValue("@Branch", creditRecipt.Branch);
                                 var result = await command.ExecuteScalarAsync();
                                 receiptId = int.Parse(result?.ToString() ?? "0");
@@ -416,9 +415,11 @@ namespace AutoDynamics.Services
                                 if (receiptId == 0)
                                     throw new Exception("Unable to Insert Receipt, Please try again");
                             }
-
+                            ledgers.Last<Ledger>().Particulars += (creditRecipt.Branch == "Sivakasi" ? "R_SFR":"R_BPR") + receiptId.ToString().PadLeft(7,'0');
+                            List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
+                            int mainLedgerId = ledgerIds[0];
                             // Set receipt reference in ledgers
-                            foreach(int id in ledgerIds)
+                            foreach (int id in ledgerIds)
                             {
                                 string updateLedgerRefQuery = @"UPDATE CashBankLedger SET ReferenceID = @ReferenceID, EntryID = @EntryID WHERE LedgerID = @LedgerID";
                                 using (var updateCmd = new MySqlCommand(updateLedgerRefQuery, connection, (MySqlTransaction)transaction))
@@ -783,14 +784,37 @@ namespace AutoDynamics.Services
 
                                 if (purchaseBill.type == PaymentType.CREDIT)
                                 {
-                                    string updateCreditQuery = @"Update SupplierCreditRecord  SET CreditAmount = @CreditAmount WHERE PurchaseBillID = @PurchaseBillID";
-                                    using (var updateCommand = new MySqlCommand(updateCreditQuery, connection, (MySqlTransaction)transaction))
+                                    // ✅ Check if the record exists first
+                                    string checkExistsQuery = @"SELECT COUNT(*) FROM SupplierCreditRecord WHERE PurchaseBillID = @PurchaseBillID";
+                                    using (var checkCommand = new MySqlCommand(checkExistsQuery, connection, (MySqlTransaction)transaction))
                                     {
+                                        checkCommand.Parameters.AddWithValue("@PurchaseBillID", purchaseBillId);
+                                        int recordCount = Convert.ToInt32(await checkCommand.ExecuteScalarAsync());
 
-                                        updateCommand.Parameters.AddWithValue("@PurchaseBillID", purchaseBillId);
-                                        updateCommand.Parameters.AddWithValue("@CreditAmount", purchaseBill.TotalAmount);
-                                        
-                                        await updateCommand.ExecuteNonQueryAsync();
+                                        if (recordCount > 0)
+                                        {
+                                            // ✅ Update if exists
+                                            string updateCreditQuery = @"UPDATE SupplierCreditRecord SET CreditAmount = @CreditAmount WHERE PurchaseBillID = @PurchaseBillID";
+                                            using (var updateCommand = new MySqlCommand(updateCreditQuery, connection, (MySqlTransaction)transaction))
+                                            {
+                                                updateCommand.Parameters.AddWithValue("@PurchaseBillID", purchaseBillId);
+                                                updateCommand.Parameters.AddWithValue("@CreditAmount", purchaseBill.TotalAmount);
+                                                await updateCommand.ExecuteNonQueryAsync();
+                                            }
+                                        }
+                                        else
+                                        {
+                                            // ✅ Insert new record if not exists
+                                            string insertCredit = @"INSERT INTO SupplierCreditRecord (SupplierID,PurchaseBillID,CreditAmount,DueDate,Status) VALUES(@SupplierID,@PurchaseBillID,@CreditAmount,@DueDate,'Pending')";
+                                            using (var insertCommand = new MySqlCommand(insertCredit, connection, (MySqlTransaction)transaction))
+                                            {
+                                                insertCommand.Parameters.AddWithValue("@SupplierID", purchaseBill.SupplierID);
+                                                insertCommand.Parameters.AddWithValue("@PurchaseBillID", purchaseBillId);
+                                                insertCommand.Parameters.AddWithValue("@CreditAmount", purchaseBill.TotalAmount);
+                                                insertCommand.Parameters.AddWithValue("@DueDate", purchaseBill.PurchaseDate);
+                                                await insertCommand.ExecuteNonQueryAsync();
+                                            }
+                                        }
                                     }
                                 }
                                 else
@@ -1102,17 +1126,45 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                     // 6. Update Credit Record if Bank Amount > 0
                     if (billPayment.BankAmount > 0)
                     {
-                        string updateCreditQuery = @"
+                        // ✅ Check if the record exists first
+                        string checkExistsQuery = @"SELECT COUNT(*) FROM CreditRecord WHERE BillID = @BillID";
+                        using (var checkCommand = new MySqlCommand(checkExistsQuery, connection, (MySqlTransaction)transaction))
+                        {
+                            checkCommand.Parameters.AddWithValue("@BillID", bill.BillID);
+                            int recordCount = Convert.ToInt32(await checkCommand.ExecuteScalarAsync());
+
+                            if (recordCount > 0)
+                            {
+                                // ✅ Update if exists
+                                string updateCreditQuery = @"
             UPDATE CreditRecord 
             SET CreditAmount = @CreditAmount, DueDate = @DueDate, Status = 'Pending' 
             WHERE BillID = @BillID";
 
-                        using (var command = new MySqlCommand(updateCreditQuery, connection, (MySqlTransaction)transaction))
-                        {
-                            command.Parameters.AddWithValue("@BillID", bill.BillID);
-                            command.Parameters.AddWithValue("@CreditAmount", billPayment.BankAmount);
-                            command.Parameters.AddWithValue("@DueDate", DateTime.UtcNow.AddMonths(1).ToString("yyyy-MM-dd")); // Example: 1-month due date
-                            await command.ExecuteNonQueryAsync();
+                                using (var updateCommand = new MySqlCommand(updateCreditQuery, connection, (MySqlTransaction)transaction))
+                                {
+                                    updateCommand.Parameters.AddWithValue("@BillID", bill.BillID);
+                                    updateCommand.Parameters.AddWithValue("@CreditAmount", billPayment.BankAmount);
+                                    updateCommand.Parameters.AddWithValue("@DueDate", DateTime.UtcNow.AddMonths(1).ToString("yyyy-MM-dd")); // Example: 1-month due date
+                                    await updateCommand.ExecuteNonQueryAsync();
+                                }
+                            }
+                            else
+                            {
+                                // ✅ Insert new record if not exists
+                                string creditRecordQuery = @"
+    INSERT INTO CreditRecord (CustomerID, BillID, CreditAmount, DueDate, Status) 
+    VALUES (@CustomerID, @BillID, @CreditAmount, @DueDate, 'Pending')";
+
+                                using (var command = new MySqlCommand(creditRecordQuery, connection, (MySqlTransaction)transaction))
+                                {
+                                    command.Parameters.AddWithValue("@CustomerID", bill.CustomerID);
+                                    command.Parameters.AddWithValue("@BillID", bill.BillID); ;
+                                    command.Parameters.AddWithValue("@CreditAmount", billPayment.BankAmount);
+                                    command.Parameters.AddWithValue("@DueDate", DateTime.UtcNow.AddMonths(1).ToString("yyyy-MM-dd")); // Example: 1-month due date
+                                    await command.ExecuteNonQueryAsync();
+                                }
+                            }
                         }
                     }
                     else
@@ -1133,6 +1185,7 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                         
                         await deleteCommand.ExecuteNonQueryAsync();
                     }
+                    ledgers.Last<Ledger>().Particulars += (bill.Branch == "Sivakasi" ? "SFR" : "BPR") + bill.BillNo.ToString().PadLeft(4, '0');
                     // 5. Update Bill Reference in CashBankLedger
                     List<int> ledgersId = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
                     int mainID = ledgersId[0];
@@ -1166,8 +1219,7 @@ WHERE ProductID = @ProductID AND Branch = @Branch
             {
                 try
                 {
-                    List<int> ledgersId = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
-                    int mainID = ledgersId[0];
+                    
                     // Determine the correct BillingYear based on April 1st financial year
                     int currentYear = DateTime.Now.Year;
                     int currentMonth = DateTime.Now.Month;
@@ -1227,8 +1279,11 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                             throw new Exception("Failed to insert Bill");
                         }
                     }
+                    ledgers.Last<Ledger>().Particulars += (bill.Branch == "Sivakasi" ? "SFR" :"BPR") + newBillNo.ToString().PadLeft(4,'0');
+                    List<int> ledgersId = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
+                    int mainID = ledgersId[0];
 
-                    foreach(int id in ledgersId)
+                    foreach (int id in ledgersId)
                     {
                         string updateLedgerRefQuery = @"UPDATE CashBankLedger SET ReferenceID = @ReferenceID,EntryID = @EntryID WHERE LedgerID = @LedgerID";
                         using (var updateCmd = new MySqlCommand(updateLedgerRefQuery, connection, (MySqlTransaction)transaction))

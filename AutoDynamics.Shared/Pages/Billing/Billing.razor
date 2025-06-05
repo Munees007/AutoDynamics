@@ -552,31 +552,32 @@
                         AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "CASH A/C")?.AcccountId ?? 0,
                     //AccountType = LedgerAccountType.CASH,
                         DR_Amount = billPayment.CashAmount,
-                        Particulars = $"Received Cash From {bill.Customer.Name}",
+                        Particulars = $"By Cash",
                         TransactionType = TransactionType.BILL,
                         Date = bill.BillDate,
                         Balance = 0,
                         Branch = bill.Branch,
                         CR_Amount = 0,
+                        ForWho = bill.Customer.CustomerId
 
                     };
                 ledgers.Add(cashLedger);
             }
 
-            if (billPayment.UPIAmount > 0 || billPayment.CardAmount > 0)
+            if (billPayment.UPIAmount > 0)
             {
                 Ledger bankLedger = new Ledger
                     {
                         AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "BANK A/C")?.AcccountId ?? 0,
                     //AccountType = LedgerAccountType.BANK,
                         DR_Amount = billPayment.UPIAmount,
-                        Particulars = $"Received in Bank",
+                        Particulars = $"By Bank",
                         TransactionType = TransactionType.BILL,
                         Date = bill.BillDate,
                         Balance = 0,
                         Branch = bill.Branch,
                         CR_Amount = 0,
-
+                        ForWho = bill.Customer.CustomerId
                     };
                 ledgers.Add(bankLedger);
             }
@@ -587,13 +588,13 @@
                         AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "CARD A/C")?.AcccountId ?? 0,
                     //AccountType = LedgerAccountType.BANK,
                         DR_Amount =billPayment.CardAmount,
-                        Particulars = $"Received in Bank through card",
+                        Particulars = $"By Card",
                         TransactionType = TransactionType.BILL,
                         Date = bill.BillDate,
                         Balance = 0,
                         Branch = bill.Branch,
                         CR_Amount = 0,
-
+                        ForWho = bill.Customer.CustomerId
                     };
                 ledgers.Add(cardLedger);
             }
@@ -605,12 +606,13 @@
                         AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "CUSTOMER CREDIT A/C")?.AcccountId ?? 0,
                     //AccountType = LedgerAccountType.CREDIT,
                         CR_Amount = billPayment.BankAmount,
-                        Particulars = $"Amount to be Received later",
+                        Particulars = $"By Credit",
                         TransactionType = TransactionType.BILL,
                         Date = bill.BillDate,
                         Balance = 0,
                         Branch = bill.Branch,
                         DR_Amount = 0,
+                        ForWho = bill.Customer.CustomerId
                     };
                 ledgers.Add(creditLedger);
             }
@@ -619,13 +621,14 @@
                 {
                     AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "SALES A/C")?.AcccountId ?? 0,
                 //AccountType = LedgerAccountType.SALES,
-                    CR_Amount = billPayment.UPIAmount + billPayment.CardAmount + billPayment.CashAmount,
-                    Particulars = $"Sales for {bill.Customer.Name}",
+                    CR_Amount = billPayment.UPIAmount + billPayment.CardAmount + billPayment.CashAmount + billPayment.BankAmount,
+                    Particulars = $"To Sales Bill No: ",
                     TransactionType = TransactionType.BILL,
                     Date = bill.BillDate,
                     Balance = 0,
                     Branch = bill.Branch,
                     DR_Amount = 0,
+                    ForWho = bill.Customer.CustomerId
                 };
 
             ledgers.Add(salesLedger);
@@ -639,13 +642,13 @@
             {
                 if (isUpdating)
                 {
-                   
+
                     int[] temp = await DatabaseHandler.InsertBillAsync(bill, BillItems, billPayment, true,ledgers);
                     ToastService.ShowToast("Bill Updated Successfully", ToastType.sucess);
                 }
                 else
                 {
-                    
+
 
                     int[] data = await DatabaseHandler.InsertBillAsync(bill, BillItems, billPayment, false,ledgers);
                     bill.BillID = data[0];
@@ -802,10 +805,15 @@
                         AccountType = at,
                         isActive = bool.Parse(row["IsActive"].ToString() ?? "true")
                     });
+
+
             }
         }
-
-        
+        Debug.WriteLine(res6.Count.ToString());
+        foreach(var item in AccountTypes)
+        {
+            Debug.WriteLine($"Ledger Accounts ID = {item.AcccountId}, Account Name = {item.AccountName}");
+        }
     }
 
     private void AddNewItem()
