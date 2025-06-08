@@ -83,6 +83,8 @@
         {
             foreach (var row in res)
             {
+				bool active = bool.Parse(row["isActive"].ToString() ?? "false");
+				if (!active) continue;
                 ledgers.Add(new Ledger
                     {
                         LedgerID = Convert.ToInt32(row["LedgerID"]),
@@ -95,7 +97,8 @@
                         Particulars = row["Particulars"]?.ToString() ?? "",
                         CR_Amount = Convert.ToDecimal(row["CrAmount"]),
                         DR_Amount = Convert.ToDecimal(row["DrAmount"]),
-                        Balance = Convert.ToDecimal(row["Balance"])
+                        Balance = Convert.ToDecimal(row["Balance"]),
+                        isActive = active
                     });
             }
         }
