@@ -299,6 +299,7 @@
 
 
             List<Ledger> ledgers = new List<Ledger>();
+            ledgers.Add(customerCreditLedger);
             if(cashLedger.DR_Amount > 0)
             {
                 ledgers.Add(cashLedger);
@@ -311,7 +312,7 @@
             {
                 ledgers.Add(CardLedger);
             }
-            ledgers.Add(customerCreditLedger);
+            
 
 
 

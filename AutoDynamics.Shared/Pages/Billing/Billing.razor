@@ -545,6 +545,21 @@
 
 
             List<Ledger> ledgers = new List<Ledger>();
+            Ledger salesLedger = new Ledger
+                {
+                    AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "SALES A/C")?.AcccountId ?? 0,
+                //AccountType = LedgerAccountType.SALES,
+                    CR_Amount = billPayment.UPIAmount + billPayment.CardAmount + billPayment.CashAmount + billPayment.BankAmount,
+                    Particulars = $"To Sales Bill No: ",
+                    TransactionType = TransactionType.BILL,
+                    Date = bill.BillDate,
+                    Balance = 0,
+                    Branch = bill.Branch,
+                    DR_Amount = 0,
+                    ForWho = bill.Customer.CustomerId
+                };
+
+            ledgers.Add(salesLedger);
             if (billPayment.CashAmount > 0)
             {
                 Ledger cashLedger = new Ledger
@@ -617,21 +632,7 @@
                 ledgers.Add(creditLedger);
             }
 
-            Ledger salesLedger = new Ledger
-                {
-                    AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "SALES A/C")?.AcccountId ?? 0,
-                //AccountType = LedgerAccountType.SALES,
-                    CR_Amount = billPayment.UPIAmount + billPayment.CardAmount + billPayment.CashAmount + billPayment.BankAmount,
-                    Particulars = $"To Sales Bill No: ",
-                    TransactionType = TransactionType.BILL,
-                    Date = bill.BillDate,
-                    Balance = 0,
-                    Branch = bill.Branch,
-                    DR_Amount = 0,
-                    ForWho = bill.Customer.CustomerId
-                };
-
-            ledgers.Add(salesLedger);
+           
             BillDetails finalBill = new BillDetails
                 {
                     Bill = bill,

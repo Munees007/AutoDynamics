@@ -21,6 +21,7 @@ namespace AutoDynamics.Shared.Modals.Accounts
         public int LedgerID { get; set; } = 0;
         public int EntryID { get; set; } = 0;
         public string ForWho { get; set; } = string.Empty;
+        public string billOrInvoiceNo { get; set; } = string.Empty;
         public DateTime Date { get; set; } = DateTime.Now;
         public int AccountID { get; set; }
         public LedgerAcccounts AccountType { get; set; } = new LedgerAcccounts();

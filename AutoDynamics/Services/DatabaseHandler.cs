@@ -157,20 +157,31 @@ namespace AutoDynamics.Services
         public async Task<List<int>> InsertOrUpdateMultipleLedgerAsync(
     MySqlConnection connection,
     MySqlTransaction transaction,
-    List<Ledger> ledgers)
+    List<Ledger> ledgers,bool isUpdating)
         {
             string insertQuery = @"
         INSERT INTO CashBankLedger 
-        (Date, AccountID, Branch, TransactionType, ReferenceID, Particulars, DrAmount, CrAmount, Balance,ForWho) 
-        VALUES (@Date, @AccountID, @Branch, @TransactionType, @ReferenceID, @Particulars, @DrAmount, @CrAmount, @Balance,@ForWho);
+        (Date, AccountID, Branch, TransactionType, ReferenceID, Particulars, DrAmount, CrAmount, Balance,ForWho,billOrInvoiceNo) 
+        VALUES (@Date, @AccountID, @Branch, @TransactionType, @ReferenceID, @Particulars, @DrAmount, @CrAmount, @Balance,@ForWho,@billOrInvoiceNo);
         SELECT LAST_INSERT_ID();";
+
+            string deactivateQuery = @"UPDATE CashBankLedger SET isActive = 0 WHERE ReferenceID = @ReferenceID";
+
+            if (isUpdating)
+            {
+                using (var command = new MySqlCommand(deactivateQuery, connection, transaction))
+                {
+                    command.Parameters.AddWithValue("@ReferenceID", ledgers[0].ReferenceID);                                                                                         
+                    await command.ExecuteNonQueryAsync();
+                }
+            }
 
             string updateQuery = @"
         UPDATE CashBankLedger 
-        SET Date = @Date, AccountID = @AccountID, Branch = @Branch,
-            TransactionType = @TransactionType, ReferenceID = @ReferenceID,
-            Particulars = @Particulars, DrAmount = @DrAmount, CrAmount = @CrAmount, Balance = @Balance , ForWho = @ForWho
-        WHERE LedgerID = @LedgerID;";
+        SET Date = @Date, Branch = @Branch, isActive = 1,
+            TransactionType = @TransactionType,
+            Particulars = @Particulars, DrAmount = @DrAmount, CrAmount = @CrAmount, Balance = @Balance , ForWho = @ForWho,billOrInvoiceNo = @billOrInvoiceNo
+        WHERE AccountID = @AccountID AND ReferenceID = @ReferenceID;";
 
             List<int> insertedOrUpdatedIds = new List<int>();
 
@@ -178,11 +189,11 @@ namespace AutoDynamics.Services
             {
                 if (ledger == null) continue;
 
-                if (ledger.LedgerID > 0) // update
+                if (isUpdating) // update
                 {
                     using (var command = new MySqlCommand(updateQuery, connection, transaction))
                     {
-                        command.Parameters.AddWithValue("@LedgerID", ledger.LedgerID);
+                        
                         command.Parameters.AddWithValue("@Date", ledger.Date);
                         command.Parameters.AddWithValue("@AccountID", ledger.AccountID);
                         command.Parameters.AddWithValue("@Branch", ledger.Branch);
@@ -193,7 +204,28 @@ namespace AutoDynamics.Services
                         command.Parameters.AddWithValue("@CrAmount", ledger.CR_Amount);
                         command.Parameters.AddWithValue("@Balance", ledger.Balance);
                         command.Parameters.AddWithValue("@ForWho", ledger.ForWho);
-                        await command.ExecuteNonQueryAsync();
+                        command.Parameters.AddWithValue("@billOrInvoiceNo", ledger.billOrInvoiceNo);
+                        int affected = await command.ExecuteNonQueryAsync();
+
+                        if(affected == 0)
+                        {
+                            command.Parameters.AddWithValue("@Date", ledger.Date);
+                            command.Parameters.AddWithValue("@AccountID", ledger.AccountID);
+                            command.Parameters.AddWithValue("@Branch", ledger.Branch);
+                            command.Parameters.AddWithValue("@TransactionType", ledger.TransactionType.ToString());
+                            command.Parameters.AddWithValue("@ReferenceID", ledger.ReferenceID);
+                            command.Parameters.AddWithValue("@Particulars", ledger.Particulars);
+                            command.Parameters.AddWithValue("@DrAmount", ledger.DR_Amount);
+                            command.Parameters.AddWithValue("@CrAmount", ledger.CR_Amount);
+                            command.Parameters.AddWithValue("@Balance", ledger.Balance);
+                            command.Parameters.AddWithValue("@ForWho", ledger.ForWho);
+                            command.Parameters.AddWithValue("@billOrInvoiceNo", ledger.billOrInvoiceNo);
+                            var result = await command.ExecuteScalarAsync();
+                            int newId = Convert.ToInt32(result);
+                            if (newId == 0) throw new Exception("Ledger insert failed");
+                            insertedOrUpdatedIds.Add(newId);
+                        }
+
                         insertedOrUpdatedIds.Add(ledger.LedgerID);
                     }
                 }
@@ -211,6 +243,7 @@ namespace AutoDynamics.Services
                         command.Parameters.AddWithValue("@CrAmount", ledger.CR_Amount);
                         command.Parameters.AddWithValue("@Balance", ledger.Balance);
                         command.Parameters.AddWithValue("@ForWho", ledger.ForWho);
+                        command.Parameters.AddWithValue("@billOrInvoiceNo", ledger.billOrInvoiceNo);
                         var result = await command.ExecuteScalarAsync();
                         int newId = Convert.ToInt32(result);
                         if (newId == 0) throw new Exception("Ledger insert failed");
@@ -321,7 +354,11 @@ namespace AutoDynamics.Services
 
                         if (isUpdating)
                         {
-                            List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
+                            foreach(var ledger in ledgers)
+                            {
+                                ledger.ReferenceID = receiptId;
+                            }
+                            List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers,true);
                             int mainLedgerId = ledgerIds[0];
 
                             // 1. Fetch existing ReceiptBills
@@ -416,7 +453,11 @@ namespace AutoDynamics.Services
                                     throw new Exception("Unable to Insert Receipt, Please try again");
                             }
                             ledgers.Last<Ledger>().Particulars += (creditRecipt.Branch == "Sivakasi" ? "R_SFR":"R_BPR") + receiptId.ToString().PadLeft(7,'0');
-                            List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
+                            foreach(var ledger in ledgers)
+                            {
+                                ledger.billOrInvoiceNo = (creditRecipt.Branch == "Sivakasi" ? "R_SFR" : "R_BPR") + receiptId.ToString().PadLeft(7, '0');
+                            }
+                            List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers,false);
                             int mainLedgerId = ledgerIds[0];
                             // Set receipt reference in ledgers
                             foreach (int id in ledgerIds)
@@ -488,7 +529,7 @@ namespace AutoDynamics.Services
 
                         if (isUpdating)
                         {
-                            List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
+                            List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers,true);
                             int mainLedgerId = ledgerIds[0];
 
                             // 1. Fetch existing ReceiptBills
@@ -562,11 +603,10 @@ namespace AutoDynamics.Services
                         }
                         else
                         {
-                            List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
-                            int mainLedgerId = ledgerIds[0];
+                           
 
                             // Insert new receipt
-                            string insertQuery = @"INSERT INTO Payments (SupplierID, PaymentDate, TotalAmountPaid, LedgerID,Branch) 
+                            string insertQuery = @"INSERT INTO Payments (SupplierID, PaymentDate, TotalAmountPaid,Branch) 
                                            VALUES (@SupplierID, @PaymentDate, @TotalAmountPaid, @LedgerID,@Branch); 
                                            SELECT LAST_INSERT_ID();";
 
@@ -575,7 +615,7 @@ namespace AutoDynamics.Services
                                 command.Parameters.AddWithValue("@SupplierID", creditRecipt.supplier.SupplierID);
                                 command.Parameters.AddWithValue("@PaymentDate", creditRecipt.PaymentDate);
                                 command.Parameters.AddWithValue("@TotalAmountPaid", creditRecipt.paymentBills.Sum(x => x.amountPayed));
-                                command.Parameters.AddWithValue("@LedgerID", mainLedgerId);
+                                
                                 command.Parameters.AddWithValue("@Branch", creditRecipt.Branch);
                                 var result = await command.ExecuteScalarAsync();
                                 paymentID = int.Parse(result?.ToString() ?? "0");
@@ -583,6 +623,13 @@ namespace AutoDynamics.Services
                                 if (paymentID == 0)
                                     throw new Exception("Unable to Insert Receipt, Please try again");
                             }
+                            ledgers.Last<Ledger>().Particulars += (creditRecipt.Branch == "Sivakasi" ? "P_SFR" : "P_BPR") + paymentID.ToString().PadLeft(7, '0');
+                            foreach (var ledger in ledgers)
+                            {
+                                ledger.billOrInvoiceNo = (creditRecipt.Branch == "Sivakasi" ? "P_SFR" : "P_BPR") + paymentID.ToString().PadLeft(7, '0');
+                            }
+                            List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers,false);
+                            int mainLedgerId = ledgerIds[0];
 
                             // Set receipt reference in ledgers
                             foreach (int id in ledgerIds)
@@ -828,16 +875,12 @@ namespace AutoDynamics.Services
                                 }
 
                                 //delete existing ledger entry
-                                string deleteLedgerQuery = @"DELETE FROM CashBankLedger WHERE ReferenceID = @ReferenceID AND TransactionType = @TransactionType";
-                                using (var deleteCommand = new MySqlCommand(deleteLedgerQuery, connection, (MySqlTransaction)transaction))
+                                foreach(var ledger in ledgers)
                                 {
-                                    deleteCommand.Parameters.AddWithValue("@ReferenceID", purchaseBillId);
-                                    deleteCommand.Parameters.AddWithValue("@TransactionType", TransactionType.PURCHASE.ToString());
-
-                                    await deleteCommand.ExecuteNonQueryAsync();
+                                    ledger.ReferenceID = purchaseBillId;
                                 }
                                 // 5. Update Bill Reference in CashBankLedger
-                                List<int> ledgersId = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
+                                List<int> ledgersId = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers,true);
                                 int mainID = ledgersId[0];
                                 foreach (int id in ledgersId)
                                 {
@@ -868,7 +911,7 @@ namespace AutoDynamics.Services
                             }
                             else
                             {
-                                List<int> ledgersId = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
+                                List<int> ledgersId = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers,false);
                                 int mainID = ledgersId[0];
                                 // Insert new purchase bill
                                 var result = await command.ExecuteScalarAsync();
@@ -1177,17 +1220,15 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                         }
                     }
                     //delete existing ledger entry
-                    string deleteLedgerQuery = @"DELETE FROM CashBankLedger WHERE ReferenceID = @ReferenceID AND TransactionType = @TransactionType";
-                    using (var deleteCommand = new MySqlCommand(deleteLedgerQuery, connection, (MySqlTransaction)transaction))
-                    {
-                        deleteCommand.Parameters.AddWithValue("@ReferenceID", bill.BillID);
-                        deleteCommand.Parameters.AddWithValue("@TransactionType", TransactionType.BILL.ToString());
-                        
-                        await deleteCommand.ExecuteNonQueryAsync();
-                    }
+                    
                     ledgers.Last<Ledger>().Particulars += (bill.Branch == "Sivakasi" ? "SFR" : "BPR") + bill.BillNo.ToString().PadLeft(4, '0');
+                    foreach (var ledger in ledgers)
+                    {
+                        ledger.ReferenceID = bill.BillID;
+                        ledger.billOrInvoiceNo = (bill.Branch == "Sivakasi" ? "SFR" : "BPR") + bill.BillNo.ToString().PadLeft(4, '0');
+                    }
                     // 5. Update Bill Reference in CashBankLedger
-                    List<int> ledgersId = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
+                    List<int> ledgersId = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers,true);
                     int mainID = ledgersId[0];
                     foreach (int id in ledgersId)
                     {
@@ -1280,7 +1321,11 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                         }
                     }
                     ledgers.Last<Ledger>().Particulars += (bill.Branch == "Sivakasi" ? "SFR" :"BPR") + newBillNo.ToString().PadLeft(4,'0');
-                    List<int> ledgersId = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers);
+                    foreach(var ledger in ledgers)
+                    {
+                        ledger.billOrInvoiceNo = (bill.Branch == "Sivakasi" ? "SFR" : "BPR") + newBillNo.ToString().PadLeft(4, '0');
+                    }
+                    List<int> ledgersId = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers,false);
                     int mainID = ledgersId[0];
 
                     foreach (int id in ledgersId)

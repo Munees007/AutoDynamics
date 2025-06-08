@@ -403,6 +403,20 @@
         purchase.TotalAmount = TotalAmount;
 
         List<Ledger> ledgers = new List<Ledger>();
+        Ledger purchaseLedger = new Ledger
+            {
+                AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "PURCHASE A/C")?.AcccountId ?? 0,
+
+                CR_Amount = purchase.TotalAmount,
+                Particulars = $"Purchased from {purchase.Supplier.Name}, Invoice: {purchase.InvoiceNumber}",
+                TransactionType = TransactionType.PURCHASE,
+                Date = purchase.PurchaseDate,
+                Balance = 0,
+                Branch = purchase.Branch,
+                DR_Amount = 0,
+                ForWho = purchase.Supplier.SupplierID
+            };
+        ledgers.Add(purchaseLedger);
 
         if(purchase.type == PaymentType.CASH)
         {
@@ -439,20 +453,7 @@
             ledgers.Add(bankLedger);
         }
 
-        Ledger purchaseLedger = new Ledger
-        {
-                AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "PURCHASE A/C")?.AcccountId ?? 0,
-            
-                CR_Amount = purchase.TotalAmount,
-                Particulars = $"Purchased from {purchase.Supplier.Name}, Invoice: {purchase.InvoiceNumber}",
-                TransactionType = TransactionType.PURCHASE,
-                Date = purchase.PurchaseDate,
-                Balance = 0,
-                Branch = purchase.Branch,
-                DR_Amount = 0,
-                ForWho = purchase.Supplier.SupplierID
-        };
-        ledgers.Add(purchaseLedger);
+        
 
 
 
