@@ -12,7 +12,7 @@ namespace AutoDynamics.Services
             string basePath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
 
             // Build the folder path: Documents/Reports/2025
-            string reportsPath = Path.Combine(basePath, "Reports", DateTime.Today.Year.ToString());
+            string reportsPath = Path.Combine(basePath, "Reports", "Sale", details, DateTime.Today.Year.ToString());
 
             // Create the directory if it doesn't exist
             Directory.CreateDirectory(reportsPath);
@@ -39,7 +39,7 @@ namespace AutoDynamics.Services
             string basePath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
 
             // Build the folder path: Documents/Reports/2025
-            string reportsPath = Path.Combine(basePath, "Reports", DateTime.Today.Year.ToString());
+            string reportsPath = Path.Combine(basePath, "Reports", "Purchase", details, DateTime.Today.Year.ToString());
 
             // Create the directory if it doesn't exist
             Directory.CreateDirectory(reportsPath);

@@ -25,12 +25,13 @@ namespace AutoDynamics.Services
             ws.Cell(1, 5).Value = "VEHICLE NO";
             ws.Cell(1, 6).Value = "VEHICLE NAME";
             ws.Cell(1, 7).Value = "GST NO";
-            ws.Cell(1, 8).Value = "TAX %";
-            ws.Cell(1, 9).Value = "TAX VALUE";
-            ws.Cell(1, 10).Value ="CGST";
-            ws.Cell(1, 11).Value ="SGST";
-            ws.Cell(1, 12).Value ="ROUND";
-            ws.Cell(1, 13).Value = "TOTAL";
+            ws.Cell(1, 8).Value = "Quantity";
+            ws.Cell(1, 9).Value = "TAX %";
+            ws.Cell(1, 10).Value = "TAX VALUE";
+            ws.Cell(1, 11).Value ="CGST";
+            ws.Cell(1, 12).Value ="SGST";
+            ws.Cell(1, 13).Value ="ROUND";
+            ws.Cell(1, 14).Value = "TOTAL";
             var headerRow = ws.Row(1);
             headerRow.Style.Font.FontColor = XLColor.Red;
             int excelRow = 2; // Start writing from Excel row 2
@@ -55,13 +56,14 @@ namespace AutoDynamics.Services
                     var totalQuantity = 0;
                     var totalTaxableAmount = 0m;
                     var total = 0m;
+                    
                     foreach (var item in serviceItems)
                     {
                         var cgstRate =  9;
                         var sgstRate =9;
                         var cgstAmt = Math.Round(item.TaxableValue * (cgstRate / 100m), 2);
                         var sgstAmt = Math.Round(item.TaxableValue * (sgstRate / 100m), 2);
-
+                       
                         totalCGST += cgstAmt;
                         totalSGST += sgstAmt;
                         totalQuantity += item.Quantity;
@@ -82,15 +84,16 @@ namespace AutoDynamics.Services
                     ws.Cell(excelRow, 5).Value = bill.VehicleNo;
                     ws.Cell(excelRow, 6).Value = bill.Vehicle.ModelName;
                     ws.Cell(excelRow, 7).Value = customer.GSTIN;
-                    ws.Cell(excelRow, 8).Value = 18;
-                    ws.Cell(excelRow, 9).Value = totalTaxableAmount;
-                    ws.Cell(excelRow, 9).Style.NumberFormat.Format = "0.00";
-                    ws.Cell(excelRow, 10).Value = totalCGST;
+                    ws.Cell(excelRow, 8).Value = totalQuantity;
+                    ws.Cell(excelRow, 9).Value = 18;
+                    ws.Cell(excelRow, 10).Value = totalTaxableAmount;
                     ws.Cell(excelRow, 10).Style.NumberFormat.Format = "0.00";
-                    ws.Cell(excelRow, 11).Value = totalSGST;
+                    ws.Cell(excelRow, 11).Value = totalCGST;
                     ws.Cell(excelRow, 11).Style.NumberFormat.Format = "0.00";
-                    ws.Cell(excelRow, 12).Value = roundingDiff;
-                    ws.Cell(excelRow, 13).Value = total;
+                    ws.Cell(excelRow, 12).Value = totalSGST;
+                    ws.Cell(excelRow, 12).Style.NumberFormat.Format = "0.00";
+                    ws.Cell(excelRow, 13).Value = roundingDiff;
+                    ws.Cell(excelRow, 14).Value = total;
                     excelRow++;
                 }
 
@@ -135,15 +138,16 @@ namespace AutoDynamics.Services
                     ws.Cell(excelRow, 5).Value = bill.VehicleNo;
                     ws.Cell(excelRow, 6).Value = bill.Vehicle.ModelName;
                     ws.Cell(excelRow, 7).Value = customer.GSTIN;
-                    ws.Cell(excelRow, 8).Value = 28;
-                    ws.Cell(excelRow, 9).Value = totalTaxableAmount;
-                    ws.Cell(excelRow, 9).Style.NumberFormat.Format = "0.00";
-                    ws.Cell(excelRow, 10).Value = totalCGST;
+                    ws.Cell(excelRow, 8).Value = totalQuantity;
+                    ws.Cell(excelRow, 9).Value = 28;
+                    ws.Cell(excelRow, 10).Value = totalTaxableAmount;
                     ws.Cell(excelRow, 10).Style.NumberFormat.Format = "0.00";
-                    ws.Cell(excelRow, 11).Value = totalSGST;
+                    ws.Cell(excelRow, 11).Value = totalCGST;
                     ws.Cell(excelRow, 11).Style.NumberFormat.Format = "0.00";
-                    ws.Cell(excelRow, 12).Value = roundingDiff;
-                    ws.Cell(excelRow, 13).Value = total;
+                    ws.Cell(excelRow, 12).Value = totalSGST;
+                    ws.Cell(excelRow, 12).Style.NumberFormat.Format = "0.00";
+                    ws.Cell(excelRow, 13).Value = roundingDiff;
+                    ws.Cell(excelRow, 14).Value = total;
                     excelRow++;
                 }
             }
@@ -163,12 +167,13 @@ namespace AutoDynamics.Services
             ws.Cell(1, 3).Value = "Supplier NAME";
             
             ws.Cell(1, 4).Value = "GST NO";
-            ws.Cell(1, 5).Value = "TAX %";
-            ws.Cell(1, 6).Value = "TAX VALUE";
-            ws.Cell(1, 7).Value = "CGST";
-            ws.Cell(1, 8).Value = "SGST";
-            ws.Cell(1, 9).Value = "ROUND";
-            ws.Cell(1, 10).Value = "TOTAL";
+            ws.Cell(1, 5).Value = "Quantity";
+            ws.Cell(1, 6).Value = "TAX %";
+            ws.Cell(1, 7).Value = "TAX VALUE";
+            ws.Cell(1, 8).Value = "CGST";
+            ws.Cell(1, 9).Value = "SGST";
+            ws.Cell(1, 10).Value = "ROUND";
+            ws.Cell(1, 11).Value = "TOTAL";
             var headerRow = ws.Row(1);
             headerRow.Style.Font.FontColor = XLColor.Red;
             int excelRow = 2; // Start writing from Excel row 2
@@ -189,7 +194,8 @@ namespace AutoDynamics.Services
                     var totalCGST = 0m;
                     var totalSGST = 0m;
                     var totalAmount = 0m;
-                    foreach(var item in purchaseItems)
+                    var totalQuantity = 0;
+                    foreach (var item in purchaseItems)
                     {
                         var subTotal = item.Quantity * item.UnitPrice;
                         decimal discount = 0;
@@ -218,7 +224,7 @@ namespace AutoDynamics.Services
                             cgst = item.TaxRate == TaxRate.TAX_18 ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
                             sgst = item.TaxRate == TaxRate.TAX_18 ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
                             item.TotalPrice = Math.Round(item.TaxableValue + cgst + sgst);
-
+                            totalQuantity += item.Quantity;
                             totalTaxableAmount += item.TaxableValue;
                             totalCGST += cgst;
                             totalSGST += sgst;
@@ -238,15 +244,16 @@ namespace AutoDynamics.Services
                     ws.Cell(excelRow, 3).Value = customer.Name;
                     
                     ws.Cell(excelRow, 4).Value = customer.GSTIN;
-                    ws.Cell(excelRow, 5).Value = 28;
-                    ws.Cell(excelRow, 6).Value = totalTaxableAmount;
-                    ws.Cell(excelRow, 6).Style.NumberFormat.Format = "0.00";
-                    ws.Cell(excelRow, 7).Value = totalCGST;
+                    ws.Cell(excelRow, 5).Value = totalQuantity;
+                    ws.Cell(excelRow, 6).Value = 28;
+                    ws.Cell(excelRow, 7).Value = totalTaxableAmount;
                     ws.Cell(excelRow, 7).Style.NumberFormat.Format = "0.00";
-                    ws.Cell(excelRow, 8).Value = totalSGST;
+                    ws.Cell(excelRow, 8).Value = totalCGST;
                     ws.Cell(excelRow, 8).Style.NumberFormat.Format = "0.00";
-                    ws.Cell(excelRow, 9).Value = roundingDiff;
-                    ws.Cell(excelRow, 10).Value = totalAmount;
+                    ws.Cell(excelRow, 9).Value = totalSGST;
+                    ws.Cell(excelRow, 9).Style.NumberFormat.Format = "0.00";
+                    ws.Cell(excelRow, 10).Value = roundingDiff;
+                    ws.Cell(excelRow, 11).Value = totalAmount;
                     excelRow++;
                 }
 

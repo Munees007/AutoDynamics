@@ -426,7 +426,7 @@
     protected override async Task OnInitializedAsync()
     {
         isProcessing = true;
-        loaderText = isUpdating ? "Updating Bill" : (isViewing ? "Viewing Bill" : "Adding Bill");
+        loaderText = "Fetching Data...";
         isAdmin = await MyLocalStorageService.GetItemAsync("IsAdmin") == "true" ? true : false;
         if(isUpdating)
         {
@@ -526,6 +526,7 @@
         {
             Debug.WriteLine(SelectedBranch);
             isProcessing = true;
+            loaderText = isUpdating ? "Updating Bill" : "Adding Bill";
             if (restrictCashBox)
             {
                 CashAmount = TotalAmount;
@@ -545,21 +546,7 @@
 
 
             List<Ledger> ledgers = new List<Ledger>();
-            Ledger salesLedger = new Ledger
-                {
-                    AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "SALES A/C")?.AcccountId ?? 0,
-                //AccountType = LedgerAccountType.SALES,
-                    CR_Amount = billPayment.UPIAmount + billPayment.CardAmount + billPayment.CashAmount + billPayment.BankAmount,
-                    Particulars = $"To Sales Bill No: ",
-                    TransactionType = TransactionType.BILL,
-                    Date = bill.BillDate,
-                    Balance = 0,
-                    Branch = bill.Branch,
-                    DR_Amount = 0,
-                    ForWho = bill.Customer.CustomerId
-                };
-
-            ledgers.Add(salesLedger);
+            
             if (billPayment.CashAmount > 0)
             {
                 Ledger cashLedger = new Ledger
@@ -620,19 +607,35 @@
                     {
                         AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "CUSTOMER CREDIT A/C")?.AcccountId ?? 0,
                     //AccountType = LedgerAccountType.CREDIT,
-                        CR_Amount = billPayment.BankAmount,
+                        DR_Amount = billPayment.BankAmount,
                         Particulars = $"By Credit",
                         TransactionType = TransactionType.BILL,
                         Date = bill.BillDate,
                         Balance = 0,
                         Branch = bill.Branch,
-                        DR_Amount = 0,
+                        CR_Amount = 0,
                         ForWho = bill.Customer.CustomerId
                     };
                 ledgers.Add(creditLedger);
             }
 
-           
+            Ledger salesLedger = new Ledger
+                {
+                    AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "SALES A/C")?.AcccountId ?? 0,
+                //AccountType = LedgerAccountType.SALES,
+                    CR_Amount = billPayment.UPIAmount + billPayment.CardAmount + billPayment.CashAmount + billPayment.BankAmount,
+                    Particulars = $"To Sales Bill No: ",
+                    TransactionType = TransactionType.BILL,
+                    Date = bill.BillDate,
+                    Balance = 0,
+                    Branch = bill.Branch,
+                    DR_Amount = 0,
+                    ForWho = bill.Customer.CustomerId
+                };
+
+            ledgers.Add(salesLedger);
+
+
             BillDetails finalBill = new BillDetails
                 {
                     Bill = bill,
@@ -674,6 +677,7 @@
             }
 
             isProcessing = false;
+            loaderText = "";
             bill = new Bill();
             BillItems = new List<BillItem>();
             CashAmount = 0;

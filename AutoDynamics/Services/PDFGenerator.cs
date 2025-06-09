@@ -6,6 +6,7 @@ using System.Text;
 using Microsoft.JSInterop;
 using AutoDynamics.Shared.Modals.PurchaseTypes;
 using AutoDynamics.Shared.Modals.Billing;
+using AutoDynamics.Shared.Modals.Accounts;
 namespace AutoDynamics.Services
 
 {
@@ -554,7 +555,16 @@ namespace AutoDynamics.Services
                             innerTable.AddCell(CreateCell(entry.debit > 0 ? entry.debit.ToString("0.00") : "", fontRow, iTextSharp.text.Element.ALIGN_RIGHT));
                             innerTable.AddCell(CreateCell(entry.credit > 0 ? entry.credit.ToString("0.00") : "", fontRow, iTextSharp.text.Element.ALIGN_RIGHT));
 
-                            runningBalance += entry.credit - entry.debit;
+                            if (entry.accountType == "SALES A/C")
+                            {
+                                runningBalance += entry.credit; // Sales increases what customer owes
+                            }
+                            
+                            else if (entry.accountType == "CASH A/C" || entry.accountType == "BANK A/C" || entry.accountType == "CARD A/C")
+                            {
+                                runningBalance -= entry.debit; // Cash/Bank/Card payment at time of sale
+                            }
+
                             innerTable.AddCell(CreateCell(runningBalance.ToString("0.00"), fontRow, iTextSharp.text.Element.ALIGN_RIGHT,false));
 
                             isFirst = false;

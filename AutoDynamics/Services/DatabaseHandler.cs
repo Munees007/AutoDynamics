@@ -452,7 +452,7 @@ namespace AutoDynamics.Services
                                 if (receiptId == 0)
                                     throw new Exception("Unable to Insert Receipt, Please try again");
                             }
-                            ledgers.Last<Ledger>().Particulars += (creditRecipt.Branch == "Sivakasi" ? "R_SFR":"R_BPR") + receiptId.ToString().PadLeft(7,'0');
+                            ledgers.First<Ledger>().Particulars += (creditRecipt.Branch == "Sivakasi" ? "R_SFR":"R_BPR") + receiptId.ToString().PadLeft(7,'0');
                             foreach(var ledger in ledgers)
                             {
                                 ledger.billOrInvoiceNo = (creditRecipt.Branch == "Sivakasi" ? "R_SFR" : "R_BPR") + receiptId.ToString().PadLeft(7, '0');
@@ -623,7 +623,7 @@ namespace AutoDynamics.Services
                                 if (paymentID == 0)
                                     throw new Exception("Unable to Insert Receipt, Please try again");
                             }
-                            ledgers.Last<Ledger>().Particulars += (creditRecipt.Branch == "Sivakasi" ? "P_SFR" : "P_BPR") + paymentID.ToString().PadLeft(7, '0');
+                            ledgers.First<Ledger>().Particulars += (creditRecipt.Branch == "Sivakasi" ? "P_SFR" : "P_BPR") + paymentID.ToString().PadLeft(7, '0');
                             foreach (var ledger in ledgers)
                             {
                                 ledger.billOrInvoiceNo = (creditRecipt.Branch == "Sivakasi" ? "P_SFR" : "P_BPR") + paymentID.ToString().PadLeft(7, '0');
@@ -874,9 +874,11 @@ namespace AutoDynamics.Services
                                     }
                                 }
 
+                                ledgers.First<Ledger>().Particulars += purchaseBill.InvoiceNumber;
                                 //delete existing ledger entry
-                                foreach(var ledger in ledgers)
+                                foreach (var ledger in ledgers)
                                 {
+                                    ledger.billOrInvoiceNo += purchaseBill.InvoiceNumber;
                                     ledger.ReferenceID = purchaseBillId;
                                 }
                                 // 5. Update Bill Reference in CashBankLedger
@@ -911,8 +913,7 @@ namespace AutoDynamics.Services
                             }
                             else
                             {
-                                List<int> ledgersId = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers,false);
-                                int mainID = ledgersId[0];
+                                
                                 // Insert new purchase bill
                                 var result = await command.ExecuteScalarAsync();
                                 purchaseBillId = Convert.ToInt32(result);
@@ -934,7 +935,15 @@ namespace AutoDynamics.Services
                                             await insertCommand.ExecuteNonQueryAsync();
                                         }
                                     }
+                                    ledgers.First<Ledger>().Particulars += purchaseBill.InvoiceNumber;
+                                    foreach (var ledger in ledgers)
+                                    {
+                                        ledger.billOrInvoiceNo = purchaseBill.InvoiceNumber;
 
+                                    }
+                                    List<int> ledgersId = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers, false);
+                                    int mainID = ledgersId[0];
+                                    
                                     foreach (int id in ledgersId)
                                     {
                                         string updateLedgerRefQuery = @"UPDATE CashBankLedger SET ReferenceID = @ReferenceID,EntryID = @EntryID WHERE LedgerID = @LedgerID";
@@ -1221,7 +1230,7 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                     }
                     //delete existing ledger entry
                     
-                    ledgers.Last<Ledger>().Particulars += (bill.Branch == "Sivakasi" ? "SFR" : "BPR") + bill.BillNo.ToString().PadLeft(4, '0');
+                    ledgers.First<Ledger>().Particulars += (bill.Branch == "Sivakasi" ? "SFR" : "BPR") + bill.BillNo.ToString().PadLeft(4, '0');
                     foreach (var ledger in ledgers)
                     {
                         ledger.ReferenceID = bill.BillID;
@@ -1320,7 +1329,7 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                             throw new Exception("Failed to insert Bill");
                         }
                     }
-                    ledgers.Last<Ledger>().Particulars += (bill.Branch == "Sivakasi" ? "SFR" :"BPR") + newBillNo.ToString().PadLeft(4,'0');
+                    ledgers.First<Ledger>().Particulars += (bill.Branch == "Sivakasi" ? "SFR" :"BPR") + newBillNo.ToString().PadLeft(4,'0');
                     foreach(var ledger in ledgers)
                     {
                         ledger.billOrInvoiceNo = (bill.Branch == "Sivakasi" ? "SFR" : "BPR") + newBillNo.ToString().PadLeft(4, '0');

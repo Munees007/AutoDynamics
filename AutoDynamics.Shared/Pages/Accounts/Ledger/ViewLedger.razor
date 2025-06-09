@@ -3,33 +3,67 @@
 
 <h3 class="mb-3">Ledger Entries</h3>
 
-<select @onchange="OnFilterChanged" class="form-select w-25 mb-3">
-    <option value="">All</option>
-    
-</select>
+<div class="mb-3">
+    <label>Branch: </label>
+    <select @bind="selectedBranch"  class="form-select w-25 mb-3">
+        <option value="Sivakasi">Sivakasi</option>
+        <option value="ByPass">ByPass</option>
+       
+    </select>
+</div>
 
+<div class="mb-3">
+    <label>Filter By: </label>
+    <select @bind="filterType"  class="form-select w-25 mb-3">
+        <option value="all">All</option>
+        <option value="CASH A/C">CASH A/C</option>
+        <option value="BANK A/C">BANK A/C</option>
+        <option value="CARD A/C">CARD A/C</option>
+        <option value="ac">A/C</option>
+    </select>
+</div>
+
+<div class="mb-3">
+    <label>Sort By: </label>
+    <select @bind="selectedSortingOption" class="form-control">
+        <option value="yesterday">Yesterday</option>
+        <option value="date">Today</option>
+        <option value="month">Month to Date</option>
+        <option value="year">Year to Date</option>
+        <option value="range">Custom</option>
+    </select>
+
+    @if (selectedSortingOption == "range")
+    {
+        <input type="date" @bind="startDate" class="form-control mt-2" />
+        <input type="date" @bind="endDate" class="form-control mt-2" />
+    }
+</div>
+<div class="w-100 d-flex justify-content-between align-items-md-center">
+    <button class="btn btn-primary mb-3" @onclick="ApplyFilters">Apply Filters</button>
+</div>
 <div style="overflow-x:auto;">
     <table class="table table-bordered table-hover text-center align-middle ledger-table">
         <thead class="table-secondary">
             <tr>
-                <th @onclick="() => SortBy(nameof(Ledger.Date))">Date</th>
+                <th>Date</th>
                 <th>Account Type</th>
                 <th>Transaction Type</th>
-                
+
                 <th>Particulars</th>
-                <th @onclick="() => SortBy(nameof(Ledger.DR_Amount))">Dr (₹)</th>
-                <th @onclick="() => SortBy(nameof(Ledger.CR_Amount))">Cr (₹)</th>
+                <th>Dr (₹)</th>
+                <th>Cr (₹)</th>
                 <th>Balance</th>
             </tr>
         </thead>
         <tbody>
-            @foreach (var ledger in sortedLedgers)
+            @foreach (var ledger in ledgers)
             {
                 <tr>
                     <td>@ledger.Date.ToString("dd-MM-yyyy")</td>
                     <td>@ledger.AccountType?.AccountName</td>
                     <td>@ledger.TransactionType</td>
-                    
+
                     <td>@ledger.Particulars</td>
                     <td class="text-end">@ledger.DR_Amount.ToString("N2")</td>
                     <td class="text-end">@ledger.CR_Amount.ToString("N2")</td>
@@ -47,7 +81,121 @@
     string currentSortColumn = nameof(Ledger.Date);
     bool sortAscending = true;
     string selectedAccountType = "";
+    string selectedBranch = "Sivakasi";
+    string filterType = "all";
+    string selectedSortingOption = "date";
 
+    DateTime? startDate, endDate;
+    async Task ApplyFilters()
+    {
+        ledgers.Clear();
+        sortedLedgers.Clear();
+        DateTime today = DateTime.Today;
+        decimal openingBalance = 0;
+
+        DateTime openingDateBoundary = selectedSortingOption switch
+        {
+            "date" => today,
+            "yesterday" => today.AddDays(-1),
+            "month" => new DateTime(today.Year, today.Month, 1),
+            "year" => new DateTime(today.Year, 1, 1),
+            "range" => startDate.HasValue ? startDate.Value : DateTime.MinValue,
+            _ => DateTime.MinValue
+        };
+
+        // Build a WHERE clause for opening balance (same filter by AccountID if needed)
+        string openingWhereClause = $"WHERE Date < '{openingDateBoundary:yyyy-MM-dd HH:mm:ss}' AND isActive = 1 AND Branch = '{selectedBranch}'";
+
+        if (filterType != "all" && filterType != "ac")
+        {
+            openingWhereClause += $" AND AccountID = {getAccountID(filterType)}";
+        }
+
+        // Query for opening balance
+        var openingBalanceQuery = $@"SELECT SUM(DrAmount - CrAmount) as OpeningBalance FROM CashBankLedger {openingWhereClause}";
+        var result = await DatabaseHandler.ExecuteQueryAsync(openingBalanceQuery);
+        if (result.Count > 0 && result[0]["OpeningBalance"] != DBNull.Value)
+        {
+            openingBalance = Convert.ToDecimal(result[0]["OpeningBalance"]);
+        }
+
+        string whereClause = "";
+        
+        switch(selectedSortingOption)
+        {
+            case "date":
+                whereClause += $"WHERE DATE(Date) = '{today:yyyy-MM-dd}' AND Branch = '{selectedBranch}'";
+                break;
+            case "yesterday":
+                whereClause += $"WHERE DATE(Date) = '{today.AddDays(-1):yyyy-MM-dd}' AND Branch = '{selectedBranch}'";
+                break;
+            case "month":
+                whereClause += $"WHERE MONTH(Date) = {today.Month} AND YEAR(Date) = {today.Year} AND Branch = '{selectedBranch}'";
+                break;
+            case "year":
+                whereClause += $"WHERE YEAR(Date) = {today.Year} AND Branch = '{selectedBranch}'";
+                break;
+            case "range":
+                whereClause += $"WHERE DATE(Date) BETWEEN '{startDate.Value:yyyy-MM-dd HH:mm:ss}' AND '{endDate.Value:yyyy-MM-dd HH:mm:ss}' AND Branch = '{selectedBranch}'";
+                break;
+            default:
+                break;
+        }
+        if(filterType != "all" && filterType != "ac")
+        {
+            if(whereClause == "")
+            {
+                whereClause += $"WHERE AccountID = {getAccountID(filterType)} AND Branch = '{selectedBranch}'";
+            }
+            else
+            {
+                whereClause += $" AND AccountID = {getAccountID(filterType)} AND Branch = '{selectedBranch}'";
+            }
+        }
+        var query = $@"SELECT LedgerID, Date, AccountID, Branch, TransactionType, ReferenceID, Particulars, CrAmount, DrAmount, Balance,isActive
+                      FROM CashBankLedger {whereClause} Order By Date";
+        Debug.WriteLine(query);
+        var res = await DatabaseHandler.ExecuteQueryAsync(query);
+
+        if (res.Count > 0)
+        {
+            foreach (var row in res)
+            {
+                bool active = row["isActive"].ToString() == "1" ? true : false;
+                if (!active) continue;
+                ledgers.Add(new Ledger
+                    {
+                        LedgerID = Convert.ToInt32(row["LedgerID"]),
+                        Date = Convert.ToDateTime(row["Date"]),
+                        AccountID = Convert.ToInt32(row["AccountID"]),
+                        AccountType = AccountTypes.FirstOrDefault((b) => b.AcccountId == Convert.ToInt32(row["AccountID"] ?? "0")),
+                        Branch = row["Branch"]?.ToString() ?? "",
+                        TransactionType = Enum.TryParse<TransactionType>(row["TransactionType"].ToString(), out var tran) ? tran : TransactionType.OTHER,
+                        ReferenceID = row["ReferenceID"] != DBNull.Value ? Convert.ToInt32(row["ReferenceID"]) : 0,
+                        Particulars = row["Particulars"]?.ToString() ?? "",
+                        CR_Amount = Convert.ToDecimal(row["CrAmount"]),
+                        DR_Amount = Convert.ToDecimal(row["DrAmount"]),
+                        Balance = Convert.ToDecimal(row["Balance"]),
+                        isActive = active
+                    });
+            }
+
+        }
+        decimal runningBalance = openingBalance;
+        foreach (var ledger in ledgers)
+        {
+            runningBalance += (ledger.DR_Amount - ledger.CR_Amount);
+            ledger.Balance = runningBalance;
+        }
+
+
+
+    }
+
+    int getAccountID(string type)
+    {
+        return AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == type)?.AcccountId ?? 0;
+    }
     string GetFormattedBalance(decimal balance)
     {
         if (balance == 0)
@@ -60,9 +208,7 @@
     {
 
         var fetch = @"SELECT * FROM LedgerAccounts";
-        var query = @"SELECT LedgerID, Date, AccountID, Branch, TransactionType, ReferenceID, Particulars, CrAmount, DrAmount, Balance
-                      FROM CashBankLedger";
-        var res = await DatabaseHandler.ExecuteQueryAsync(query);
+        
         var res1 = await DatabaseHandler.ExecuteQueryAsync(fetch);
         if(res1.Count > 0)
         {
@@ -79,80 +225,13 @@
                     });
             }
         }
-        if(res.Count > 0)
-        {
-            foreach (var row in res)
-            {
-				bool active = bool.Parse(row["isActive"].ToString() ?? "false");
-				if (!active) continue;
-                ledgers.Add(new Ledger
-                    {
-                        LedgerID = Convert.ToInt32(row["LedgerID"]),
-                        Date = Convert.ToDateTime(row["Date"]),
-                        AccountID = Convert.ToInt32(row["AccountID"]),
-                        AccountType = AccountTypes.FirstOrDefault((b)=> b.AcccountId == Convert.ToInt32(row["AccountID"] ?? "0")),
-                        Branch = row["Branch"]?.ToString() ?? "",
-                        TransactionType = Enum.TryParse<TransactionType>(row["TransactionType"].ToString(), out var tran) ? tran : TransactionType.OTHER,
-                        ReferenceID = row["ReferenceID"] != DBNull.Value ? Convert.ToInt32(row["ReferenceID"]) : 0,
-                        Particulars = row["Particulars"]?.ToString() ?? "",
-                        CR_Amount = Convert.ToDecimal(row["CrAmount"]),
-                        DR_Amount = Convert.ToDecimal(row["DrAmount"]),
-                        Balance = Convert.ToDecimal(row["Balance"]),
-                        isActive = active
-                    });
-            }
-        }
+        
         
 
-        ApplySortingAndFilter();
+        
     }
 
-    void OnFilterChanged(ChangeEventArgs e)
-    {
-        selectedAccountType = e.Value?.ToString() ?? "";
-        ApplySortingAndFilter();
-    }
+   
 
-    void SortBy(string columnName)
-    {
-        if (currentSortColumn == columnName)
-        {
-            sortAscending = !sortAscending;
-        }
-        else
-        {
-            currentSortColumn = columnName;
-            sortAscending = true;
-        }
-        ApplySortingAndFilter();
-    }
-
-    void ApplySortingAndFilter()
-    {
-        IEnumerable<Ledger> filtered = ledgers;
-
-        // if (!string.IsNullOrEmpty(selectedAccountType) && Enum.TryParse<LedgerAccountType>(selectedAccountType, out var filterType))
-        // {
-        //     filtered = filtered.Where(x => x.AccountType == filterType);
-        // }
-
-        var sorted = currentSortColumn switch
-        {
-            nameof(Ledger.Date) => sortAscending ? filtered.OrderBy(x => x.Date).ToList() : filtered.OrderByDescending(x => x.Date).ToList(),
-            nameof(Ledger.DR_Amount) => sortAscending ? filtered.OrderBy(x => x.DR_Amount).ToList() : filtered.OrderByDescending(x => x.DR_Amount).ToList(),
-            nameof(Ledger.CR_Amount) => sortAscending ? filtered.OrderBy(x => x.CR_Amount).ToList() : filtered.OrderByDescending(x => x.CR_Amount).ToList(),
-            _ => filtered.ToList()
-        };
-
-        // ✅ Compute running balance
-        decimal runningBalance = 0;
-        foreach (var item in sorted)
-        {
-            runningBalance += item.DR_Amount - item.CR_Amount;
-            item.Balance = runningBalance;
-        }
-
-        sortedLedgers = sorted;
-
-    }
+    
 }

@@ -218,7 +218,7 @@ else
             filtered = filtered.Where((b) => b.Bill.Branch == excelBranch).ToList();
             Debug.WriteLine(filtered.Count);
             filtered = filtered.OrderBy((b) => b.Bill.BillNo).ToList();
-            string temp = $"{DateTime.Today:MMMM-yyyy}";
+            string temp = $"{monthDate:MMMM-yyyy}";
             string savedPath = DownloadExcel.DownloadExcelToDevice(filtered.ToArray(), temp, excelBranch);
             ToastService.ShowToast("Excel Genreated Successfully", ToastType.sucess);
         }

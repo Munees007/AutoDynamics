@@ -407,13 +407,13 @@
             {
                 AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "PURCHASE A/C")?.AcccountId ?? 0,
 
-                CR_Amount = purchase.TotalAmount,
+                DR_Amount = purchase.TotalAmount,
                 Particulars = $"Purchased from {purchase.Supplier.Name}, Invoice: {purchase.InvoiceNumber}",
                 TransactionType = TransactionType.PURCHASE,
                 Date = purchase.PurchaseDate,
                 Balance = 0,
                 Branch = purchase.Branch,
-                DR_Amount = 0,
+                CR_Amount = 0,
                 ForWho = purchase.Supplier.SupplierID
             };
         ledgers.Add(purchaseLedger);
@@ -424,13 +424,13 @@
             {
                     AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "CASH A/C")?.AcccountId ?? 0,
 
-                    DR_Amount = purchase.TotalAmount,
+                    CR_Amount = purchase.TotalAmount,
                     Particulars = $"By Cash",
                     TransactionType = TransactionType.PURCHASE,
                     Date = purchase.PurchaseDate,
                     Balance = 0,
                     Branch = purchase.Branch,
-                    CR_Amount = 0,
+                    DR_Amount = 0,
                     ForWho = purchase.Supplier.SupplierID
             };
             ledgers.Add(cashLedger);
@@ -442,7 +442,7 @@
                     AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "SUPPLIER CREDIT A/C")?.AcccountId ?? 0,
 
                     CR_Amount = purchase.TotalAmount,
-                    Particulars = $"By Credit",
+                    Particulars = $"By Credit to {purchase.Supplier.Name}",
                     TransactionType = TransactionType.PURCHASE,
                     Date = purchase.PurchaseDate,
                     Balance = 0,

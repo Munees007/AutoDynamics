@@ -12,6 +12,7 @@
 @using System.Diagnostics
 
 <div class="container mt-4">
+	<DialoBox dialogBox="statementDialog"></DialoBox>
 	<div class="card shadow-lg">
 		<div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">
 			<h4 class="mb-0">Customer Details</h4>
@@ -85,6 +86,10 @@
 
 	List<RenderFragment> components = new List<RenderFragment>();
 
+	string statementBranch = "Sivakasi";
+
+	CustomDialogBox statementDialog = new CustomDialogBox();
+
 	List<ButtonType> buttons = new List<ButtonType>
 	{
 		new ButtonType{Text="Vehicles",componentNumber=0},
@@ -95,6 +100,9 @@
 	bool isLoading = false;
 	int currentComponent = 0;
 
+	DateTime? startDate;
+	DateTime? endDate;
+
 	public void SetCurrentComponent(int index)
 	{
 		currentComponent = index;
@@ -103,6 +111,52 @@
 
 	protected override void OnInitialized()
 	{
+
+		statementDialog = new CustomDialogBox
+				{
+					Title = "Download Excel",
+					body = @<div class="mb-3">
+		<label class="form-label">Select Branch, Month, and Year</label>
+
+		<div class="d-flex gap-3">
+			<select id="branchSelect" class="form-select" @bind="statementBranch">
+				<option value="Sivakasi">Sivakasi</option>
+				<option value="ByPass">ByPass</option>
+			</select>
+
+			<div class="input-group">
+				<label>Start Date</label>
+				<input type="date" @bind="startDate" class="form-control mt-2" />
+			</div>
+			<div class="input-group">
+					<label>End Date</label>
+				<input type="date" @bind="endDate" class="form-control mt-2" />
+			</div>
+			
+		</div>
+	</div>
+
+
+	,
+			footers = new List<FooterBtn>
+			{
+				new FooterBtn
+				{
+					Button = @<button class="btn btn-danger" @onclick="()=>{statementDialog.showDialog = false; StateHasChanged();}">CANCEL</button>
+                },
+				new FooterBtn
+				{
+						  Button = @<button class="btn btn-primary" @onclick="generateExcel">OK</button>
+	        	},
+				},
+				OnCloase = EventCallback.Factory.Create(this, async () =>
+				{
+				statementDialog.showDialog = false;
+				
+
+					StateHasChanged();
+				}),
+			};
 
 		vehiclesFront =
 			@<div class="container mt-4">
@@ -424,17 +478,17 @@
 		}
 
 	}
-	public async Task<decimal> GetOpeningBalanceAsync(string customerId, DateOnly statementStartDate)
+	public async Task<decimal> GetOpeningBalanceAsync(string customerId, DateTime? statementStartDate)
 	{
 		string query = @"
         SELECT COALESCE(SUM(CrAmount - DrAmount), 0) AS OpeningBalance
         FROM CashBankLedger
-        WHERE ForWho = @customerId AND Date < @startDate Order By Date;"; // ✅ Optimized query
+        WHERE ForWho = @customerId AND Date < @startDate AND AccountID not in(14) Order By Date;"; // ✅ Optimized query
 
 		var parameters = new Dictionary<string, object>
 	{
 		{ "@customerId", customerId },
-		{ "@startDate", statementStartDate }
+		{ "@startDate", statementStartDate.Value.Date.ToString("yyyy-MM-dd") }
 	};
 
 		var result = await DatabaseHandler.ExecuteQueryAsync(query, parameters);
@@ -442,14 +496,14 @@
 		return result.Count > 0 ? Convert.ToDecimal(result[0]["OpeningBalance"]) : 0;
 	}
 
-	async void DownloadStatement()
+	async void DownloadStatement(DateTime? startDate,DateTime? endDate)
 	{
 		List<CustomerStatement> customerStatements = new List<CustomerStatement>();
 
 
-		decimal openingBalance = await GetOpeningBalanceAsync(customerData.CustomerId, DateOnly.Parse("2025-05-28"));
+		decimal openingBalance = await GetOpeningBalanceAsync(customerData.CustomerId, startDate);
 
-		string getString = $@"SELECT c.*,a.* FROM CashBankLedger c JOIN LedgerAccounts a ON a.AccountID = c.AccountID WHERE DATE(c.Date) BETWEEN '2025-05-28' AND '2025-06-10' AND c.ForWho = '{customerData.CustomerId}' ORDER BY
+		string getString = $@"SELECT c.*,a.* FROM CashBankLedger c JOIN LedgerAccounts a ON a.AccountID = c.AccountID WHERE DATE(c.Date) BETWEEN '{startDate.Value.Date:yyyy-MM-dd HH:mm:ss}' AND '{endDate.Value.Date:yyyy-MM-dd HH:mm:ss}' AND c.ForWho = '{customerData.CustomerId}' ORDER BY
   Date, LedgerID;";
 
 
