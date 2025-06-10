@@ -16,7 +16,7 @@
 	<div class="card shadow-lg">
 		<div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">
 			<h4 class="mb-0">Customer Details</h4>
-			<button class="btn btn-sm btn-dark" @onclick="DownloadStatement">💾 Download Statement</button>
+			<button class="btn btn-sm btn-dark" @onclick="()=>{statementDialog.showDialog = true;StateHasChanged();}">💾 Download Statement</button>
 		</div>
 		<div class="card-body">
 			<div class="row">
@@ -115,26 +115,27 @@
 		statementDialog = new CustomDialogBox
 				{
 					Title = "Download Excel",
-					body = @<div class="mb-3">
-		<label class="form-label">Select Branch, Month, and Year</label>
+					body = @<div class="mb-4">
+		<label class="form-label fw-bold">Select Start Date, and End Date</label>
 
-		<div class="d-flex gap-3">
-			<select id="branchSelect" class="form-select" @bind="statementBranch">
-				<option value="Sivakasi">Sivakasi</option>
-				<option value="ByPass">ByPass</option>
-			</select>
-
-			<div class="input-group">
-				<label>Start Date</label>
-				<input type="date" @bind="startDate" class="form-control mt-2" />
-			</div>
-			<div class="input-group">
-					<label>End Date</label>
-				<input type="date" @bind="endDate" class="form-control mt-2" />
-			</div>
+		<div class="row g-3 align-items-end">
+			<!-- Branch Dropdown -->
 			
+
+			<!-- Start Date -->
+			<div class="col-md-6">
+				<label for="startDate" class="form-label">Start Date</label>
+				<input type="date" id="startDate" @bind="startDate" class="form-control" />
+			</div>
+
+			<!-- End Date -->
+			<div class="col-md-6">
+				<label for="endDate" class="form-label">End Date</label>
+				<input type="date" id="endDate" @bind="endDate" class="form-control" />
+			</div>
 		</div>
 	</div>
+
 
 
 	,
@@ -146,7 +147,7 @@
                 },
 				new FooterBtn
 				{
-						  Button = @<button class="btn btn-primary" @onclick="generateExcel">OK</button>
+						  Button = @<button class="btn btn-primary" @onclick="()=>{DownloadStatement(startDate,endDate);}">OK</button>
 	        	},
 				},
 				OnCloase = EventCallback.Factory.Create(this, async () =>
