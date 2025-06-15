@@ -8,14 +8,22 @@
     <!-- Date and Customer Search -->
     <div class="row g-4 mb-4">
         <div class="col-md-4">
-            <label for="paymentDate" class="form-label">Date</label>
+            <label for="paymentDate" class="form-label fw-bold">Date</label>
             <input type="date" id="paymentDate" class="form-control" @bind="@creditReciptTypes.ReciptDate" />
         </div>
 
+        <div class="col-md-10 input-group">
+            <label class="input-group-text">CheckNumber</label>
+            <input type="text" class="form-control" @bind="creditReciptTypes.CheckNumber"/>
+        </div>
 
+        <div class="col-md-10 input-group">
+            <label class="input-group-text">Narration</label>
+            <input type="text" class="form-control" @bind="creditReciptTypes.narration" />
+        </div>
 
         <div class="col-md-8">
-            <label for="Customer" class="form-label">Customer</label>
+            <label for="Customer" class="form-label fw-bold">Customer</label>
             <div class="input-group">
                 <input @onkeydown="HandleCustomerKey" autocomplete="off" type="text" id="Customer"
                 @bind="CustomerSearch" @oninput="OnCustomerSearch"
@@ -34,10 +42,10 @@
     </div>
 
     <!-- Credit Bills Section -->
-    <h5 class="fw-semibold mb-3">Credit Bills</h5>
+    <h5 class="fw-semibold mb-3 fw-bold">Credit Bills</h5>
 
     <div class="input-group mb-3">
-        <span class="input-group-text">Amount</span>
+        <span class="input-group-text fw-bold">Amount</span>
         <input type="number" id="amount" class="form-control" @bind="@splitAmount" placeholder="Enter amount" />
         <button class="btn btn-primary" type="button" @onclick="HandleSplitAmount">Apply</button>
     </div>
@@ -64,7 +72,7 @@
                     item.index = i;
                     <tr>
                         <td>
-                            <input type="checkbox" @bind="item.isSelected" class="form-check-input" style="width:25px;height:25px;cursor:pointer" />
+                            <input type="checkbox" @oninput="(e)=>{triggerCheckBox(e,item);}" @bind="item.isSelected" class="form-check-input" style="width:25px;height:25px;cursor:pointer" />
                         </td>
                         <td>
                             @((item.branch == "Sivakasi" ? "SFR" : "BPR") + item.billNo.ToString().PadLeft(4,'0'))
@@ -121,19 +129,46 @@
 
     string currentBranch = "";
 
+    public void triggerCheckBox(ChangeEventArgs change, CreditBill item)
+    {
+        item.isSelected = (bool)change.Value!;
+        HandleSplitAmount();
+
+    }
     public void HandleSplitAmount()
     {
-        if(splitAmount > 0)
+        decimal SA = splitAmount;
+        Debug.WriteLine("Triggered");
+        if (SA <= 0)
         {
+            ToastService.ShowToast("Split amount cannot be negative or zero", ToastType.error);
+            return;
+        }
+
+        if(SA > 0)
+        {
+            //Reset all amounts to 0
+            creditReciptTypes.creditBills.ForEach(bill => bill.amountPayed = 0);
             foreach (var bill in creditReciptTypes.creditBills)
             {
-                if (bill.remainingBalance > 0 && bill.remainingBalance <= splitAmount)
+                if(SA == 0)
+                {
+                    break;
+                }
+                if (bill.remainingBalance > 0 && bill.remainingBalance <=SA && bill.isSelected)
                 {
                     bill.amountPayed = bill.remainingBalance;
-                    // splitAmount -= bill.remainingBalance;
+                    SA -= bill.remainingBalance;
+                }
+                else if (bill.remainingBalance > 0 && bill.remainingBalance >= SA && bill.isSelected)
+                {
+                    bill.amountPayed = SA;
+                    SA -= SA;
+
                 }
             }
         }
+        StateHasChanged();
     }
 
     public void AddNewItem()
@@ -151,6 +186,7 @@
             await NecessaryData();
             isLoading = false;
             loaderText = "";
+
             StateHasChanged();
             ToastService.ShowToast("Fetch Successful", ToastType.sucess);
         }
@@ -221,13 +257,44 @@
         StateHasChanged();
     }
 
+    public bool validateData(out string error)
+    {
+
+        if(creditReciptTypes.narration == string.Empty)
+        {
+            error = "Narration should not be empty";
+            return false;
+        }
+
+        if(CustomerSearch == string.Empty)
+        {
+            error = "Customer must be selected";
+            return false;
+        }
+
+        bool atLeastOne = creditReciptTypes.creditBills
+    .Any(data => data.isSelected && data.amountPayed > 0);
+
+        if (!atLeastOne)
+        {
+            error = "Atleast one bill should be selected";
+            return false;
+        }
+
+        error = "";
+        return true;
+    }
     public async Task HandleSubmit()
     {
         try
         {
             isLoading = true;
             loaderText = "Adding Receipt";
-
+            string errorText = "";
+            if(validateData(out errorText))
+            {
+                throw new Exception(errorText);
+            }
             List<CreditBill> selectedBills = creditReciptTypes.creditBills
                 .Where(b => b.isSelected && b.amountPayed > 0)
                 .ToList();
@@ -299,7 +366,7 @@
 
 
             List<Ledger> ledgers = new List<Ledger>();
-            
+
             if(cashLedger.DR_Amount > 0)
             {
                 ledgers.Add(cashLedger);
@@ -322,9 +389,13 @@
             {
                 Debug.WriteLine($"Status: {item.CreditStatus}");
             }
+            creditReciptTypes = new CreditReciptType();
+            splitAmount = 0;
+            CustomerSearch = "";
             ToastService.ShowToast("Receipt Added Successfully", ToastType.sucess);
             isLoading = false;
             loaderText = "";
+            StateHasChanged();
         }
         catch(Exception e)
         {

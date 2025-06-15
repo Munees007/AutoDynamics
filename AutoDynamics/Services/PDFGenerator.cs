@@ -7,6 +7,8 @@ using Microsoft.JSInterop;
 using AutoDynamics.Shared.Modals.PurchaseTypes;
 using AutoDynamics.Shared.Modals.Billing;
 using AutoDynamics.Shared.Modals.Accounts;
+using System.IO;
+using System.Runtime.InteropServices.Marshalling;
 namespace AutoDynamics.Services
 
 {
@@ -453,6 +455,659 @@ namespace AutoDynamics.Services
             });
 
             document.Add(openTable);
+        }
+
+        public async Task<string> CreateReceiptPDF(CreditReciptType creditRecipt,IJSRuntime js)
+        {
+            try
+            {
+                using (MemoryStream memoryStream = new MemoryStream())
+                {
+
+                    Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+                    string fontPath = @"C:\Windows\Fonts\tahoma.ttf";
+                    string boldFontPath = @"C:\Windows\Fonts\tahomabd.ttf"; // Bold
+                    BaseFont tahomaBaseFont = BaseFont.CreateFont(fontPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+                    BaseFont tahomaBoldBaseFont = BaseFont.CreateFont(boldFontPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+
+                    BaseFont baseFont = BaseFont.CreateFont(@"C:\Windows\Fonts\seguisym.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+                    iTextSharp.text.Font symbolFont = new iTextSharp.text.Font(baseFont, 12, iTextSharp.text.Font.NORMAL, BaseColor.BLACK);
+
+                    Document document = new Document(PageSize.A4, 15f, 15f, 15f, 15f);
+
+                    PdfWriter writer = PdfWriter.GetInstance(document, memoryStream);
+                    document.Open();
+
+                    // ✅ Fonts & Colors (Using Tahoma)
+                    iTextSharp.text.Font titleFont = new iTextSharp.text.Font(tahomaBoldBaseFont, 22, iTextSharp.text.Font.BOLD, BaseColor.WHITE);
+                    iTextSharp.text.Font headerFont = new iTextSharp.text.Font(tahomaBoldBaseFont, 10, iTextSharp.text.Font.BOLD, BaseColor.BLACK);
+                    iTextSharp.text.Font normalFont = new iTextSharp.text.Font(tahomaBaseFont, 10);
+                    iTextSharp.text.Font boldFont = new iTextSharp.text.Font(tahomaBoldBaseFont, 10, iTextSharp.text.Font.BOLD);
+
+                    // ✅ Header (Blue Background)
+                    PdfPTable headerTable = new PdfPTable(1);
+                    headerTable.WidthPercentage = 100;
+                    PdfPCell headerCell = new PdfPCell(new Phrase("AUTO DYNAMICS", titleFont))
+                    {
+                        BackgroundColor = new BaseColor(82, 183, 136), // Green
+                        HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER,
+                        Padding = 10,
+                        Border = Rectangle.NO_BORDER
+                    };
+                    headerTable.AddCell(headerCell);
+                    document.Add(headerTable);
+
+                    string address = creditRecipt.Branch == "Sivakasi" ? "232/1, TTL Road, Near SFR College, Sivakasi" : "33-I, Kamak Road, Sivakasi";
+
+                    document.Add(new Paragraph(address, normalFont) { Alignment = iTextSharp.text.Element.ALIGN_CENTER });
+                    document.Add(new Paragraph("GSTIN: 33AJXPA5555E2Z5", normalFont) { Alignment = iTextSharp.text.Element.ALIGN_CENTER });
+                    document.Add(new Paragraph("\u260E 99444 57589", symbolFont) { Alignment = iTextSharp.text.Element.ALIGN_RIGHT });
+                    document.Add(new Paragraph("\u260E 97515 32515", symbolFont) { Alignment = iTextSharp.text.Element.ALIGN_RIGHT });
+                    document.Add(new Paragraph("\n"));
+
+                    // ✅ Bill Information (Left + Right Date)
+                    PdfPTable billInfoTable = new PdfPTable(2);
+                    billInfoTable.WidthPercentage = 100;
+                    billInfoTable.SetWidths(new float[] { 1, 1 });
+
+                    string BillId = creditRecipt.Branch == "Sivakasi" ? "RC_SFR" + creditRecipt.ReceiptNO.ToString().PadLeft(4, '0') : "RC_BPR" + creditRecipt.ReceiptNO.ToString().PadLeft(4, '0');
+                    billInfoTable.AddCell(new PdfPCell(new Phrase($"Receipt No: {BillId}", boldFont)) { Border = Rectangle.NO_BORDER });
+                    billInfoTable.AddCell(new PdfPCell(new Phrase($"Date: {creditRecipt.ReciptDate:dd-MM-yyyy}", boldFont)) { Border = Rectangle.NO_BORDER, HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
+
+                    billInfoTable.AddCell(new PdfPCell(new Phrase($"Customer: {creditRecipt.customer.CustomerId}", normalFont)) { Border = Rectangle.NO_BORDER });
+                    billInfoTable.AddCell(new PdfPCell(new Phrase($"M: {creditRecipt.customer.Contact}", normalFont)) { Border = Rectangle.NO_BORDER, HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
+
+
+                    billInfoTable.AddCell(new PdfPCell(new Phrase($"Name: {creditRecipt.customer.Name}", normalFont)) { Border = Rectangle.NO_BORDER});
+                    
+                    billInfoTable.AddCell(new PdfPCell(new Phrase($"GSTIN: {creditRecipt.customer.GSTIN}", normalFont)) { Border = Rectangle.NO_BORDER, HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
+
+                    billInfoTable.AddCell(new PdfPCell(new Phrase($"Check Number: {creditRecipt.CheckNumber}", normalFont)) { Border = Rectangle.NO_BORDER });
+
+                    //billInfoTable.AddCell(new PdfPCell(new Phrase($"GSTIN: {GSTIN}", normalFont)) { Border = Rectangle.NO_BORDER });
+                    //billInfoTable.AddCell(new PdfPCell(new Phrase($"Payment Type: {createPaymentTypeString}", normalFont)) { Border = Rectangle.NO_BORDER, HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
+
+
+                    document.Add(billInfoTable);
+                    document.Add(new Paragraph("\n"));
+
+                    // Create a table with one column for the title
+                    PdfPTable titleTable = new PdfPTable(1);
+                    titleTable.WidthPercentage = 100;
+
+                    // Create a cell for "Tax Invoice"
+                    PdfPCell titleCell = new PdfPCell(new Phrase("RECEIPT", boldFont));
+                    titleCell.HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER;
+                    titleCell.BorderWidthTop = 1f;   // Top Border
+                    titleCell.BorderWidthBottom = 1f; // Bottom Border
+                    titleCell.BorderWidthLeft = 0f;   // No Left Border
+                    titleCell.BorderWidthRight = 0f;  // No Right Border
+                    titleCell.Padding = 5;
+
+                    // Add the cell to the table
+                    titleTable.AddCell(titleCell);
+
+                    titleTable.SpacingAfter = 5;
+
+                    // Add this title table **above** your main PdfPTable
+                    document.Add(titleTable);
+
+
+                    // ✅ Items Table
+                    PdfPTable table = new PdfPTable(5); // Now 9 columns for better alignment
+                    table.WidthPercentage = 100;
+                    table.SetWidths(new float[] { 0.5f,1f,1.5f,1f,1f });
+
+
+                    // ✅ First Header Row (Merging CGST & SGST)
+                    PdfPCell snoCell = new PdfPCell(new Phrase("S.No", headerFont)) { Rowspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
+                    PdfPCell billDateCell = new PdfPCell(new Phrase("Bill Date", headerFont)) { Rowspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
+                    PdfPCell billNoCell = new PdfPCell(new Phrase("Bill No", headerFont)) { Rowspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
+                    PdfPCell notationCell = new PdfPCell(new Phrase("Narration", headerFont)) { Rowspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
+                    PdfPCell amountCell = new PdfPCell(new Phrase("Amount", headerFont)) { Rowspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
+
+                    // ✅ CGST & SGST Merged Headers
+                    //PdfPCell cgstHeaderCell = new PdfPCell(new Phrase("CGST", headerFont)) { Colspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
+                    //PdfPCell sgstHeaderCell = new PdfPCell(new Phrase("SGST", headerFont)) { Colspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
+                    //PdfPCell totalCell = new PdfPCell(new Phrase("Total (\u20B9)", headerFont)) { Rowspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
+
+                    // ✅ Adding First Row Headers
+                    table.AddCell(snoCell);
+                    table.AddCell(billDateCell);
+                    table.AddCell(billNoCell);
+                    table.AddCell(notationCell);
+                    table.AddCell(amountCell);
+                    //table.AddCell(sgstHeaderCell);
+                    //table.AddCell(totalCell);
+
+                    // ✅ Second Header Row (Splitting CGST & SGST into Rate & Amt)
+
+
+
+                    var totalAmount = 0m;
+                    var sno = 1;
+                    // ✅ Table Items (Existing logic preserved)
+                    foreach (var item in creditRecipt.creditBills)
+                    {
+                        
+
+                        string billNo = (creditRecipt.Branch == "Sivakasi" ? "SFR" : "BPR") + item.billNo.ToString().PadLeft(4, '0');
+                        table.AddCell(new PdfPCell(new Phrase(sno.ToString(), normalFont)));
+                        table.AddCell(new PdfPCell(new Phrase(item.BillDate.ToString("dd-MMM-yyyy"), normalFont)) { HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(billNo, normalFont)) { HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(creditRecipt.narration, normalFont)) { HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(item.amountPayed.ToString("F2"), normalFont)) { HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
+
+                        totalAmount += item.amountPayed;
+                        // ✅ CGST Rate & Amount
+
+                        sno++;
+                    }
+
+                    document.Add(table);
+                    document.Add(new Paragraph("\n"));
+
+
+                    // ✅ Tax & Total Section in Single Row
+                    PdfPTable totalTable = new PdfPTable(3); // change from 5 to 3
+                    totalTable.WidthPercentage = 100;
+                    totalTable.SetWidths(new float[] { 4, 1, 1 });
+
+                    totalTable.AddCell(new PdfPCell(new Phrase($"Total", boldFont))
+                    {
+                        HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT,
+                        Colspan = 2
+                    });
+                    totalTable.AddCell(new PdfPCell(new Phrase($"₹{Math.Round(totalAmount).ToString("F2")}", boldFont))
+                    {
+                        HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT
+                    });
+
+
+                    totalTable.SpacingBefore = 150;
+                    document.Add(totalTable);
+                    Paragraph amountParagraph = new Paragraph();
+                    amountParagraph.Add(new Chunk("Amount in Words: ", boldFont)); // Bold for label
+                    amountParagraph.Add(new Chunk($"{ConvertAmountToWords(Math.Round(totalAmount))} Only", normalFont)); // Normal text for amount and "Only"
+                    document.Add(amountParagraph);
+
+
+                    document.Add(new Paragraph("\n"));
+
+                    
+
+                    Paragraph paragraph = new Paragraph("", boldFont);
+                    paragraph.Alignment = iTextSharp.text.Element.ALIGN_CENTER; // Centers the paragraph
+
+                    document.Add(paragraph);
+
+
+
+
+
+                    PdfPTable signatureTable = new PdfPTable(1);
+                    signatureTable.WidthPercentage = 100;
+                    signatureTable.DefaultCell.Border = PdfPCell.NO_BORDER;
+                    signatureTable.HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT;
+
+                    PdfPCell signatureCell = new PdfPCell();
+                    signatureCell.Border = PdfPCell.NO_BORDER;
+                    signatureCell.HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT;
+                    signatureCell.AddElement(new Paragraph("For AUTO DYNAMICS", boldFont));
+                    signatureCell.AddElement(new Paragraph("_________________", normalFont));
+                    signatureCell.AddElement(new Paragraph("Authorized Signatory", normalFont));
+
+                    signatureTable.AddCell(signatureCell);
+                    document.Add(signatureTable);
+
+
+                    document.Close();
+
+
+
+
+                    // ✅ Convert MemoryStream to Byte Array
+                    byte[] pdfBytes = memoryStream.ToArray();
+
+                    // ✅ Save Temp PDF File
+                    string tempFilePath = Path.Combine(FileSystem.CacheDirectory, "TempPrint.pdf");
+                    await File.WriteAllBytesAsync(tempFilePath, pdfBytes);
+
+                    // ✅ Open Print Dialog (Windows Only)
+                    if (DeviceInfo.Platform == DevicePlatform.WinUI)
+                    {
+                        ProcessStartInfo psi = new ProcessStartInfo
+                        {
+                            FileName = tempFilePath,  // Open the PDF in default viewer
+                            UseShellExecute = true
+                        };
+
+                        Process.Start(psi);
+
+                        return "Print dialog opened successfully.";
+                    }
+
+                    return "Printing is only implemented for Windows.";
+                }
+            }
+            catch(Exception e)
+            {
+                return "Error generating receipt PDF: " + e.Message;
+            }
+        }
+
+
+        public async Task<string> CreatePaymentPDF(PaymentReciptType creditRecipt, IJSRuntime js)
+        {
+            try
+            {
+                using (MemoryStream memoryStream = new MemoryStream())
+                {
+
+                    Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+                    string fontPath = @"C:\Windows\Fonts\tahoma.ttf";
+                    string boldFontPath = @"C:\Windows\Fonts\tahomabd.ttf"; // Bold
+                    BaseFont tahomaBaseFont = BaseFont.CreateFont(fontPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+                    BaseFont tahomaBoldBaseFont = BaseFont.CreateFont(boldFontPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+
+                    BaseFont baseFont = BaseFont.CreateFont(@"C:\Windows\Fonts\seguisym.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+                    iTextSharp.text.Font symbolFont = new iTextSharp.text.Font(baseFont, 12, iTextSharp.text.Font.NORMAL, BaseColor.BLACK);
+
+                    Document document = new Document(PageSize.A4, 15f, 15f, 15f, 15f);
+
+                    PdfWriter writer = PdfWriter.GetInstance(document, memoryStream);
+                    document.Open();
+
+                    // ✅ Fonts & Colors (Using Tahoma)
+                    iTextSharp.text.Font titleFont = new iTextSharp.text.Font(tahomaBoldBaseFont, 22, iTextSharp.text.Font.BOLD, BaseColor.WHITE);
+                    iTextSharp.text.Font headerFont = new iTextSharp.text.Font(tahomaBoldBaseFont, 10, iTextSharp.text.Font.BOLD, BaseColor.BLACK);
+                    iTextSharp.text.Font normalFont = new iTextSharp.text.Font(tahomaBaseFont, 10);
+                    iTextSharp.text.Font boldFont = new iTextSharp.text.Font(tahomaBoldBaseFont, 10, iTextSharp.text.Font.BOLD);
+
+                    // ✅ Header (Blue Background)
+                    PdfPTable headerTable = new PdfPTable(1);
+                    headerTable.WidthPercentage = 100;
+                    PdfPCell headerCell = new PdfPCell(new Phrase("AUTO DYNAMICS", titleFont))
+                    {
+                        BackgroundColor = new BaseColor(82, 183, 136), // Green
+                        HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER,
+                        Padding = 10,
+                        Border = Rectangle.NO_BORDER
+                    };
+                    headerTable.AddCell(headerCell);
+                    document.Add(headerTable);
+
+                    string address = creditRecipt.Branch == "Sivakasi" ? "232/1, TTL Road, Near SFR College, Sivakasi" : "33-I, Kamak Road, Sivakasi";
+
+                    document.Add(new Paragraph(address, normalFont) { Alignment = iTextSharp.text.Element.ALIGN_CENTER });
+                    document.Add(new Paragraph("GSTIN: 33AJXPA5555E2Z5", normalFont) { Alignment = iTextSharp.text.Element.ALIGN_CENTER });
+                    document.Add(new Paragraph("\u260E 99444 57589", symbolFont) { Alignment = iTextSharp.text.Element.ALIGN_RIGHT });
+                    document.Add(new Paragraph("\u260E 97515 32515", symbolFont) { Alignment = iTextSharp.text.Element.ALIGN_RIGHT });
+                    document.Add(new Paragraph("\n"));
+
+                    // ✅ Bill Information (Left + Right Date)
+                    PdfPTable billInfoTable = new PdfPTable(2);
+                    billInfoTable.WidthPercentage = 100;
+                    billInfoTable.SetWidths(new float[] { 1, 1 });
+
+                    string BillId = creditRecipt.Branch == "Sivakasi" ? "RC_SFR" + creditRecipt.PaymentNo.ToString().PadLeft(4, '0') : "PY_BPR" + creditRecipt.PaymentNo.ToString().PadLeft(4, '0');
+                    billInfoTable.AddCell(new PdfPCell(new Phrase($"Receipt No: {BillId}", boldFont)) { Border = Rectangle.NO_BORDER });
+                    billInfoTable.AddCell(new PdfPCell(new Phrase($"Date: {creditRecipt.PaymentDate:dd-MM-yyyy}", boldFont)) { Border = Rectangle.NO_BORDER, HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
+
+                    billInfoTable.AddCell(new PdfPCell(new Phrase($"Customer: {creditRecipt.supplier.SupplierID}", normalFont)) { Border = Rectangle.NO_BORDER });
+                    billInfoTable.AddCell(new PdfPCell(new Phrase($"M: {creditRecipt.supplier.Contact}", normalFont)) { Border = Rectangle.NO_BORDER, HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
+
+
+                    billInfoTable.AddCell(new PdfPCell(new Phrase($"Name: {creditRecipt.supplier.Name}", normalFont)) { Border = Rectangle.NO_BORDER });
+
+                    billInfoTable.AddCell(new PdfPCell(new Phrase($"GSTIN: {creditRecipt.supplier.GSTIN}", normalFont)) { Border = Rectangle.NO_BORDER, HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
+
+                    billInfoTable.AddCell(new PdfPCell(new Phrase($"Check Number: {creditRecipt.CheckNumber}", normalFont)) { Border = Rectangle.NO_BORDER });
+
+                    //billInfoTable.AddCell(new PdfPCell(new Phrase($"GSTIN: {GSTIN}", normalFont)) { Border = Rectangle.NO_BORDER });
+                    //billInfoTable.AddCell(new PdfPCell(new Phrase($"Payment Type: {createPaymentTypeString}", normalFont)) { Border = Rectangle.NO_BORDER, HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
+
+
+                    document.Add(billInfoTable);
+                    document.Add(new Paragraph("\n"));
+
+                    // Create a table with one column for the title
+                    PdfPTable titleTable = new PdfPTable(1);
+                    titleTable.WidthPercentage = 100;
+
+                    // Create a cell for "Tax Invoice"
+                    PdfPCell titleCell = new PdfPCell(new Phrase("PAYMENT", boldFont));
+                    titleCell.HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER;
+                    titleCell.BorderWidthTop = 1f;   // Top Border
+                    titleCell.BorderWidthBottom = 1f; // Bottom Border
+                    titleCell.BorderWidthLeft = 0f;   // No Left Border
+                    titleCell.BorderWidthRight = 0f;  // No Right Border
+                    titleCell.Padding = 5;
+
+                    // Add the cell to the table
+                    titleTable.AddCell(titleCell);
+
+                    titleTable.SpacingAfter = 5;
+
+                    // Add this title table **above** your main PdfPTable
+                    document.Add(titleTable);
+
+
+                    // ✅ Items Table
+                    PdfPTable table = new PdfPTable(5); // Now 9 columns for better alignment
+                    table.WidthPercentage = 100;
+                    table.SetWidths(new float[] { 0.5f, 1f, 1.5f, 1f, 1f });
+
+
+                    // ✅ First Header Row (Merging CGST & SGST)
+                    PdfPCell snoCell = new PdfPCell(new Phrase("S.No", headerFont)) { Rowspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
+                    PdfPCell billDateCell = new PdfPCell(new Phrase("Bill Date", headerFont)) { Rowspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
+                    PdfPCell billNoCell = new PdfPCell(new Phrase("Bill No", headerFont)) { Rowspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
+                    PdfPCell notationCell = new PdfPCell(new Phrase("Narration", headerFont)) { Rowspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
+                    PdfPCell amountCell = new PdfPCell(new Phrase("Amount", headerFont)) { Rowspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
+
+                    // ✅ CGST & SGST Merged Headers
+                    //PdfPCell cgstHeaderCell = new PdfPCell(new Phrase("CGST", headerFont)) { Colspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
+                    //PdfPCell sgstHeaderCell = new PdfPCell(new Phrase("SGST", headerFont)) { Colspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
+                    //PdfPCell totalCell = new PdfPCell(new Phrase("Total (\u20B9)", headerFont)) { Rowspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
+
+                    // ✅ Adding First Row Headers
+                    table.AddCell(snoCell);
+                    table.AddCell(billDateCell);
+                    table.AddCell(billNoCell);
+                    table.AddCell(notationCell);
+                    table.AddCell(amountCell);
+                    //table.AddCell(sgstHeaderCell);
+                    //table.AddCell(totalCell);
+
+                    // ✅ Second Header Row (Splitting CGST & SGST into Rate & Amt)
+
+
+
+                    var totalAmount = 0m;
+                    var sno = 1;
+                    // ✅ Table Items (Existing logic preserved)
+                    foreach (var item in creditRecipt.paymentBills)
+                    {
+
+
+                        string billNo = (creditRecipt.Branch == "Sivakasi" ? "SFRP" : "BPRP") + item.purchaseNo.ToString().PadLeft(4, '0');
+                        table.AddCell(new PdfPCell(new Phrase(sno.ToString(), normalFont)));
+                        table.AddCell(new PdfPCell(new Phrase(item.purchaseDate.ToString("dd-MMM-yyyy"), normalFont)) { HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(billNo, normalFont)) { HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(creditRecipt.Narration, normalFont)) { HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER });
+                        table.AddCell(new PdfPCell(new Phrase(item.amountPayed.ToString("F2"), normalFont)) { HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
+
+                        totalAmount += item.amountPayed;
+                        // ✅ CGST Rate & Amount
+
+                        sno++;
+                    }
+
+                    document.Add(table);
+                    document.Add(new Paragraph("\n"));
+
+
+                    // ✅ Tax & Total Section in Single Row
+                    PdfPTable totalTable = new PdfPTable(3); // change from 5 to 3
+                    totalTable.WidthPercentage = 100;
+                    totalTable.SetWidths(new float[] { 4, 1, 1 });
+
+                    totalTable.AddCell(new PdfPCell(new Phrase($"Total", boldFont))
+                    {
+                        HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT,
+                        Colspan = 2
+                    });
+                    totalTable.AddCell(new PdfPCell(new Phrase($"₹{Math.Round(totalAmount).ToString("F2")}", boldFont))
+                    {
+                        HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT
+                    });
+
+
+                    totalTable.SpacingBefore = 150;
+                    document.Add(totalTable);
+                    Paragraph amountParagraph = new Paragraph();
+                    amountParagraph.Add(new Chunk("Amount in Words: ", boldFont)); // Bold for label
+                    amountParagraph.Add(new Chunk($"{ConvertAmountToWords(Math.Round(totalAmount))} Only", normalFont)); // Normal text for amount and "Only"
+                    document.Add(amountParagraph);
+
+
+                    document.Add(new Paragraph("\n"));
+
+
+
+                    Paragraph paragraph = new Paragraph("", boldFont);
+                    paragraph.Alignment = iTextSharp.text.Element.ALIGN_CENTER; // Centers the paragraph
+
+                    document.Add(paragraph);
+
+
+
+
+
+                    PdfPTable signatureTable = new PdfPTable(1);
+                    signatureTable.WidthPercentage = 100;
+                    signatureTable.DefaultCell.Border = PdfPCell.NO_BORDER;
+                    signatureTable.HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT;
+
+                    PdfPCell signatureCell = new PdfPCell();
+                    signatureCell.Border = PdfPCell.NO_BORDER;
+                    signatureCell.HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT;
+                    signatureCell.AddElement(new Paragraph("For AUTO DYNAMICS", boldFont));
+                    signatureCell.AddElement(new Paragraph("_________________", normalFont));
+                    signatureCell.AddElement(new Paragraph("Authorized Signatory", normalFont));
+
+                    signatureTable.AddCell(signatureCell);
+                    document.Add(signatureTable);
+
+
+                    document.Close();
+
+
+
+
+                    // ✅ Convert MemoryStream to Byte Array
+                    byte[] pdfBytes = memoryStream.ToArray();
+
+                    // ✅ Save Temp PDF File
+                    string tempFilePath = Path.Combine(FileSystem.CacheDirectory, "TempPrint.pdf");
+                    await File.WriteAllBytesAsync(tempFilePath, pdfBytes);
+
+                    // ✅ Open Print Dialog (Windows Only)
+                    if (DeviceInfo.Platform == DevicePlatform.WinUI)
+                    {
+                        ProcessStartInfo psi = new ProcessStartInfo
+                        {
+                            FileName = tempFilePath,  // Open the PDF in default viewer
+                            UseShellExecute = true
+                        };
+
+                        Process.Start(psi);
+
+                        return "Print dialog opened successfully.";
+                    }
+
+                    return "Printing is only implemented for Windows.";
+                }
+            }
+            catch (Exception e)
+            {
+                return "Error generating receipt PDF: " + e.Message;
+            }
+        }
+
+        public async Task<string> CreateCreditRecordPDF(IJSRuntime js,string Branch, List<CreditRecord>? sivakasiCredit = null, List<CreditRecord>? bypassCredit = null)
+        {
+            try
+            {
+                Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+                string fontPath = @"C:\Windows\Fonts\tahoma.ttf";
+                string boldFontPath = @"C:\Windows\Fonts\tahomabd.ttf"; // Bold
+                BaseFont tahomaBaseFont = BaseFont.CreateFont(fontPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+                BaseFont tahomaBoldBaseFont = BaseFont.CreateFont(boldFontPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+
+                BaseFont baseFont = BaseFont.CreateFont(@"C:\Windows\Fonts\seguisym.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+                iTextSharp.text.Font symbolFont = new iTextSharp.text.Font(baseFont, 12, iTextSharp.text.Font.NORMAL, BaseColor.BLACK);
+
+                Document document = new Document(PageSize.A4, 15f, 15f, 15f, 15f);
+
+                using (MemoryStream memoryStream = new MemoryStream())
+                {
+
+
+                    PdfWriter writer = PdfWriter.GetInstance(document, memoryStream);
+                    document.Open();
+
+                    // ✅ Fonts & Colors (Using Tahoma)
+                    iTextSharp.text.Font titleFont = new iTextSharp.text.Font(tahomaBoldBaseFont, 22, iTextSharp.text.Font.BOLD, BaseColor.WHITE);
+                    iTextSharp.text.Font headerFont = new iTextSharp.text.Font(tahomaBoldBaseFont, 10, iTextSharp.text.Font.BOLD, BaseColor.BLACK);
+                    iTextSharp.text.Font normalFont = new iTextSharp.text.Font(tahomaBaseFont, 10);
+                    iTextSharp.text.Font boldFont = new iTextSharp.text.Font(tahomaBoldBaseFont, 10, iTextSharp.text.Font.BOLD);
+
+                    Paragraph date = new Paragraph(DateTime.Now.ToString("dd/MM/yyyy"),normalFont);
+                    date.Alignment = iTextSharp.text.Element.ALIGN_RIGHT;
+                    date.SpacingAfter = 10f; // Add some space after the date
+                    document.Add(date);
+                    // ✅ Header (Blue Background)
+                    PdfPTable headerTable = new PdfPTable(1);
+                    headerTable.WidthPercentage = 100;
+                    PdfPCell headerCell = new PdfPCell(new Phrase("AUTO DYNAMICS", titleFont))
+                    {
+                        BackgroundColor = new BaseColor(82, 183, 136), // Green
+                        HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER,
+                        Padding = 10,
+                        Border = Rectangle.NO_BORDER
+                    };
+                    headerTable.AddCell(headerCell);
+
+
+                    document.Add(headerTable);
+
+                    PdfPTable titleTable = new PdfPTable(1);
+                    titleTable.WidthPercentage = 100;
+
+                    // Create a cell for "Tax Invoice"
+                    PdfPCell titleCell = new PdfPCell(new Phrase("CREDIT LIST", boldFont));
+                    titleCell.HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER;
+                    titleCell.BorderWidthTop = 1f;   // Top Border
+                    titleCell.BorderWidthBottom = 1f; // Bottom Border
+                    titleCell.BorderWidthLeft = 0f;   // No Left Border
+                    titleCell.BorderWidthRight = 0f;  // No Right Border
+                    titleCell.Padding = 5;
+
+                    // Add the cell to the table
+                    titleTable.AddCell(titleCell);
+
+                    titleTable.SpacingAfter = 5;
+
+                    // Add this title table **above** your main PdfPTable
+                    document.Add(titleTable);
+
+                    if (Branch == "Both")
+                    {
+                        PdfPTable sivakasiCreditTable = AddCreditTable("Sivakasi");
+                        CreateCreditRow(sivakasiCreditTable, document, sivakasiCredit ?? new List<CreditRecord>());
+
+                        sivakasiCreditTable.SpacingAfter = 20f; // Add space after Sivakasi table
+
+                        PdfPTable bypassCreditTable = AddCreditTable("Bypass");
+                        CreateCreditRow(bypassCreditTable, document, bypassCredit ?? new List<CreditRecord>());
+                    }
+                    else if (Branch == "Sivakasi")
+                    {
+                        PdfPTable sivakasiCreditTable = AddCreditTable("Sivakasi");
+                        CreateCreditRow(sivakasiCreditTable, document, sivakasiCredit ?? new List<CreditRecord>());
+                    }
+                    else
+                    {
+                        PdfPTable bypassCreditTable = AddCreditTable("Bypass");
+                        CreateCreditRow(bypassCreditTable, document, bypassCredit ?? new List<CreditRecord>());
+                    }
+
+                    document.Close();
+
+                    byte[] pdfBytes = memoryStream.ToArray();
+
+                    // ✅ Save Temp PDF File
+                    string tempFilePath = Path.Combine(FileSystem.CacheDirectory, "CreditList.pdf");
+                    await File.WriteAllBytesAsync(tempFilePath, pdfBytes);
+
+                    // ✅ Open Print Dialog (Windows Only)
+                    if (DeviceInfo.Platform == DevicePlatform.WinUI)
+                    {
+                        ProcessStartInfo psi = new ProcessStartInfo
+                        {
+                            FileName = tempFilePath,  // Open the PDF in default viewer
+                            UseShellExecute = true
+                        };
+
+                        Process.Start(psi);
+
+                        return "Print dialog opened successfully.";
+                    }
+
+                    return "Printing is only implemented for Windows.";
+                }
+            }
+            catch (Exception e)
+            {
+                return "Exception Thrown: " + e.Message;
+            }
+        }
+
+        private PdfPTable AddCreditTable(string Branch)
+        {
+            PdfPTable creditTable = new PdfPTable(6) { WidthPercentage = 100 };
+            creditTable.SetWidths(new float[] { 0.5f, 1f, 1.5f, 1f, 1f, 1f });
+
+            // 🔹 Add Branch Row (spanning all 8 columns)
+            PdfPCell branchCell = new PdfPCell(new Phrase("Branch: " + Branch, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 12)))
+            {
+                Colspan = 6,
+                HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER,
+                Border = Rectangle.NO_BORDER,
+                PaddingBottom = 10f
+            };
+            creditTable.AddCell(branchCell);
+
+            // 🔹 Add Header Row
+            string[] headers = { "S.No", "Name", "Mobile", "Credit Amount", "Paid Amount", "Remaining Amount" };
+            foreach (string header in headers)
+            {
+                PdfPCell headerCell = new PdfPCell(new Phrase(header, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10)))
+                {
+                    HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER
+                };
+                creditTable.AddCell(headerCell);
+            }
+
+            
+            
+            return creditTable;
+        }
+
+        private void CreateCreditRow(PdfPTable creditTable,Document document, List<CreditRecord> creditRecords)
+        {
+            int sno = 1;
+            foreach(var creditRecord in creditRecords)
+            {
+                string[] values = creditRecord.GenerateForPDF();
+                PdfPCell snoCell = new PdfPCell(new Phrase(sno.ToString(), FontFactory.GetFont(FontFactory.HELVETICA, 10)))
+                {
+                    HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER
+                };
+                creditTable.AddCell(snoCell);
+                foreach (string value in values)
+                {
+                    PdfPCell cell = new PdfPCell(new Phrase(value, FontFactory.GetFont(FontFactory.HELVETICA, 10)))
+                    {
+                        HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER
+                    };
+                    creditTable.AddCell(cell);
+                }
+                sno++;
+            }
+            document.Add(creditTable);
         }
 
         private void AddClosingBalance (Document document, decimal closingBalance, iTextSharp.text.Font font)

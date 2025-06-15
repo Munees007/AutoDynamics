@@ -17,6 +17,11 @@ namespace AutoDynamics.Shared.Modals.Accounts.Recipt
         public Supplier supplier { get; set; } = new();
         public decimal TotalAmountPaid { get; set; } = new();
         public List<PaymentBill> paymentBills { get; set; } = new();
+        public string Narration { get; set; } = string.Empty;
+        public string CheckNumber { get; set; } = string.Empty;
+        public int BillingYear { get; set; } = 0;
+
+        public int PaymentNo { get; set; } = 0;
     }
 
     
@@ -38,7 +43,7 @@ namespace AutoDynamics.Shared.Modals.Accounts.Recipt
         public decimal remainingBalance { get; set; } = 0;
         public decimal amountPayed { get; set; } = 0;
 
-
+        public int purchaseNo { get; set; } = 0;
 
         public bool isSelected { get; set; } = true;
 

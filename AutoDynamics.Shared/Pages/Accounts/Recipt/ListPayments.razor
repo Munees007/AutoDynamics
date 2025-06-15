@@ -1,0 +1,429 @@
+﻿@page "/payment/view"
+@using System.Diagnostics
+@inject IDatabaseHandler DatabaseHandler
+@inject IAlertService AlertService
+@inject IToastService ToastService
+@inject IPDFGenerator PDFGenerator
+@inject IMyLocalStorageService MyLocalStorageService
+@inject NavigationManager Navigation
+@inject ICurrentData CurrentData
+@inject IJSRuntime JS
+@inject IFormFactor FormFactor
+@inject IDownloadExcel DownloadExcel
+@inject ITabService TabService
+<h3 class="text-center mb-4">Payment Lists</h3>
+@* <DialoBox dialogBox="excelDialog"></DialoBox> *@
+<div class="mb-3">
+    <input type="text" @bind="searchQuery" @oninput="SearchBills" class="form-control" placeholder="Search by Bill No" />
+</div>
+
+<div class="mb-3">
+    <label>Sort By: </label>
+    <select @bind="selectedSortOption" class="form-control">
+        <option value="yesterday">Yesterday</option>
+        <option value="date">Today</option>
+        <option value="month">Month to Date</option>
+        <option value="year">Year to Date</option>
+        <option value="range">Custom</option>
+    </select>
+
+    @if (selectedSortOption == "range")
+    {
+        <input type="date" @bind="startDate" class="form-control mt-2" />
+        <input type="date" @bind="endDate" class="form-control mt-2" />
+    }
+</div>
+<div class="w-100 d-flex justify-content-between align-items-md-center">
+    <button class="btn btn-primary mb-3" @onclick="ApplyFilters">Apply Filters</button>
+    <button class="btn btn-success mb-3" @onclick="()=>{excelDialog.showDialog = true;StateHasChanged();}">Download Excel</button>
+</div>
+@if (receiptDetails == null || !receiptDetails.Any())
+{
+    <div class="alert alert-warning text-center">No billing records found.</div>
+}
+else
+{
+    <div class="col ">
+        @if (isAdmin || showSivakasi)
+        {
+            <div class="col-md-6 w-100">
+                <div class="card shadow-lg">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Sivakasi Branch</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (filteredSivakasiReceipts.Any())
+                        {
+                            <table class="table table-bordered table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Payment Id</th>
+                                        <th>Customer ID</th>
+                                        <th>Name</th>
+                                        <th>Mobile No</th>
+                                        <th>Branch</th>
+                                        <th>Check Number</th>
+                                        <th>Receipt Date</th>
+                                        <th>Total</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var bill in filteredSivakasiReceipts)
+                                    {
+                                        <tr>
+                                            <td style="cursor:pointer;">@("PY_SFR" + (bill.PaymentNo.ToString().PadLeft(4, '0')))</td>
+                                            <td>@bill.supplier.SupplierID</td>
+                                            <td>@bill.supplier.Name</td>
+                                            <td>@bill.supplier.Contact</td>
+                                            <td>@bill.Branch</td>
+                                            <td>@(bill.CheckNumber != string.Empty ? bill.CheckNumber : "")</td>
+                                            <td>@bill.PaymentDate.ToString("yyyy-MM-dd")</td>
+                                            <td>₹@(Math.Round(bill.TotalAmountPaid))</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-success" @onclick="() => DownloadBill(bill)">Download</button>
+                                                @if (isAdmin)
+                                                {
+                                                    @* <button class="btn btn-sm btn-danger">Update</button> *@
+                                                }
+                                            </td>
+
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center">No records for Sivakasi.</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+        @if (showByPass || isAdmin)
+        {
+            <div class="col-md-6 mt-5 w-100">
+                <div class="card shadow-lg">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Bypass Branch</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (filteredBypassReceipts.Any())
+                        {
+                            <table class="table table-bordered table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Payment No</th>
+                                        
+                                        <th>Customer ID</th>
+                                        <th>Name</th>
+                                        <th>Mobile No</th>
+                                        <th>Branch</th>
+                                        <th>Check Number</th>
+                                        <th>Receipt Date</th>
+                                        <th>Total</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var bill in filteredBypassReceipts)
+                                    {
+                                        <tr>
+                                            <td style="cursor:pointer;">@("RC_BPR" + (bill.PaymentNo.ToString().PadLeft(4, '0')))</td>
+                                            
+                                            <td>@bill.supplier.SupplierID</td>
+                                            <td>@bill.supplier.Name</td>
+                                            <td>@bill.supplier.Contact</td>
+                                            <td>@bill.Branch</td>
+                                            <td>@(bill.CheckNumber != string.Empty ? bill.CheckNumber : "No Check Number")</td>
+                                            <td>@bill.PaymentDate.ToString("yyyy-MM-dd")</td>
+                                            <td>₹@bill.TotalAmountPaid</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-success" @onclick="() => DownloadBill(bill)">Download</button>
+                                                @if (isAdmin)
+                                                {
+                                                    @* <button class="btn btn-sm btn-danger" >Update</button> *@
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center">No records for Bypass.</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+
+<Loader purpose="Loader.LoaderType.Loading" customText="@loaderText" show="isLoading" />
+
+
+@code {
+
+    List<PaymentReciptType> receiptDetails = new();
+    List<PaymentReciptType> sivakasiReceipts = new();
+    List<PaymentReciptType> bypassReceipts = new();
+    List<PaymentReciptType> filteredSivakasiReceipts = new();
+    List<PaymentReciptType> filteredBypassReceipts = new();
+
+    bool isAdmin = false, isLoading = false;
+    string branch = "";
+    bool showSivakasi = false;
+    bool showByPass = false;
+    string searchQuery = "";
+    string selectedSortOption = "date";
+    DateTime? startDate;
+    DateTime? endDate;
+
+    string excelBranch = "Sivakasi";
+    int excelMonth = 1;
+    int excelYear = 2025;
+    string loaderText = "";
+    Dictionary<string, dynamic> Parameters;
+
+    CustomDialogBox excelDialog = new CustomDialogBox();
+
+    public void SearchBills(ChangeEventArgs e)
+    {
+        searchQuery = e.Value.ToString();
+        filteredSivakasiReceipts = sivakasiReceipts.Where((b) => CreateBillNo(b).Contains(searchQuery)).ToList();
+        filteredBypassReceipts = bypassReceipts.Where((b) => CreateBillNo(b).Contains(searchQuery)).ToList();
+    }
+
+    public string CreateBillNo(PaymentReciptType receipt)
+    {
+        return (((receipt.Branch == "Sivakasi" ? "PY_SFR" : "PY_BPR") + receipt.PaymentNo.ToString().PadLeft(4, '0')));
+    }
+    public async void generateExcel()
+    {
+        try
+        {
+            loaderText = "Generating Excel...";
+            isLoading = true;
+
+
+            // Parse selected month and year from dropdown (assuming excelMonth and excelYear are integers)
+            int selectedMonth = excelMonth;
+            int selectedYear = excelYear;
+
+            DateTime monthDate = new DateTime(selectedYear, selectedMonth, 1);
+
+            var filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.CustomMonthYear, customMonthYear: monthDate);
+            filtered = filtered.Where((b) => b.Bill.Branch == excelBranch).ToList();
+            Debug.WriteLine(filtered.Count);
+            filtered = filtered.OrderBy((b) => b.Bill.BillNo).ToList();
+            string temp = $"{monthDate:MMMM-yyyy}";
+            string savedPath = DownloadExcel.DownloadExcelToDevice(filtered.ToArray(), temp, excelBranch);
+            ToastService.ShowToast("Excel Genreated Successfully", ToastType.sucess);
+        }
+        catch (Exception e)
+        {
+            ToastService.ShowToast(e.Message, ToastType.error);
+        }
+
+        isLoading = false;
+        loaderText = "";
+        StateHasChanged();
+
+    }
+
+    private void ViewBill(BillDetails bill)
+    {
+        string billNo = (bill.Bill.Branch == "Sivakasi" ? "SFR" : "BPR") + bill.Bill.BillNo.ToString().PadLeft(4, '0');
+        Parameters = new Dictionary<string, dynamic>
+                {
+            {"billData",bill}
+                };
+        TabService.OpenWithParameter("View Bill No: " + billNo, typeof(BillView), Parameters);
+        // CurrentData.Set(CurrentType.Bill,bill);
+        // Navigation.NavigateTo("/bill/single-view");
+    }
+
+    private void UpdateBill(BillDetails bill)
+    {
+        string billNo = (bill.Bill.Branch == "Sivakasi" ? "SFR" : "BPR") + bill.Bill.BillNo.ToString().PadLeft(4, '0');
+        Parameters = new Dictionary<string, dynamic>
+                    {
+            {"updatingBill",bill}
+                    };
+        TabService.OpenWithParameter("Update Bill No: " + billNo, typeof(UpdateBill), Parameters);
+        // CurrentData.Set(CurrentType.Bill,bill);
+        // Navigation.NavigateTo($"/updateBill");
+    }
+    async void DownloadBill(PaymentReciptType data)
+    {
+        try
+        {
+            if (FormFactor.GetFormFactor() == "Web")
+            {
+                string path = await PDFGenerator.CreatePaymentPDF(data, JS);
+                ToastService.ShowToast("PDF Downloaded Successfully", ToastType.sucess);
+            }
+            else
+            {
+                string path = await PDFGenerator.CreatePaymentPDF(data, null);
+                ToastService.ShowToast("PDF Downloaded Successfully", ToastType.sucess);
+            }
+        }
+        catch (Exception e)
+        {
+            ToastService.ShowToast(e.Message, ToastType.error);
+        }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+
+        excelDialog = new CustomDialogBox
+                {
+                    Title = "Download Excel",
+                    body = @<div class="mb-3">
+        <label class="form-label">Select Branch, Month, and Year</label>
+
+        <div class="d-flex gap-3">
+            <select id="branchSelect" class="form-select" @bind="excelBranch">
+                <option value="Sivakasi">Sivakasi</option>
+                <option value="ByPass">ByPass</option>
+            </select>
+
+            <select id="monthSelect" class="form-select" @bind="excelMonth">
+                <option value="1">January</option>
+                <option value="2">February</option>
+                <option value="3">March</option>
+                <option value="4">April</option>
+                <option value="5">May</option>
+                <option value="6">June</option>
+                <option value="7">July</option>
+                <option value="8">August</option>
+                <option value="9">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+            </select>
+
+            <select id="yearSelect" class="form-select" @bind="excelYear">
+                @for (int year = DateTime.Now.Year - 5; year <= DateTime.Now.Year + 1; year++)
+            {
+                <option value="@year">@year</option>
+            }
+            </select>
+        </div>
+    </div>
+
+
+    ,
+            footers = new List<FooterBtn>
+            {
+                new FooterBtn
+                {
+                    Button = @<button class="btn btn-danger" @onclick="()=>{excelDialog.showDialog = false; StateHasChanged();}">CANCEL</button>
+                },
+                new FooterBtn
+                {
+                          Button = @<button class="btn btn-primary" @onclick="generateExcel">OK</button>
+	        	},
+            },
+            OnCloase = EventCallback.Factory.Create(this, async () =>
+            {
+                excelDialog.showDialog = false;
+                excelBranch = "";
+
+                StateHasChanged();
+            }),
+        };
+        if (FormFactor.GetFormFactor() == "Web")
+        {
+            Debug.WriteLine("Web");
+        }
+        else
+        {
+            Debug.WriteLine("Desktop");
+        }
+        receiptDetails = new List<PaymentReciptType>();
+        isAdmin = await MyLocalStorageService.GetItemAsync("IsAdmin") == "true";
+        branch = await MyLocalStorageService.GetItemAsync("Branch") ?? "";
+        showSivakasi = branch == "Sivakasi";
+        showByPass = !showSivakasi;
+
+        //ApplyFilters();
+    }
+
+    async void ApplyFilters()
+    {
+        loaderText = "Fetching Receipts";
+        isLoading = true;
+        receiptDetails = await FilterBills();
+        Debug.WriteLine(receiptDetails.Count);
+        filteredSivakasiReceipts = receiptDetails.Where((b) => b.Branch == "Sivakasi").ToList();
+
+        filteredSivakasiReceipts = filteredSivakasiReceipts.OrderBy((sb) => sb.PaymentId).ToList();
+        filteredBypassReceipts = receiptDetails.Where((b) => b.Branch == "ByPass").ToList();
+        filteredBypassReceipts = filteredBypassReceipts.OrderBy((bb) => bb.PaymentId).ToList();
+        sivakasiReceipts = filteredSivakasiReceipts;
+        bypassReceipts = filteredBypassReceipts;
+        isLoading = false;
+        loaderText = "";
+        StateHasChanged();
+    }
+
+    async Task<List<PaymentReciptType>> FilterBills()
+    {
+        try
+        {
+            var today = DateTime.Today;
+            List<PaymentReciptType> filtered = new();
+
+
+
+            if (selectedSortOption == "date")
+            {
+                filtered = await DatabaseHandler.GetFilteredPaymentsync(BillDateFilterType.Today);
+            }
+
+            if (selectedSortOption == "yesterday")
+            {
+                filtered = await DatabaseHandler.GetFilteredPaymentsync(BillDateFilterType.Yesterday);
+            }
+
+            if (selectedSortOption == "month")
+            {
+
+
+                filtered = await DatabaseHandler.GetFilteredPaymentsync(BillDateFilterType.ThisMonth);
+            }
+            if (selectedSortOption == "year")
+            {
+
+
+                filtered = await DatabaseHandler.GetFilteredPaymentsync(BillDateFilterType.ThisYear);
+            }
+
+
+            if (selectedSortOption == "range" && startDate.HasValue && endDate.HasValue)
+            {
+                Debug.WriteLine($"Start Date: {startDate.Value:yyyy-MM-dd}, End Date: {endDate.Value:yyyy-MM-dd}");
+
+                startDate = startDate.Value.Date;
+                endDate = endDate.Value.Date.AddHours(23).AddMinutes(59).AddSeconds(59);
+
+                filtered = await DatabaseHandler.GetFilteredPaymentsync(BillDateFilterType.CustomRange, startDate: startDate, endDate: endDate);
+            }
+            ToastService.ShowToast("Receipts Fetched Successfully", ToastType.sucess);
+            return filtered.OrderBy(b => b.PaymentDate).ToList();
+        }
+        catch (Exception e)
+        {
+            ToastService.ShowToast(e.Message, ToastType.error);
+            return new List<PaymentReciptType>();
+        }
+
+    }
+
+}

@@ -18,9 +18,14 @@ namespace AutoDynamics.Shared.Modals.Credit
         public string Branch { get; set; }
         public decimal CreditAmount { get; set; }
         public decimal PaidAmount { get; set; }
-        public decimal? RemainingBalance { get; set; }
+        public decimal? RemainingBalance { get; set; } = 0m;
         public DateTime DueDate { get; set; }
         public string Status { get; set; }
         public DateTime CreatedAt { get; set; }
+
+        public string[] GenerateForPDF()
+        {
+            return (new string[] {this.Customer.Name, this.Customer.Contact, this.CreditAmount.ToString("F2"), this.PaidAmount.ToString("F2"), this.RemainingBalance?.ToString("F2")!});
+        }
     }
 }

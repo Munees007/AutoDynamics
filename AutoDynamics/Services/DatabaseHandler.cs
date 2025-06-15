@@ -350,6 +350,7 @@ namespace AutoDynamics.Services
                 {
                     try
                     {
+                        int newBillNo = 1;
                         int receiptId = creditRecipt.ReceiptId;
 
                         if (isUpdating)
@@ -432,11 +433,39 @@ namespace AutoDynamics.Services
                         }
                         else
                         {
-                           
+                            
+                            // Determine the correct BillingYear based on April 1st financial year
+                            int currentYear = DateTime.Now.Year;
+                            int currentMonth = DateTime.Now.Month;
+
+                            int billingYear = (currentMonth >= 4) ? currentYear : currentYear - 1;  // If Apr-Dec -> Current Year, If Jan-Mar -> Previous Year
+
+                            creditRecipt.BillingYear = billingYear;  // Assign the calculated BillingYear
+
+                            // 1. Find the latest BillNo for the given Branch and BillingYear
+                            string getLatestBillNoQuery = @"
+            SELECT MAX(ReceiptNo) FROM Receipts 
+            WHERE Branch = @Branch AND BillingYear = @BillingYear";
+
+                            using (var command = new MySqlCommand(getLatestBillNoQuery, connection, (MySqlTransaction)transaction))
+                            {
+                                command.Parameters.AddWithValue("@Branch", creditRecipt.Branch);
+                                command.Parameters.AddWithValue("@BillingYear", creditRecipt.BillingYear);
+
+                                object result = await command.ExecuteScalarAsync();
+                                if (result != DBNull.Value && result != null)
+                                {
+                                    newBillNo = Convert.ToInt32(result) + 1;
+                                }
+                                else
+                                {
+                                    throw new Exception("Bill Insert Failed");
+                                }
+                            }
 
                             // Insert new receipt
-                            string insertQuery = @"INSERT INTO Receipts (CustomerID, PaymentDate, TotalAmountPaid,Branch) 
-                                           VALUES (@CustomerID, @PaymentDate, @TotalAmountPaid,@Branch); 
+                            string insertQuery = @"INSERT INTO Receipts (CustomerID, PaymentDate, TotalAmountPaid,Branch,BillingYear,ReceiptNo,CheckNumber,Narration) 
+                                           VALUES (@CustomerID, @PaymentDate, @TotalAmountPaid,@Branch,@BillingYear,@ReceiptNo,@CheckNumber,@Narration); 
                                            SELECT LAST_INSERT_ID();";
 
                             using (var command = new MySqlCommand(insertQuery, connection, (MySqlTransaction)transaction))
@@ -444,18 +473,22 @@ namespace AutoDynamics.Services
                                 command.Parameters.AddWithValue("@CustomerID", creditRecipt.customer.CustomerId);
                                 command.Parameters.AddWithValue("@PaymentDate", creditRecipt.ReciptDate);
                                 command.Parameters.AddWithValue("@TotalAmountPaid", creditRecipt.creditBills.Sum(x => x.amountPayed));
-                                
                                 command.Parameters.AddWithValue("@Branch", creditRecipt.Branch);
+                                command.Parameters.AddWithValue("@BillingYear", creditRecipt.BillingYear);
+                                command.Parameters.AddWithValue("@ReceiptNo", newBillNo);
+                                command.Parameters.AddWithValue("@CheckNumber", creditRecipt.CheckNumber);
+                                command.Parameters.AddWithValue("@Narration", creditRecipt.narration);
+
                                 var result = await command.ExecuteScalarAsync();
                                 receiptId = int.Parse(result?.ToString() ?? "0");
 
                                 if (receiptId == 0)
                                     throw new Exception("Unable to Insert Receipt, Please try again");
                             }
-                            ledgers.First<Ledger>().Particulars += (creditRecipt.Branch == "Sivakasi" ? "R_SFR":"R_BPR") + receiptId.ToString().PadLeft(7,'0');
+                            ledgers.First<Ledger>().Particulars += (creditRecipt.Branch == "Sivakasi" ? "RC_SFR":"RC_BPR") + receiptId.ToString().PadLeft(4,'0');
                             foreach(var ledger in ledgers)
                             {
-                                ledger.billOrInvoiceNo = (creditRecipt.Branch == "Sivakasi" ? "R_SFR" : "R_BPR") + receiptId.ToString().PadLeft(7, '0');
+                                ledger.billOrInvoiceNo = (creditRecipt.Branch == "Sivakasi" ? "RC_SFR" : "RC_BPR") + receiptId.ToString().PadLeft(4, '0');
                             }
                             List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers,false);
                             int mainLedgerId = ledgerIds[0];
@@ -525,6 +558,7 @@ namespace AutoDynamics.Services
                 {
                     try
                     {
+                        int newBillNo = 1;
                         int paymentID = creditRecipt.PaymentId;
 
                         if (isUpdating)
@@ -603,11 +637,37 @@ namespace AutoDynamics.Services
                         }
                         else
                         {
-                           
+                            int currentYear = DateTime.Now.Year;
+                            int currentMonth = DateTime.Now.Month;
+
+                            int billingYear = (currentMonth >= 4) ? currentYear : currentYear - 1;  // If Apr-Dec -> Current Year, If Jan-Mar -> Previous Year
+
+                            creditRecipt.BillingYear = billingYear;  // Assign the calculated BillingYear
+
+                            // 1. Find the latest BillNo for the given Branch and BillingYear
+                            string getLatestBillNoQuery = @"
+            SELECT MAX(PaymentNo) FROM Payments 
+            WHERE Branch = @Branch AND BillingYear = @BillingYear";
+
+                            using (var command = new MySqlCommand(getLatestBillNoQuery, connection, (MySqlTransaction)transaction))
+                            {
+                                command.Parameters.AddWithValue("@Branch", creditRecipt.Branch);
+                                command.Parameters.AddWithValue("@BillingYear", creditRecipt.BillingYear);
+
+                                object result = await command.ExecuteScalarAsync();
+                                if (result != DBNull.Value && result != null)
+                                {
+                                    newBillNo = Convert.ToInt32(result) + 1;
+                                }
+                                else
+                                {
+                                    throw new Exception("Bill Insert Failed");
+                                }
+                            }
 
                             // Insert new receipt
-                            string insertQuery = @"INSERT INTO Payments (SupplierID, PaymentDate, TotalAmountPaid,Branch) 
-                                           VALUES (@SupplierID, @PaymentDate, @TotalAmountPaid, @LedgerID,@Branch); 
+                            string insertQuery = @"INSERT INTO Payments (SupplierID, PaymentDate, TotalAmountPaid,Branch,CheckNumber,PaymentNo,Narration) 
+                                           VALUES (@SupplierID, @PaymentDate, @TotalAmountPaid, @LedgerID,@Branch,@CheckNumber,@PaymentNo,@Narration); 
                                            SELECT LAST_INSERT_ID();";
 
                             using (var command = new MySqlCommand(insertQuery, connection, (MySqlTransaction)transaction))
@@ -617,16 +677,19 @@ namespace AutoDynamics.Services
                                 command.Parameters.AddWithValue("@TotalAmountPaid", creditRecipt.paymentBills.Sum(x => x.amountPayed));
                                 
                                 command.Parameters.AddWithValue("@Branch", creditRecipt.Branch);
+                                command.Parameters.AddWithValue("@CheckNumber", creditRecipt.CheckNumber);
+                                command.Parameters.AddWithValue("@PaymentNo", newBillNo);
+                                command.Parameters.AddWithValue("@Narration", creditRecipt.Narration);
                                 var result = await command.ExecuteScalarAsync();
                                 paymentID = int.Parse(result?.ToString() ?? "0");
 
                                 if (paymentID == 0)
                                     throw new Exception("Unable to Insert Receipt, Please try again");
                             }
-                            ledgers.First<Ledger>().Particulars += (creditRecipt.Branch == "Sivakasi" ? "P_SFR" : "P_BPR") + paymentID.ToString().PadLeft(7, '0');
+                            ledgers.First<Ledger>().Particulars += (creditRecipt.Branch == "Sivakasi" ? "PY_SFR" : "PY_BPR") + paymentID.ToString().PadLeft(4, '0');
                             foreach (var ledger in ledgers)
                             {
-                                ledger.billOrInvoiceNo = (creditRecipt.Branch == "Sivakasi" ? "P_SFR" : "P_BPR") + paymentID.ToString().PadLeft(7, '0');
+                                ledger.billOrInvoiceNo = (creditRecipt.Branch == "Sivakasi" ? "PY_SFR" : "PY_BPR") + paymentID.ToString().PadLeft(4, '0');
                             }
                             List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers,false);
                             int mainLedgerId = ledgerIds[0];
@@ -1293,6 +1356,10 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                         {
                             newBillNo = Convert.ToInt32(result) + 1;
                         }
+                        else
+                        {
+                            throw new Exception("Bill Insert Failed");
+                        }
                     }
 
                     // 2. Insert into Bill table and get BillID
@@ -1659,6 +1726,234 @@ WHERE p.ProductID = @ProductID";
             return billDetailsList;
         }
 
+        public async Task<List<CreditReciptType>> GetFilteredReceiptsync(BillDateFilterType filterType, DateTime? startDate = null, DateTime? endDate = null, DateTime? customMonthYear = null)
+        {
+            var receiptDetailsList = new List<CreditReciptType>();
+            using var connection = new MySqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            // Build WHERE clause dynamically
+            string whereClause = "";
+            DateTime today = DateTime.Today;
+
+            switch (filterType)
+            {
+                case BillDateFilterType.Today:
+                    whereClause = $"WHERE DATE(r.CreatedAt) = '{today:yyyy-MM-dd}'";
+                    break;
+                case BillDateFilterType.Yesterday:
+                    whereClause = $"WHERE DATE(r.CreatedAt) = '{today.AddDays(-1):yyyy-MM-dd}'";
+                    break;
+                case BillDateFilterType.ThisMonth:
+                    whereClause = $"WHERE MONTH(r.CreatedAt) = {today.Month} AND YEAR(r.CreatedAt) = {today.Year}";
+                    break;
+                case BillDateFilterType.ThisYear:
+                    whereClause = $"WHERE YEAR(r.CreatedAt) = {today.Year}";
+                    break;
+                case BillDateFilterType.CustomMonthYear:
+                    if (customMonthYear.HasValue)
+                        whereClause = $"WHERE MONTH(r.CreatedAt) = {customMonthYear.Value.Month} AND YEAR(r.CreatedAt) = {customMonthYear.Value.Year}";
+                    break;
+                case BillDateFilterType.CustomDate:
+                    if (startDate.HasValue)
+                        whereClause = $"WHERE DATE(r.CreatedAt) = '{startDate.Value:yyyy-MM-dd}'";
+                    break;
+                case BillDateFilterType.CustomRange:
+                    if (startDate.HasValue && endDate.HasValue)
+                        whereClause = $"WHERE DATE(r.CreatedAt) BETWEEN '{startDate.Value:yyyy-MM-dd HH:mm:ss}' AND '{endDate.Value:yyyy-MM-dd HH:mm:ss}'";
+                    break;
+                case BillDateFilterType.All:
+                default:
+                    // No filter
+                    break;
+            }
+
+            string receiptQuery = $@"
+    SELECT r.*, c.*
+    FROM Receipts r
+    JOIN Customers c ON r.CustomerID = c.CustomerID
+    
+    {whereClause};";
+
+            using var receiptCommand = new MySqlCommand(receiptQuery, connection);
+            using var receiptReader = await receiptCommand.ExecuteReaderAsync();
+
+            var receiptDictionary = new Dictionary<int, CreditReciptType>();
+            while (await receiptReader.ReadAsync())
+            {
+
+                var customer = new UserModal
+                {
+                    CustomerId = receiptReader.GetString("CustomerID"),
+                    Contact = receiptReader.GetString("Contact"),
+                    Name = receiptReader.GetString("Name"),
+                    GSTIN = receiptReader.GetString("GSTIN")
+                };
+                int receiptID = receiptReader.GetInt32("ReceiptID");
+                receiptDictionary[receiptID] = new CreditReciptType
+                {
+                    ReceiptId = receiptID,
+                    customer = customer,
+                    ReceiptNO = receiptReader.GetInt32("ReceiptNo"),
+                    BillingYear = receiptReader.GetInt32("BillingYear"),
+                    CheckNumber = receiptReader.GetString("CheckNumber"),
+                    ReciptDate = receiptReader.GetDateTime("PaymentDate"),
+                    Branch = receiptReader.GetString("Branch"),
+                    TotalAmountPaid = receiptReader.GetDecimal("TotalAmountPaid"),
+                    creditBills = new List<CreditBill>()
+                };
+            }
+
+            await receiptReader.CloseAsync();
+
+            // Fetch BillItems
+            string receiptItemQuery = "SELECT r.*,b.* FROM ReceiptBills r JOIN Bills b ON b.BillID = r.BillID";
+            using var receiptItemCommand = new MySqlCommand(receiptItemQuery, connection);
+            using var receiptsItemReader = await receiptItemCommand.ExecuteReaderAsync();
+
+            while (await receiptsItemReader.ReadAsync())
+            {
+                int receiptId = receiptsItemReader.GetInt32("ReceiptID");
+                if (receiptDictionary.ContainsKey(receiptId))
+                {
+
+                    var receiptBill = new CreditBill {
+                        billId = receiptsItemReader.GetInt32("BillID"),
+                        billNo = receiptsItemReader.GetInt32("BillNo"),
+                        BillDate = receiptsItemReader.GetDateTime("BillDate"),
+                        amountPayed = receiptsItemReader.GetDecimal("AmountPaid"),
+                    };
+
+                    receiptDictionary[receiptId].creditBills.Add(receiptBill);
+
+
+                }
+            }
+
+            await receiptsItemReader.CloseAsync();
+
+
+            // Fetch BillPayments
+            receiptDetailsList = receiptDictionary.Values.ToList();
+
+            return receiptDetailsList;
+        }
+
+        public async Task<List<PaymentReciptType>> GetFilteredPaymentsync(BillDateFilterType filterType, DateTime? startDate = null, DateTime? endDate = null, DateTime? customMonthYear = null)
+        {
+            var receiptDetailsList = new List<PaymentReciptType>();
+            using var connection = new MySqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            // Build WHERE clause dynamically
+            string whereClause = "";
+            DateTime today = DateTime.Today;
+
+            switch (filterType)
+            {
+                case BillDateFilterType.Today:
+                    whereClause = $"WHERE DATE(r.CreatedAt) = '{today:yyyy-MM-dd}'";
+                    break;
+                case BillDateFilterType.Yesterday:
+                    whereClause = $"WHERE DATE(r.CreatedAt) = '{today.AddDays(-1):yyyy-MM-dd}'";
+                    break;
+                case BillDateFilterType.ThisMonth:
+                    whereClause = $"WHERE MONTH(r.CreatedAt) = {today.Month} AND YEAR(r.CreatedAt) = {today.Year}";
+                    break;
+                case BillDateFilterType.ThisYear:
+                    whereClause = $"WHERE YEAR(r.CreatedAt) = {today.Year}";
+                    break;
+                case BillDateFilterType.CustomMonthYear:
+                    if (customMonthYear.HasValue)
+                        whereClause = $"WHERE MONTH(r.CreatedAt) = {customMonthYear.Value.Month} AND YEAR(r.CreatedAt) = {customMonthYear.Value.Year}";
+                    break;
+                case BillDateFilterType.CustomDate:
+                    if (startDate.HasValue)
+                        whereClause = $"WHERE DATE(r.CreatedAt) = '{startDate.Value:yyyy-MM-dd}'";
+                    break;
+                case BillDateFilterType.CustomRange:
+                    if (startDate.HasValue && endDate.HasValue)
+                        whereClause = $"WHERE DATE(r.CreatedAt) BETWEEN '{startDate.Value:yyyy-MM-dd HH:mm:ss}' AND '{endDate.Value:yyyy-MM-dd HH:mm:ss}'";
+                    break;
+                case BillDateFilterType.All:
+                default:
+                    // No filter
+                    break;
+            }
+
+            string receiptQuery = $@"
+    SELECT r.*, c.*
+    FROM Payments r
+    JOIN Suppliers c ON r.SupplierID = c.SupplierID
+    
+    {whereClause};";
+
+            using var receiptCommand = new MySqlCommand(receiptQuery, connection);
+            using var receiptReader = await receiptCommand.ExecuteReaderAsync();
+
+            var receiptDictionary = new Dictionary<int, PaymentReciptType>();
+            while (await receiptReader.ReadAsync())
+            {
+
+                var customer = new Supplier
+                {
+                    SupplierID = receiptReader.GetString("SupplierID"),
+                    Contact = receiptReader.GetString("Contact"),
+                    Name = receiptReader.GetString("Name"),
+                    GSTIN = receiptReader.GetString("GSTIN")
+                };
+                int receiptID = receiptReader.GetInt32("PaymentID");
+                receiptDictionary[receiptID] = new PaymentReciptType
+                {
+                    Narration = receiptReader.GetString("Narration"),
+                    supplier = customer,
+                    PaymentId = receiptReader.GetInt32("PaymentID"),
+                    PaymentNo = receiptReader.GetInt32("PaymentNo"),
+                    BillingYear = receiptReader.GetInt32("BillingYear"),
+                    CheckNumber = receiptReader.GetString("CheckNumber"),
+                    PaymentDate = receiptReader.GetDateTime("PaymentDate"),
+                    Branch = receiptReader.GetString("Branch"),
+                    TotalAmountPaid = receiptReader.GetDecimal("TotalAmountPaid"),
+                    paymentBills = new List<PaymentBill>()
+                };
+            }
+
+            await receiptReader.CloseAsync();
+
+            // Fetch BillItems
+            string receiptItemQuery = "SELECT r.*,b.* FROM PaymentBills r JOIN PurhaseBills b ON b.PurchaseBillID = r.PurchaseBillID";
+            using var receiptItemCommand = new MySqlCommand(receiptItemQuery, connection);
+            using var receiptsItemReader = await receiptItemCommand.ExecuteReaderAsync();
+
+            while (await receiptsItemReader.ReadAsync())
+            {
+                int receiptId = receiptsItemReader.GetInt32("PaymentID");
+                if (receiptDictionary.ContainsKey(receiptId))
+                {
+
+                    var receiptBill = new PaymentBill
+                    {
+                        purchaseBillID = receiptsItemReader.GetInt32("PurchaseBillID"),
+                        purchaseNo = receiptsItemReader.GetInt32("BillNo"),
+                        purchaseDate = receiptsItemReader.GetDateTime("BillDate"),
+                        amountPayed = receiptsItemReader.GetDecimal("AmountPaid"),
+                        invoice = receiptsItemReader.GetString("InvoiceNumber")
+                    };
+
+                    receiptDictionary[receiptId].paymentBills.Add(receiptBill);
+
+
+                }
+            }
+
+            await receiptsItemReader.CloseAsync();
+
+
+            // Fetch BillPayments
+            receiptDetailsList = receiptDictionary.Values.ToList();
+
+            return receiptDetailsList;
+        }
         public async Task<List<BillDetails>> GetAllBillsAsync()
         {
             var billDetailsList = new List<BillDetails>();

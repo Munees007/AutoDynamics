@@ -152,11 +152,13 @@
             new MenuType("Recipt", "#") {
                 SubMenus = new List<MenuType> {
                     new MenuType("Add Recipt", "/receipt-entry", typeof(AddRecipt)),
+                    new MenuType("List Recipt", "/receipt/view", typeof(ListReceipts)),
                 }
             },
             new MenuType("Payment", "#") {
                 SubMenus = new List<MenuType> {
                     new MenuType("Add Payment", "/payment-entry", typeof(AddPayment)),
+                    new MenuType("List Payment", "/payment/view", typeof(ListPayments)),
                 }
             },
             new MenuType("Ledger", "#") {

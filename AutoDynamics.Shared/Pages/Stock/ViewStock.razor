@@ -37,6 +37,17 @@
         </div>
     </div>
 
+    <div class="row mt-3 mb-3">
+        <div class="col-md-12">
+            <select autocomplete="off" class="form-select" @bind="FilterOption">
+                <option value="all">All</option>
+                <option value="four">Four Wheeler</option>
+                <option value="two">Two Wheeler</option>
+                <option value="tube">Tube</option>
+            </select>
+        </div>
+    </div>
+
 
     <div class="mb-3">
 
@@ -189,7 +200,23 @@
     int sivakasiStockTotal = 0;
     int bypassStockTotal = 0;
 
+
     StockType CurrentStock = new();
+
+    string filterOption = "all";
+    string FilterOption
+    {
+        get => filterOption;
+        set
+        {
+            filterOption = value;
+            HandleFilterTable();
+        }
+    }
+
+    string[] twoWheelerCodes = { "40114010", "40114020" };
+    string[] fourWheelerCodes = { "40111010", "40112090", "40112010" };
+    string[] tubeCodes = { "40139020"};
 
     int availabeStockPreviously = 0;
 
@@ -216,6 +243,34 @@
     public CustomDialogBox updateDialog;
     public CustomDialogBox addDialog;
 
+    private void HandleFilterTable()
+    {
+        sivakasiStockTotal = 0;
+        bypassStockTotal = 0;
+        if(filterOption == "all")
+        {
+            filteredSivakasiStocks = sivakasiStocks;
+            filteredBypassStocks = bypassStocks;
+        }
+        else if(filterOption == "four")
+        {
+            filteredSivakasiStocks = sivakasiStocks.FindAll((s) => fourWheelerCodes.Contains(s.Product.HSNCode)).ToList();
+            filteredBypassStocks = bypassStocks.FindAll((s) => fourWheelerCodes.Contains(s.Product.HSNCode)).ToList();
+        }
+        else if(filterOption == "two")
+        {
+            filteredSivakasiStocks = sivakasiStocks.FindAll((s) => twoWheelerCodes.Contains(s.Product.HSNCode)).ToList();
+            filteredBypassStocks = bypassStocks.FindAll((s) => twoWheelerCodes.Contains(s.Product.HSNCode)).ToList();
+        }
+        else
+        {
+            filteredSivakasiStocks = sivakasiStocks.FindAll((s) => tubeCodes.Contains(s.Product.HSNCode)).ToList();
+            filteredBypassStocks = bypassStocks.FindAll((s) => tubeCodes.Contains(s.Product.HSNCode)).ToList();
+        }
+        filteredSivakasiStocks.ForEach(s => sivakasiStockTotal += s.AvailableQuantity);
+        filteredBypassStocks.ForEach(s => bypassStockTotal += s.AvailableQuantity);
+        StateHasChanged();
+    }
     private void HandleSelectTable()
     {
         Debug.WriteLine(showTable);
@@ -347,6 +402,8 @@
 
     async Task FetchData()
     {
+        sivakasiStockTotal = 0;
+        bypassStockTotal = 0;
         stockDetails.Clear();
         filteredBypassStocks.Clear();
 		filteredSivakasiStocks.Clear();

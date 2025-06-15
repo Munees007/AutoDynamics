@@ -9,6 +9,7 @@
 @using System.Diagnostics
 @using System.Data
 @using BCrypt.Net
+@inject ITabService TabService
 
 <div style="background-image:url(@BgSource)" class="w-100 back vh-100">
     <form class="form-parent w-auto h-auto p-4" @onsubmit="LoginSignUp">
@@ -37,9 +38,9 @@
         </button>
 
         <!-- Progress Bar -->
-       
-            <Loader show="isProcessing" customText="Logging"/>
-        
+
+        <Loader show="isProcessing" customText="Logging"/>
+
 
         <p class="no-account">
             @(isLogin ? "Doesn't have an account?" : "Already have an account?")
@@ -119,7 +120,7 @@
                         await MyLocalStorageService.SetItemAsync("Username", username);
                         await MyLocalStorageService.SetItemAsync("Branch", branch);
                         await MyLocalStorageService.SetItemAsync("IsLogin", "true");
-                        
+
                         await AlertService.ShowAlertAsync("Login", "Login Successful", "Proceed");
 
                         if(username == "Arun Kumar" || username == "Muneeswaran")
@@ -130,6 +131,7 @@
                         {
                             await MyLocalStorageService.SetItemAsync("IsAdmin", "false");
                         }
+                        TabService.Tabs.Clear();
                         //go to main Layout
                         Navigation.NavigateTo("/home",true);
                     }

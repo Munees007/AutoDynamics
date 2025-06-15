@@ -33,9 +33,10 @@ namespace AutoDynamics.Shared.Services
 
         Task<int> InsertReceipt(CreditReciptType creditRecipt, bool isUpdating, List<Ledger> ledgers);
         Task<List<CreditReciptType>> GetCreditReceipts(bool isCustomerOnly, string? CustomerID);
+        Task<List<CreditReciptType>> GetFilteredReceiptsync(BillDateFilterType filterType, DateTime? startDate = null, DateTime? endDate = null, DateTime? customMonthYear = null);
 
         Task<int> InsertPayment(PaymentReciptType creditRecipt, bool isUpdating, List<Ledger> ledgers);
-
+        Task<List<PaymentReciptType>> GetFilteredPaymentsync(BillDateFilterType filterType, DateTime? startDate = null, DateTime? endDate = null, DateTime? customMonthYear = null);
         Task<List<int>> InsertOrUpdateMultipleLedger(List<Ledger> ledgers);
 
     }

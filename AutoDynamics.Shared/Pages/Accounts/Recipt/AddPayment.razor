@@ -33,6 +33,16 @@
         </div>
     </div>
 
+    <div class="col-md-10 input-group">
+        <label class="input-group-text">CheckNumber</label>
+        <input type="text" class="form-control" @bind="supplierCredits.CheckNumber" />
+    </div>
+
+    <div class="col-md-10 input-group">
+        <label class="input-group-text">Narration</label>
+        <input type="text" class="form-control" @bind="supplierCredits.Narration" />
+    </div>
+
     <!-- Credit Bills Section -->
     <h5 class="fw-semibold mb-3">Credit Bills</h5>
 
@@ -64,7 +74,7 @@
                     item.index = i;
                     <tr>
                         <td>
-                            <input type="checkbox" @bind="item.isSelected" class="form-check-input" style="width:25px;height:25px;cursor:pointer" />
+                            <input type="checkbox" @oninput="(e)=>{triggerCheckBox(e,item);}" @bind="item.isSelected" class="form-check-input" style="width:25px;height:25px;cursor:pointer" />
                         </td>
                         <td>
                             @((item.branch == "Sivakasi" ? "SFR" : "BPR") + item.purchaseBillID.ToString().PadLeft(4, '0'))
@@ -121,19 +131,46 @@
 
     string currentBranch = "";
 
+    public void triggerCheckBox(ChangeEventArgs change, PaymentBill item)
+    {
+        item.isSelected = (bool)change.Value!;
+        HandleSplitAmount();
+
+    }
     public void HandleSplitAmount()
     {
-        if (splitAmount > 0)
+        decimal SA = splitAmount;
+        Debug.WriteLine("Triggered");
+        if (SA <= 0)
         {
+            ToastService.ShowToast("Split amount cannot be negative or zero", ToastType.error);
+            return;
+        }
+
+        if (SA > 0)
+        {
+            //Reset all amounts to 0
+            supplierCredits.paymentBills.ForEach(bill => bill.amountPayed = 0);
             foreach (var bill in supplierCredits.paymentBills)
             {
-                if (bill.remainingBalance > 0 && bill.remainingBalance <= splitAmount)
+                if (SA == 0)
+                {
+                    break;
+                }
+                if (bill.remainingBalance > 0 && bill.remainingBalance <= SA && bill.isSelected)
                 {
                     bill.amountPayed = bill.remainingBalance;
-                    // splitAmount -= bill.remainingBalance;
+                    SA -= bill.remainingBalance;
+                }
+                else if (bill.remainingBalance > 0 && bill.remainingBalance >= SA && bill.isSelected)
+                {
+                    bill.amountPayed = SA;
+                    SA -= SA;
+
                 }
             }
         }
+        StateHasChanged();
     }
 
     public void AddNewItem()
@@ -221,13 +258,45 @@
         StateHasChanged();
     }
 
+    public bool validateData(out string error)
+    {
+
+        if (supplierCredits.Narration == string.Empty)
+        {
+            error = "Narration should not be empty";
+            return false;
+        }
+
+        if (SupplierSearch == string.Empty)
+        {
+            error = "Customer must be selected";
+            return false;
+        }
+
+        bool atLeastOne = supplierCredits.paymentBills
+    .Any(data => data.isSelected && data.amountPayed > 0);
+
+        if (!atLeastOne)
+        {
+            error = "Atleast one bill should be selected";
+            return false;
+        }
+
+        error = "";
+        return true;
+    }
+
     public async Task HandleSubmit()
     {
         try
         {
             isLoading = true;
-            loaderText = "Adding Receipt";
-
+            loaderText = "Adding Payment";
+            string errorText = "";
+            if (validateData(out errorText))
+            {
+                throw new Exception(errorText);
+            }
             List<PaymentBill> selectedBills = supplierCredits.paymentBills
 
                 .Where(b => b.isSelected && b.amountPayed > 0)

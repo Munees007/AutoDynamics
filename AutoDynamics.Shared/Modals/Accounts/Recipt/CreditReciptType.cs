@@ -11,6 +11,13 @@ namespace AutoDynamics.Shared.Modals.Accounts.Recipt
     public class CreditReciptType
     {
         public int ReceiptId { get; set; }
+        public int ReceiptNO { get; set; }
+
+        public string CheckNumber { get; set; } = string.Empty;
+
+        public string narration {get;set;} = string.Empty;
+
+        public int BillingYear { get; set; }
         public string Branch { get; set; }
         public DateTime ReciptDate { get; set; } = DateTime.Now;
         public UserModal customer { get; set; } = new();
