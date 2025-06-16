@@ -1,7 +1,114 @@
-<div>
+@inject IDatabaseHandler DatabaseHandler
+@{
+    var firstLog = StockLogs.FirstOrDefault();
+    var istTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+    int serialNo = 1;
+}
 
-</div>
+@if (firstLog != null)
+{
+    <div class="container mt-4">
+        <!-- Product Info Card -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Product Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4"><strong>Product ID:</strong> @firstLog.ProductID</div>
+                    <div class="col-md-4"><strong>Brand:</strong> @firstLog.Product.Brand</div>
+                    <div class="col-md-4"><strong>Size:</strong> @firstLog.Product.Size</div>
+                    <div class="col-md-4"><strong>HSN Code:</strong> @firstLog.Product.HSNCode</div>
+                    <div class="col-md-4"><strong>Pattern:</strong> @firstLog.Product.Pattern</div>
+                    <div class="col-md-4"><strong>Tube/Tubeless:</strong> @firstLog.Product.TubeOrTubeless</div>
+                    <div class="col-md-4"><strong>Branch:</strong> @firstLog.Branch</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stock Log Table -->
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>S.No</th>
+                        <th>Old Quantity</th>
+                        <th>New Quantity</th>
+                        <th>Action</th>
+                        <th>Date & Time (IST)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var log in StockLogs)
+                    {
+                        var istCreatedAt = TimeZoneInfo.ConvertTimeFromUtc(log.CreatedAt.ToUniversalTime(), istTimeZone);
+                        <tr>
+                            <td>@(serialNo++)</td>
+                            <td>@log.OldQuantity</td>
+                            <td>@log.NewQuantity</td>
+                            <td>@log.Action.ToString()</td>
+                            <td>@istCreatedAt.ToString("dd-MM-yyyy hh:mm tt")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+else
+{
+    <div class="container mt-4">
+        <div class="alert alert-warning">No stock logs available for this product.</div>
+    </div>
+}
+
+
 
 @code{
+	[Parameter] public string ProductID { get; set; } = "";
+	[Parameter] public string Branch { get; set; } = "";
+	List<StockLogType> StockLogs { get; set; } = new List<StockLogType>();
 
+
+	protected override async Task OnInitializedAsync()
+	{
+		Debug.WriteLine(ProductID);
+		Debug.WriteLine(Branch);
+		string selectQuery = $"SELECT s.*,p.* FROM StockLog s JOIN Product p ON p.ProductID = s.ProductID WHERE s.ProductID = '{ProductID}' AND s.Branch = '{Branch}'";
+
+		var res = await DatabaseHandler.ExecuteQueryAsync(selectQuery);
+
+		if(res.Count > 0)
+		{
+			foreach(var row in res)
+			{
+				
+				StockLogs.Add(new StockLogType
+				{
+						ProductID = row["ProductID"].ToString() ?? "",
+						Product = new ProductType
+						{
+							ProductID = row["ProductID"].ToString() ?? "",
+							Brand = row["Brand"].ToString() ?? "",
+							Size = row["Size"].ToString() ?? "",
+							HSNCode = row["HSNCode"].ToString() ?? "",
+							Pattern = row["Pattern"].ToString() ?? "",
+							TubeOrTubeless = row["TubeOrTubeless"].ToString() ?? "",
+                            Price = double.TryParse(row["Price"]?.ToString(), out var price) ? price : 0,
+							
+							Branch = row["Branch"].ToString() ?? "",
+							
+						},
+                        
+                        OldQuantity = int.TryParse(row["OldQuantity"]?.ToString(), out var oldQty) ? oldQty : 0,
+                        NewQuantity = int.TryParse(row["NewQuantity"]?.ToString(), out var newQty) ? newQty : 0,
+
+						Branch = row["Branch"].ToString() ?? "",
+                        Action = Enum.TryParse<ActionType>(row["ActionType"]?.ToString(), out var action) ? action : ActionType.INSERT,
+                        CreatedAt = DateTime.TryParse(row["ChangedAt"]?.ToString(), out var createdAt) ? createdAt : DateTime.Now,
+				});
+
+			}
+		}
+	}
 }

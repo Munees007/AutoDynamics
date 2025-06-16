@@ -14,6 +14,7 @@
 <div>
     <h3 class="text-center mb-4">Stock Details</h3>
     <DialoBox dialogBox="addDialog"></DialoBox>
+
     <div class="row mb-3">
         <div class="col-md-10">
             <input type="text" @oninput="(e)=>{FilterStock(e);}" class="form-control" placeholder="Search by Product Id, Name" />
@@ -111,7 +112,11 @@
                                                 <td>@stock.AvailableQuantity</td>
                                                 @if (isAdmin)
                                                 {
-                                                    <td><button class="btn btn-outline-success" @onclick="()=> {CurrentStock = stock;availabeStockPreviously = stock.AvailableQuantity; updateDialog.showDialog = true;StateHasChanged();}">CHANGE</button></td>
+                                                    <td>
+                                                        <button class="btn btn-outline-success" @onclick="()=> {CurrentStock = stock;availabeStockPreviously = stock.AvailableQuantity; updateDialog.showDialog = true;StateHasChanged();}">CHANGE</button>
+                                                        <button class="btn btn-outline-danger" @onclick="()=> {gotoStockLog(stock.Product);}">View Log</button>
+                                                    </td>
+
                                                 }
                                             </tr>
                                         }
@@ -169,7 +174,11 @@
                                                 <td>@stock.AvailableQuantity</td>
                                                 @if(isAdmin)
                                                 {
-                                                    <td><button class="btn btn-outline-success" @onclick="()=> {CurrentStock = stock;availabeStockPreviously = stock.AvailableQuantity; updateDialog.showDialog = true;StateHasChanged();}">CHANGE</button></td>
+                                                    <td>
+                                                        <button class="btn btn-outline-success" @onclick="()=> {CurrentStock = stock;availabeStockPreviously = stock.AvailableQuantity; updateDialog.showDialog = true;StateHasChanged();}">CHANGE</button>
+                                                        <button class="btn btn-outline-danger" @onclick="()=> {gotoStockLog(stock.Product);}">View Log</button>
+                                                    </td>
+
                                                 }
                                             </tr>
                                         }
@@ -199,6 +208,8 @@
 
     int sivakasiStockTotal = 0;
     int bypassStockTotal = 0;
+
+
 
 
     StockType CurrentStock = new();
@@ -239,9 +250,23 @@
     DateTime? startDate;
     DateTime? endDate;
 
+    public string filterProductID = "";
+    public string filterBranch = "";
+
 
     public CustomDialogBox updateDialog;
     public CustomDialogBox addDialog;
+
+    public void gotoStockLog(ProductType product)
+    {
+        Dictionary<string, dynamic> data = new Dictionary<string, dynamic>
+		{
+			{"ProductID", product.ProductID},
+			{"Branch", product.Branch}
+		};
+        TabService.OpenWithParameter($"Stock Log: {product.Brand}-{product.Branch}", typeof(ViewStockLog), data);
+        StateHasChanged();
+    }
 
     private void HandleFilterTable()
     {
@@ -295,7 +320,7 @@
 
     private async Task HandleUpdateClick()
     {
-        
+
         string UpdateQuery = @"UPDATE Stock Set AvailableQuantity = @AvailableQuantity WHERE ProductID = @ProductID AND Branch = @Branch";
         Dictionary<string,object> param = new Dictionary<string, object>
         {
@@ -369,6 +394,7 @@
 
 	    };
 
+        
         addDialog = new CustomDialogBox
         {
             Title = "Create Stock",

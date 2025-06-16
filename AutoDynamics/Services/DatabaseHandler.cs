@@ -457,10 +457,6 @@ namespace AutoDynamics.Services
                                 {
                                     newBillNo = Convert.ToInt32(result) + 1;
                                 }
-                                else
-                                {
-                                    throw new Exception("Bill Insert Failed");
-                                }
                             }
 
                             // Insert new receipt
@@ -659,10 +655,7 @@ namespace AutoDynamics.Services
                                 {
                                     newBillNo = Convert.ToInt32(result) + 1;
                                 }
-                                else
-                                {
-                                    throw new Exception("Bill Insert Failed");
-                                }
+                                
                             }
 
                             // Insert new receipt
@@ -1355,10 +1348,6 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                         if (result != DBNull.Value && result != null)
                         {
                             newBillNo = Convert.ToInt32(result) + 1;
-                        }
-                        else
-                        {
-                            throw new Exception("Bill Insert Failed");
                         }
                     }
 
@@ -2739,6 +2728,7 @@ WHERE ProductID = @ProductID AND Branch = @SourceBranch;";
         }
 
 
+        
 
     }
 }
