@@ -3,19 +3,19 @@
 @inject IMyLocalStorageService MyLocalStorageService
 @inject IToastService ToastService
 <div class="container p-3">
-    <h3 class="mb-4 fw-bold">Enter Payment</h3>
+    <h3 class="mb-4 fw-bold ">Enter Supplier Payment</h3>
 
     <!-- Date and Customer Search -->
     <div class="row g-4 mb-4">
         <div class="col-md-4">
-            <label for="paymentDate" class="form-label">Date</label>
+            <label for="paymentDate" class="form-label fw-bold">Date</label>
             <input type="date" id="paymentDate" class="form-control" @bind="@supplierCredits.PaymentDate" />
         </div>
 
 
 
         <div class="col-md-8">
-            <label for="Customer" class="form-label">Supplier</label>
+            <label for="Customer" class="form-label fw-bold">Supplier</label>
             <div class="input-group">
                 <input @onkeydown="HandleSupplierKey" autocomplete="off" type="text" id="Customer"
                 @bind="SupplierSearch" @oninput="OnSupplierSearch"
@@ -33,21 +33,21 @@
         </div>
     </div>
 
-    <div class="col-md-10 input-group">
-        <label class="input-group-text">CheckNumber</label>
+    <div class="col-md-10 input-group mb-3">
+        <label class="input-group-text fw-bold">CheckNumber</label>
         <input type="text" class="form-control" @bind="supplierCredits.CheckNumber" />
     </div>
 
-    <div class="col-md-10 input-group">
-        <label class="input-group-text">Narration</label>
+    <div class="col-md-10 input-group mb-3">
+        <label class="input-group-text fw-bold">Narration</label>
         <input type="text" class="form-control" @bind="supplierCredits.Narration" />
     </div>
 
     <!-- Credit Bills Section -->
-    <h5 class="fw-semibold mb-3">Credit Bills</h5>
+    <h5 class="fw-semibold mb-3 fw-bold">Credit Bills</h5>
 
     <div class="input-group mb-3">
-        <span class="input-group-text">Amount</span>
+        <span class="input-group-text fw-bold">Amount</span>
         <input type="number" id="amount" class="form-control" @bind="@splitAmount" placeholder="Enter amount" />
         <button class="btn btn-primary" type="button" @onclick="HandleSplitAmount">Apply</button>
     </div>
@@ -273,15 +273,6 @@
             return false;
         }
 
-        bool atLeastOne = supplierCredits.paymentBills
-    .Any(data => data.isSelected && data.amountPayed > 0);
-
-        if (!atLeastOne)
-        {
-            error = "Atleast one bill should be selected";
-            return false;
-        }
-
         error = "";
         return true;
     }
@@ -293,7 +284,7 @@
             isLoading = true;
             loaderText = "Adding Payment";
             string errorText = "";
-            if (validateData(out errorText))
+            if (!validateData(out errorText))
             {
                 throw new Exception(errorText);
             }
@@ -315,8 +306,8 @@
             supplierCredits.paymentBills = selectedBills;
             Ledger cashLedger = new Ledger
                 {
-                    DR_Amount = selectedBills.Where((b) => b.paymentType == PaymentTypes.CASH).Sum(b => b.amountPayed),
-                    CR_Amount = 0,
+                    CR_Amount = selectedBills.Where((b) => b.paymentType == PaymentTypes.CASH).Sum(b => b.amountPayed),
+                    DR_Amount = 0,
                     Branch = currentBranch,
                     TransactionType = TransactionType.PAYMENT,
                     AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "CASH A/C")?.AcccountId ?? 0,
@@ -328,8 +319,8 @@
                 };
             Ledger bankLedger = new Ledger
                 {
-                    DR_Amount = selectedBills.Where((b) => b.paymentType != PaymentTypes.CASH && b.paymentType != PaymentTypes.CARD).Sum(b => b.amountPayed),
-                    CR_Amount = 0,
+                    CR_Amount = selectedBills.Where((b) => b.paymentType != PaymentTypes.CASH && b.paymentType != PaymentTypes.CARD).Sum(b => b.amountPayed),
+                    DR_Amount = 0,
                     Branch = currentBranch,
                     TransactionType = TransactionType.PAYMENT,
                     AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "BANK A/C")?.AcccountId ?? 0,
@@ -341,8 +332,8 @@
                 };
             Ledger cardLedger = new Ledger
             {
-                    DR_Amount = selectedBills.Where((b) => b.paymentType == PaymentTypes.CARD).Sum(b => b.amountPayed),
-                    CR_Amount = 0,
+                     CR_Amount= selectedBills.Where((b) => b.paymentType == PaymentTypes.CARD).Sum(b => b.amountPayed),
+                    DR_Amount = 0,
                     Branch = currentBranch,
                     TransactionType = TransactionType.PAYMENT,
                     AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "CARD A/C")?.AcccountId ?? 0,
@@ -355,8 +346,8 @@
             // Credit: Customer (they paid, so reduce what they owe)
             Ledger customerCreditLedger = new Ledger
                 {
-                    DR_Amount = 0,
-                    CR_Amount = selectedBills.Sum(b => b.amountPayed),
+                    CR_Amount = 0,
+                    DR_Amount = selectedBills.Sum(b => b.amountPayed),
                     Branch = currentBranch,
                     TransactionType = TransactionType.PAYMENT,
                     AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "SUPPLIER A/C")?.AcccountId ?? 0,

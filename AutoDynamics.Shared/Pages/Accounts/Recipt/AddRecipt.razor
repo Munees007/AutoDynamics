@@ -272,15 +272,6 @@
             return false;
         }
 
-        bool atLeastOne = creditReciptTypes.creditBills
-    .Any(data => data.isSelected && data.amountPayed > 0);
-
-        if (!atLeastOne)
-        {
-            error = "Atleast one bill should be selected";
-            return false;
-        }
-
         error = "";
         return true;
     }
@@ -291,7 +282,7 @@
             isLoading = true;
             loaderText = "Adding Receipt";
             string errorText = "";
-            if(validateData(out errorText))
+            if(!validateData(out errorText))
             {
                 throw new Exception(errorText);
             }
