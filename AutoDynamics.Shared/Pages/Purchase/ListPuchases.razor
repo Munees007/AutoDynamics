@@ -231,8 +231,12 @@ else
         {
             isLoading = true;
             loaderText = "Inserting Credit...";
+
+            string deleteSupplierCredits = "DELETE FROM SupplierCreditRecord";
+            await DatabaseHandler.ExecuteNonQueryAsync(deleteSupplierCredits);
             List<PurchaseDetails> purchaseBills = new List<PurchaseDetails>();
             purchaseBills = await FetchData(BillDateFilterType.All);
+
             foreach (var item in purchaseBills)
             {
 
