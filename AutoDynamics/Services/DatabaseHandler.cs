@@ -178,7 +178,7 @@ namespace AutoDynamics.Services
 
             string updateQuery = @"
         UPDATE CashBankLedger 
-        SET Date = @Date, Branch = @Branch, isActive = 1,
+        SET  Branch = @Branch, isActive = 1,
             TransactionType = @TransactionType,
             Particulars = @Particulars, DrAmount = @DrAmount, CrAmount = @CrAmount, Balance = @Balance , ForWho = @ForWho,billOrInvoiceNo = @billOrInvoiceNo
         WHERE AccountID = @AccountID AND ReferenceID = @ReferenceID;";
@@ -194,7 +194,7 @@ namespace AutoDynamics.Services
                     using (var command = new MySqlCommand(updateQuery, connection, transaction))
                     {
                         
-                        command.Parameters.AddWithValue("@Date", ledger.Date);
+                        
                         command.Parameters.AddWithValue("@AccountID", ledger.AccountID);
                         command.Parameters.AddWithValue("@Branch", ledger.Branch);
                         command.Parameters.AddWithValue("@TransactionType", ledger.TransactionType.ToString());
@@ -209,24 +209,31 @@ namespace AutoDynamics.Services
 
                         if(affected == 0)
                         {
-                            command.Parameters.AddWithValue("@Date", ledger.Date);
-                            command.Parameters.AddWithValue("@AccountID", ledger.AccountID);
-                            command.Parameters.AddWithValue("@Branch", ledger.Branch);
-                            command.Parameters.AddWithValue("@TransactionType", ledger.TransactionType.ToString());
-                            command.Parameters.AddWithValue("@ReferenceID", ledger.ReferenceID);
-                            command.Parameters.AddWithValue("@Particulars", ledger.Particulars);
-                            command.Parameters.AddWithValue("@DrAmount", ledger.DR_Amount);
-                            command.Parameters.AddWithValue("@CrAmount", ledger.CR_Amount);
-                            command.Parameters.AddWithValue("@Balance", ledger.Balance);
-                            command.Parameters.AddWithValue("@ForWho", ledger.ForWho);
-                            command.Parameters.AddWithValue("@billOrInvoiceNo", ledger.billOrInvoiceNo);
-                            var result = await command.ExecuteScalarAsync();
-                            int newId = Convert.ToInt32(result);
-                            if (newId == 0) throw new Exception("Ledger insert failed");
-                            insertedOrUpdatedIds.Add(newId);
+                            using (var insertCommand = new MySqlCommand(insertQuery, connection, transaction))
+                            {
+                                insertCommand.Parameters.AddWithValue("@Date", ledger.Date);
+                                insertCommand.Parameters.AddWithValue("@AccountID", ledger.AccountID);
+                                insertCommand.Parameters.AddWithValue("@Branch", ledger.Branch);
+                                insertCommand.Parameters.AddWithValue("@TransactionType", ledger.TransactionType.ToString());
+                                insertCommand.Parameters.AddWithValue("@ReferenceID", ledger.ReferenceID);
+                                insertCommand.Parameters.AddWithValue("@Particulars", ledger.Particulars);
+                                insertCommand.Parameters.AddWithValue("@DrAmount", ledger.DR_Amount);
+                                insertCommand.Parameters.AddWithValue("@CrAmount", ledger.CR_Amount);
+                                insertCommand.Parameters.AddWithValue("@Balance", ledger.Balance);
+                                insertCommand.Parameters.AddWithValue("@ForWho", ledger.ForWho);
+                                insertCommand.Parameters.AddWithValue("@billOrInvoiceNo", ledger.billOrInvoiceNo);
+                                var result = await insertCommand.ExecuteScalarAsync();
+                                int newId = Convert.ToInt32(result);
+                                if (newId == 0) throw new Exception("Ledger insert failed");
+                                insertedOrUpdatedIds.Add(newId);
+                            }
+                            
                         }
-
-                        insertedOrUpdatedIds.Add(ledger.LedgerID);
+                        else
+                        {
+                            insertedOrUpdatedIds.Add(ledger.LedgerID);
+                        }
+                            
                     }
                 }
                 else // insert

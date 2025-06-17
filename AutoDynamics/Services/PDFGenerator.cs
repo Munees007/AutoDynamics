@@ -1165,73 +1165,47 @@ namespace AutoDynamics.Services
                     };
                     document.Add(customerInfo);
 
-                    // Table
-                    //PdfPTable table = CreateStatementTable(fontSubHeader
-                    PdfPTable bodyTable = CreateStatementTable(fontSubHeader);
-                    decimal runningBalance = openingBalance;
-                    pageEvent.CarriedForwardBalance = openingBalance;
-                    document.Add(bodyTable);
-
+                    // Opening Balance Display
+                    PdfPTable headerTable = CreateStatementTable(fontSubHeader);
+                    document.Add(headerTable);
                     AddOpeningBalance(document, openingBalance, fontRow);
 
-                    // New table for body
-                    
+                    decimal runningBalance = openingBalance;
+                    pageEvent.CarriedForwardBalance = openingBalance;
 
-                    //// Opening Balance
-                    //AddCell(table, "", fontRow);
-                    //AddCell(table, "Opening Balance", fontRow);
-                    //AddCell(table, "", fontRow, iTextSharp.text.Element.ALIGN_RIGHT);
-                    //AddCell(table, "", fontRow, iTextSharp.text.Element.ALIGN_RIGHT);
-                    //AddCell(table, runningBalance.ToString("0.00"), fontRow, iTextSharp.text.Element.ALIGN_RIGHT);
-                    //document.Add(table);
+                    // Sort entries by date to calculate correct balance
+                    var sortedStatements = customerStatements.OrderBy(s => s.date).ToList();
 
-                   
-
-                    var grouped = customerStatements.GroupBy(s => s.EntryID);
-                    foreach (var group in grouped)
+                    // Entry Table
+                    foreach (var entry in sortedStatements)
                     {
-                        PdfPTable outerGroupTable = new PdfPTable(1)
+                        PdfPTable entryTable = new PdfPTable(6) { WidthPercentage = 100 };
+                        entryTable.SetWidths(new float[] { 15f, 10f, 35f, 10f, 10f, 10f });
+
+                        entryTable.AddCell(CreateCell(entry.date.ToString("dd-MM-yyyy"), fontRow));
+                        entryTable.AddCell(CreateCell(entry.type, fontRow));
+                        entryTable.AddCell(CreateCell(entry.particulars, fontRow));
+                        entryTable.AddCell(CreateCell(entry.debit > 0 ? entry.debit.ToString("0.00") : "", fontRow, iTextSharp.text.Element.ALIGN_RIGHT));
+                        entryTable.AddCell(CreateCell(entry.credit > 0 ? entry.credit.ToString("0.00") : "", fontRow, iTextSharp.text.Element.ALIGN_RIGHT));
+
+                        // ✅ Balance Calculation
+                        if (entry.accountType == "SALES A/C")
                         {
-                            WidthPercentage = 100,
-                            
-                        };
-
-                        PdfPCell containerCell = new PdfPCell { Border = Rectangle.BOX, Padding = 0 };
-
-                        PdfPTable innerTable = new PdfPTable(6) { WidthPercentage = 100 };
-                        innerTable.SetWidths(new float[] { 15f, 10f, 35f, 10f, 10f, 10f });
-
-                        bool isFirst = true;
-                        foreach (var entry in group)
+                            runningBalance += entry.credit; // Customer owes us more
+                        }
+                        else if (entry.accountType == "CASH A/C" || entry.accountType == "BANK A/C" || entry.accountType == "CARD A/C")
                         {
-                            innerTable.AddCell(CreateCell(isFirst ? entry.date.ToString("dd-MM-yyyy") : "", fontRow));
-                            innerTable.AddCell(CreateCell(isFirst ? entry.type : "", fontRow));
-                            innerTable.AddCell(CreateCell(entry.particulars, fontRow));
-                            innerTable.AddCell(CreateCell(entry.debit > 0 ? entry.debit.ToString("0.00") : "", fontRow, iTextSharp.text.Element.ALIGN_RIGHT));
-                            innerTable.AddCell(CreateCell(entry.credit > 0 ? entry.credit.ToString("0.00") : "", fontRow, iTextSharp.text.Element.ALIGN_RIGHT));
-
-                            if (entry.accountType == "SALES A/C")
-                            {
-                                runningBalance += entry.credit; // Sales increases what customer owes
-                            }
-                            
-                            else if (entry.accountType == "CASH A/C" || entry.accountType == "BANK A/C" || entry.accountType == "CARD A/C")
-                            {
-                                runningBalance -= entry.debit; // Cash/Bank/Card payment at time of sale
-                            }
-
-                            innerTable.AddCell(CreateCell(runningBalance.ToString("0.00"), fontRow, iTextSharp.text.Element.ALIGN_RIGHT,false));
-
-                            isFirst = false;
+                            runningBalance -= entry.debit; // Customer paid us
+                        }
+                        else if (entry.accountType == "RECEIPT A/C")
+                        {
+                            runningBalance -= entry.debit; // Receipt is money received, reduce the balance
                         }
 
-                        containerCell.AddElement(innerTable);
-                        outerGroupTable.AddCell(containerCell);
-                        document.Add(outerGroupTable);
+                        entryTable.AddCell(CreateCell(runningBalance.ToString("0.00"), fontRow, iTextSharp.text.Element.ALIGN_RIGHT));
+
+                        document.Add(entryTable);
                     }
-
-
-
 
                     // Closing Balance
                     AddClosingBalance(document, runningBalance, fontRow);
@@ -1257,6 +1231,7 @@ namespace AutoDynamics.Services
                 return $"Error: {ex.Message}";
             }
         }
+
 
         private PdfPCell CreateCell(string text, iTextSharp.text.Font font, int align = iTextSharp.text.Element.ALIGN_LEFT,bool isLeft = true)
         {

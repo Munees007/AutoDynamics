@@ -148,7 +148,7 @@
                             <input disabled="disabled"type="text">
                         </td>
                         <td>
-                            <select disabled="@isViewing" autocomplete="off" class="form-select" @bind="item.ItemName">
+                            <select disabled="@isViewing" title="@item.ItemName" autocomplete="off" class="form-select" @bind="item.ItemName">
                                 <option>Select a Service</option>
                                 @foreach (ServiceModal service in services)
                                 {

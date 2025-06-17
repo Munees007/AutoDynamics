@@ -120,7 +120,7 @@
 
 		<div class="row g-3 align-items-end">
 			<!-- Branch Dropdown -->
-			
+
 
 			<!-- Start Date -->
 			<div class="col-md-6">
@@ -153,7 +153,7 @@
 				OnCloase = EventCallback.Factory.Create(this, async () =>
 				{
 				statementDialog.showDialog = false;
-				
+
 
 					StateHasChanged();
 				}),
@@ -479,54 +479,256 @@
 		}
 
 	}
-	public async Task<decimal> GetOpeningBalanceAsync(string customerId, DateTime? statementStartDate)
+
+	public List<CustomerStatement> createLedgers()
 	{
-		string query = @"
-        SELECT COALESCE(SUM(CrAmount - DrAmount), 0) AS OpeningBalance
-        FROM CashBankLedger
-        WHERE ForWho = @customerId AND Date < @startDate AND AccountID not in(14) Order By Date;"; // ✅ Optimized query
+		List<CustomerStatement> customerStatements = new();
+		List<BillDetails> neededBills = sivakasiBills;
+		List<CreditReciptType> neededReceipts = sivakasiCreditRecipts;
 
-		var parameters = new Dictionary<string, object>
+		neededBills.Sort((a, b) => a.Bill.BillDate.CompareTo(b.Bill.BillDate));
+		neededReceipts.Sort((a, b) => a.ReciptDate.CompareTo(b.ReciptDate));
+
+		int i = 0, j = 0;
+
+		while (i < neededBills.Count && j < neededReceipts.Count)
+		{
+			var billDate = neededBills[i].Bill.BillDate;
+			var receiptDate = neededReceipts[j].ReciptDate;
+
+			if (billDate <= receiptDate)
+			{
+				var bill = neededBills[i++];
+
+				// Always add the bill entry
+				customerStatements.Add(new CustomerStatement
+					{
+						date = bill.Bill.BillDate,
+						credit = bill.Bill.TotalAmount,
+						debit = 0,
+						particulars = "To sales for Bill No: " + bill.Bill.BillNo,
+						accountType = "SALES A/C",
+						type = TransactionType.BILL.ToString()
+					});
+
+				// Add immediate payment if any
+				if (bill.BillPayment.CashAmount > 0)
+				{
+					customerStatements.Add(new CustomerStatement
+						{
+							date = bill.Bill.BillDate, // Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
+							credit = 0,
+							debit = bill.BillPayment.CashAmount,
+							particulars = "By cash received for Bill No: " + bill.Bill.BillNo,
+							accountType = "CASH A/C",
+							type = TransactionType.RECEIPT.ToString()
+						});
+				}
+				if (bill.BillPayment.CardAmount > 0)
+				{
+					customerStatements.Add(new CustomerStatement
+						{
+							date = bill.Bill.BillDate, // Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
+							credit = 0,
+							debit = bill.BillPayment.CardAmount,
+							particulars = "By card received for Bill No: " + bill.Bill.BillNo,
+							accountType = "CARD A/C",
+							type = TransactionType.RECEIPT.ToString()
+						});
+				}
+				if (bill.BillPayment.UPIAmount > 0)
+				{
+					customerStatements.Add(new CustomerStatement
+						{
+							date = bill.Bill.BillDate, // Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
+							credit = 0,
+							debit = bill.BillPayment.UPIAmount,
+							particulars = "By upi received for Bill No: " + bill.Bill.BillNo,
+							accountType = "BANK A/C",
+							type = TransactionType.RECEIPT.ToString()
+						});
+				}
+				// if (bill.BillPayment.BankAmount > 0)
+				// {
+				// 	customerStatements.Add(new CustomerStatement
+				// 		{
+							//date = bill.Bill.BillDate, // Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
+				// 			credit = bill.BillPayment.BankAmount,
+				// 			debit = 0,
+				// 			particulars = "By credit for Bill No: " + bill.Bill.BillNo,
+				// 			accountType = "CUSTOMER CREDIT A/C",
+				// 			type = TransactionType.RECEIPT.ToString()
+				// 		});
+				// }
+
+			}
+			else
+			{
+				var receipt = neededReceipts[j++];
+
+				customerStatements.Add(new CustomerStatement
+					{
+						date = receipt.ReciptDate,
+						credit = 0,
+						debit = receipt.TotalAmountPaid,
+						particulars = "By receipt for Receipt No: " + receipt.ReceiptNO,
+						accountType = "RECEIPT A/C",
+						type = TransactionType.RECEIPT.ToString()
+					});
+			}
+		}
+
+		// Add remaining bills
+		while (i < neededBills.Count)
+		{
+			var bill = neededBills[i++];
+
+			customerStatements.Add(new CustomerStatement
+				{
+					date = bill.Bill.BillDate,
+					credit = bill.Bill.TotalAmount,
+					debit = 0,
+					particulars = "To sales for Bill No: " + bill.Bill.BillNo,
+					accountType = "SALES A/C",
+					type = TransactionType.BILL.ToString()
+				});
+
+			if (bill.BillPayment.CashAmount > 0)
+			{
+				customerStatements.Add(new CustomerStatement
+					{
+						date = bill.Bill.BillDate, // Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
+						credit = 0,
+						debit = bill.BillPayment.CashAmount,
+						particulars = "By cash received for Bill No: " + bill.Bill.BillNo,
+						accountType = "CASH A/C",
+						type = TransactionType.RECEIPT.ToString()
+					});
+			}
+			if (bill.BillPayment.CardAmount > 0)
+			{
+				customerStatements.Add(new CustomerStatement
+					{
+						date = bill.Bill.BillDate, // Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
+						credit = 0,
+						debit = bill.BillPayment.CardAmount,
+						particulars = "By card received for Bill No: " + bill.Bill.BillNo,
+						accountType = "CARD A/C",
+						type = TransactionType.RECEIPT.ToString()
+					});
+			}
+			if (bill.BillPayment.UPIAmount > 0)
+			{
+				customerStatements.Add(new CustomerStatement
+					{
+						date = bill.Bill.BillDate, // Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
+						credit = 0,
+						debit = bill.BillPayment.UPIAmount,
+						particulars = "By upi received for Bill No: " + bill.Bill.BillNo,
+						accountType = "BANK A/C",
+						type = TransactionType.RECEIPT.ToString()
+					});
+			}
+			// if (bill.BillPayment.BankAmount > 0)
+			// {
+			// 	customerStatements.Add(new CustomerStatement
+			// 		{
+						//date = bill.Bill.BillDate, // Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
+			// 			credit = bill.BillPayment.BankAmount,
+			// 			debit = 0,
+			// 			particulars = "By credit for Bill No: " + bill.Bill.BillNo,
+			// 			accountType = "CUSTOMER CREDIT A/C",
+			// 			type = TransactionType.RECEIPT.ToString()
+			// 		});
+			// }
+		}
+
+		// Add remaining receipts
+		while (j < neededReceipts.Count)
+		{
+			var receipt = neededReceipts[j++];
+
+			customerStatements.Add(new CustomerStatement
+				{
+					date = receipt.ReciptDate,
+					credit = 0,
+					debit = receipt.TotalAmountPaid,
+					particulars = "By receipt for Receipt No: " + receipt.ReceiptNO,
+					accountType = "RECEIPT A/C",
+					type = TransactionType.RECEIPT.ToString()
+				});
+		}
+
+		// Optional: sort again in case dates are equal or include time later
+		customerStatements.Sort((a, b) => a.date.CompareTo(b.date));
+
+		return customerStatements;
+	}
+
+	public async Task<decimal> GetOpeningBalanceAsync(List<CustomerStatement> customerStatements, DateTime? statementStartDate)
 	{
-		{ "@customerId", customerId },
-		{ "@startDate", statementStartDate.Value.Date.ToString("yyyy-MM-dd") }
-	};
+		// 	string query = @"
+		//        SELECT COALESCE(SUM(CrAmount - DrAmount), 0) AS OpeningBalance
+		//        FROM CashBankLedger
+		//        WHERE ForWho = @customerId AND Date < @startDate AND AccountID not in(14) Order By Date;";
 
-		var result = await DatabaseHandler.ExecuteQueryAsync(query, parameters);
+		// 	var parameters = new Dictionary<string, object>
+		// {
+		// 	{ "@customerId", customerId },
+		// 	{ "@startDate", statementStartDate.Value.Date.ToString("yyyy-MM-dd") }
+		// };
 
-		return result.Count > 0 ? Convert.ToDecimal(result[0]["OpeningBalance"]) : 0;
+		// 	var result = await DatabaseHandler.ExecuteQueryAsync(query, parameters);
+
+		// 	return result.Count > 0 ? Convert.ToDecimal(result[0]["OpeningBalance"]) : 0;
+		if (statementStartDate == null)
+			return 0;
+
+		// Filter only entries before the statementStartDate
+		var priorEntries = customerStatements
+			.Where(cs => cs.date < statementStartDate)
+			.ToList();
+
+		decimal openingBalance = 0;
+
+		foreach (var entry in priorEntries)
+		{
+			if (entry.accountType == "SALES A/C")
+			{
+				openingBalance += entry.credit; // Customer owes us more
+			}
+			else if (entry.accountType == "CASH A/C" || entry.accountType == "BANK A/C" || entry.accountType == "CARD A/C")
+			{
+				openingBalance -= entry.debit; // Customer paid us
+			}
+			else if (entry.accountType == "RECEIPT A/C")
+			{
+				openingBalance -= entry.debit; // Receipt is money received, reduce the balance
+			}
+		}
+
+		return openingBalance;
+
+
 	}
 
 	async void DownloadStatement(DateTime? startDate,DateTime? endDate)
 	{
-		List<CustomerStatement> customerStatements = new List<CustomerStatement>();
+		List<CustomerStatement> customerStatements = createLedgers(); ;
 
-
-		decimal openingBalance = await GetOpeningBalanceAsync(customerData.CustomerId, startDate);
-
-		string getString = $@"SELECT c.*,a.* FROM CashBankLedger c JOIN LedgerAccounts a ON a.AccountID = c.AccountID WHERE DATE(c.Date) BETWEEN '{startDate.Value.Date:yyyy-MM-dd HH:mm:ss}' AND '{endDate.Value.Date:yyyy-MM-dd HH:mm:ss}' AND c.ForWho = '{customerData.CustomerId}' ORDER BY
-  Date, LedgerID;";
-
-
-		var res = await DatabaseHandler.ExecuteQueryAsync(getString);
-
-		if(res.Count > 0)
+		decimal openingBalance = await GetOpeningBalanceAsync(customerStatements, startDate);
+		if (startDate != null && endDate != null)
 		{
-			foreach(var row in res)
-			{
-				customerStatements.Add(
-					new CustomerStatement
-					{
-						date = DateTime.Parse(row["Date"].ToString()),
-						credit = Convert.ToDecimal(row["CrAmount"]),
-						EntryID = Convert.ToInt32(row["EntryID"]),
-						debit = Convert.ToDecimal(row["DrAmount"]),
-						particulars= row["Particulars"].ToString(),
-						accountType = row["AccountName"].ToString(),
-						type = row["TransactionType"].ToString()
-					}
-				);
-			}
+			customerStatements = customerStatements
+				.Where(x => x.date >= startDate && x.date <= endDate)
+				.ToList();
+		}
+		
+
+		
+		if (customerStatements.Count > 0)
+		{
+			
 			string path = await PDFGenerator.GenerateCustomerStatement(customerStatements,openingBalance,customerData);
 
 			ToastService.ShowToast($"SavedAt = {path}", ToastType.sucess);
