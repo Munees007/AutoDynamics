@@ -1,0 +1,62 @@
+﻿<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0">View Receipt</h3>
+        </div>
+        <div class="card-body">
+            <h5 class="mb-3">Receipt Details</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Receipt Date:</strong> @creditRecipt.ReciptDate.ToString("dd/MM/yyyy")</p>
+                    <p><strong>Receipt Number:</strong> @((creditRecipt.Branch == "Sivakasi" ? "RC_SFR" : "RC_BPR") + creditRecipt.ReceiptNO.ToString().PadLeft(4, '0'))</p>
+                    <p><strong>Cheque Number:</strong> @creditRecipt.CheckNumber</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Customer ID:</strong> @creditRecipt.customer.CustomerId</p>
+                    <p><strong>Name:</strong> @creditRecipt.customer.Name</p>
+                    <p><strong>Mobile:</strong> @creditRecipt.customer.Contact</p>
+                </div>
+            </div>
+
+            <hr />
+
+            <h5 class="mt-4">Receipt Bills</h5>
+            <p><strong>Payment Type:</strong> @creditRecipt.creditBills[0].paymentType.ToString()</p>
+
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th>S.No</th>
+                            <th>Bill Date</th>
+                            <th>Bill Number</th>
+                            <th>Narration</th>
+                            <th class="text-end">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var bill in creditRecipt.creditBills)
+                        {
+                            <tr>
+                                <td>@(creditRecipt.creditBills.IndexOf(bill) + 1)</td>
+                                <td>@bill.BillDate.ToString("dd/MM/yyyy")</td>
+                                <td>@((bill.branch == "Sivakasi" ? "SFR" : "BPR") + bill.billNo.ToString().PadLeft(4, '0'))</td>
+                                <td>@creditRecipt.narration</td>
+                                <td class="text-end">@bill.amountPayed.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="mt-3 text-end fw-bold fs-5">
+                Total Amount: ₹@creditRecipt.TotalAmountPaid.ToString("N2")
+            </p>
+        </div>
+    </div>
+</div>
+
+
+@code
+{
+	[Parameter] public CreditReciptType creditRecipt { get; set; } = new();
+}

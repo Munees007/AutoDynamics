@@ -439,7 +439,7 @@
         {
             Ledger bankLedger = new Ledger
             {
-                    AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "SUPPLIER CREDIT A/C")?.AcccountId ?? 0,
+                    AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "SUPPLIER A/C")?.AcccountId ?? 0,
 
                     CR_Amount = purchase.TotalAmount,
                     Particulars = $"By Credit to {purchase.Supplier.Name}",

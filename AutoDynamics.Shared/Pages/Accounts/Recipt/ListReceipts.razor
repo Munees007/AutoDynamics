@@ -82,6 +82,7 @@ else
                                             <td>₹@(Math.Round(bill.TotalAmountPaid))</td>
                                             <td>
                                                 <button class="btn btn-sm btn-success" @onclick="() => DownloadBill(bill)">Download</button>
+                                                <button class="btn btn-sm btn-success" @onclick="() => ViewReceipt(bill)">View</button>
                                                 @if (isAdmin)
                                                 {
                                                     @* <button class="btn btn-sm btn-danger">Update</button> *@
@@ -139,6 +140,7 @@ else
                                             <td>₹@bill.TotalAmountPaid</td>
                                             <td>
                                                 <button class="btn btn-sm btn-success" @onclick="() => DownloadBill(bill)">Download</button>
+                                                <button class="btn btn-sm btn-success" @onclick="() => ViewReceipt(bill)">View</button>
                                                 @if(isAdmin)
                                                 {
                                                     @* <button class="btn btn-sm btn-danger" >Update</button> *@
@@ -188,6 +190,16 @@ else
     Dictionary<string, dynamic> Parameters;
 
     CustomDialogBox excelDialog = new CustomDialogBox();
+
+    public void ViewReceipt(CreditReciptType creditRecipt)
+    {
+		Dictionary<string, dynamic> parameters = new Dictionary<string, dynamic>
+		{
+			
+            {"creditRecipt", creditRecipt}
+		};
+		TabService.OpenWithParameter($"Receipt No: {CreateBillNo(creditRecipt)}", typeof(ViewReceipt), parameters);
+    }
 
     public void SearchBills(ChangeEventArgs e)
     {

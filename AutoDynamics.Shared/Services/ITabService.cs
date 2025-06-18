@@ -15,7 +15,7 @@ namespace AutoDynamics.Shared.Services
 
         event Action? OnChange;
 
-        void OpenTab(string title, Type componentType, bool isClosable = true);
+        void OpenTab(string title, Type componentType, bool isClosable = true,bool ignoreDuplicate = false);
         void OpenTabByPath(string title, string path, Type componentType);
 
         void OpenWithParameter(string title, Type componentType, Dictionary<string, dynamic> parameters, bool isClosable = true);

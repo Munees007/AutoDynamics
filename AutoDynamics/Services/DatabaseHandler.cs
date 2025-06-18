@@ -566,6 +566,10 @@ namespace AutoDynamics.Services
 
                         if (isUpdating)
                         {
+                            foreach (var ledger in ledgers)
+                            {
+                                ledger.ReferenceID = paymentID;
+                            }
                             List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers,true);
                             int mainLedgerId = ledgerIds[0];
 
@@ -666,8 +670,8 @@ namespace AutoDynamics.Services
                             }
 
                             // Insert new receipt
-                            string insertQuery = @"INSERT INTO Payments (SupplierID, PaymentDate, TotalAmountPaid,Branch,CheckNumber,PaymentNo,Narration) 
-                                           VALUES (@SupplierID, @PaymentDate, @TotalAmountPaid, @LedgerID,@Branch,@CheckNumber,@PaymentNo,@Narration); 
+                            string insertQuery = @"INSERT INTO Payments (SupplierID, PaymentDate, TotalAmountPaid,Branch,CheckNumber,PaymentNo,Narration,BillingYear) 
+                                           VALUES (@SupplierID, @PaymentDate, @TotalAmountPaid,@Branch,@CheckNumber,@PaymentNo,@Narration,@BillingYear); 
                                            SELECT LAST_INSERT_ID();";
 
                             using (var command = new MySqlCommand(insertQuery, connection, (MySqlTransaction)transaction))
@@ -675,7 +679,7 @@ namespace AutoDynamics.Services
                                 command.Parameters.AddWithValue("@SupplierID", creditRecipt.supplier.SupplierID);
                                 command.Parameters.AddWithValue("@PaymentDate", creditRecipt.PaymentDate);
                                 command.Parameters.AddWithValue("@TotalAmountPaid", creditRecipt.paymentBills.Sum(x => x.amountPayed));
-                                
+                                command.Parameters.AddWithValue("@BillingYear", creditRecipt.BillingYear);
                                 command.Parameters.AddWithValue("@Branch", creditRecipt.Branch);
                                 command.Parameters.AddWithValue("@CheckNumber", creditRecipt.CheckNumber);
                                 command.Parameters.AddWithValue("@PaymentNo", newBillNo);
@@ -684,7 +688,7 @@ namespace AutoDynamics.Services
                                 paymentID = int.Parse(result?.ToString() ?? "0");
 
                                 if (paymentID == 0)
-                                    throw new Exception("Unable to Insert Receipt, Please try again");
+                                    throw new Exception("Unable to Insert Payment, Please try again");
                             }
                             ledgers.First<Ledger>().Particulars += (creditRecipt.Branch == "Sivakasi" ? "PY_SFR" : "PY_BPR") + paymentID.ToString().PadLeft(4, '0');
                             foreach (var ledger in ledgers)
@@ -692,8 +696,10 @@ namespace AutoDynamics.Services
                                 ledger.billOrInvoiceNo = (creditRecipt.Branch == "Sivakasi" ? "PY_SFR" : "PY_BPR") + paymentID.ToString().PadLeft(4, '0');
                             }
                             List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers,false);
+                            if (ledgerIds.Count == 0)
+                                throw new Exception("No ledger entries were inserted or updated.");
                             int mainLedgerId = ledgerIds[0];
-
+                            Debug.WriteLine("Ledgers Count = " + ledgerIds.Count.ToString());
                             // Set receipt reference in ledgers
                             foreach (int id in ledgerIds)
                             {
@@ -1796,6 +1802,7 @@ WHERE p.ProductID = @ProductID";
                     ReciptDate = receiptReader.GetDateTime("PaymentDate"),
                     Branch = receiptReader.GetString("Branch"),
                     TotalAmountPaid = receiptReader.GetDecimal("TotalAmountPaid"),
+                    paymentType = Enum.Parse<PaymentTypes>(receiptReader.GetString("PaymentMode")),
                     creditBills = new List<CreditBill>()
                 };
             }
@@ -1817,7 +1824,9 @@ WHERE p.ProductID = @ProductID";
                         billId = receiptsItemReader.GetInt32("BillID"),
                         billNo = receiptsItemReader.GetInt32("BillNo"),
                         BillDate = receiptsItemReader.GetDateTime("BillDate"),
+                        branch = receiptsItemReader.GetString("Branch"),
                         amountPayed = receiptsItemReader.GetDecimal("AmountPaid"),
+                       
                     };
 
                     receiptDictionary[receiptId].creditBills.Add(receiptBill);
@@ -1917,7 +1926,7 @@ WHERE p.ProductID = @ProductID";
             await receiptReader.CloseAsync();
 
             // Fetch BillItems
-            string receiptItemQuery = "SELECT r.*,b.* FROM PaymentBills r JOIN PurhaseBills b ON b.PurchaseBillID = r.PurchaseBillID";
+            string receiptItemQuery = "SELECT r.*,b.* FROM PaymentBills r JOIN PurchaseBills b ON b.PurchaseBillID = r.PurchaseBillID";
             using var receiptItemCommand = new MySqlCommand(receiptItemQuery, connection);
             using var receiptsItemReader = await receiptItemCommand.ExecuteReaderAsync();
 

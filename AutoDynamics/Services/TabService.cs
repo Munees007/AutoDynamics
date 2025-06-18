@@ -15,12 +15,12 @@ public class TabService : ITabService
     public event Action? OnChange;
 
     
-    public void OpenTab(string title, Type componentType, bool isClosable = true)
+    public void OpenTab(string title, Type componentType, bool isClosable = true,bool ignoreDuplicate = false)
     {
         try
         {
             var existing = Tabs.FirstOrDefault(t => t.Title == title && t.ComponentType == componentType);
-            if (existing != null)
+            if (existing != null && ignoreDuplicate == false)
             {
                 Selected = existing;
             }

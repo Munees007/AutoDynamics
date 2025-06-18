@@ -33,7 +33,8 @@
 
 @code
 {
-    RenderFragment RenderMenu(MenuType menu) => @<div class="nav-btn">
+    string[] ignoreDuplicates = { "Add Bill", "Add Receipt", "Add Purchase", "Add Payment" };
+        RenderFragment RenderMenu(MenuType menu) => @<div class="nav-btn">
         <p class="rounded-3 user-select-none text-black" @onclick="() => MenuClicked(menu)">
             @menu.Name
         </p>
@@ -50,7 +51,7 @@
         else
         {
             <li title="@sub.Name" style="cursor:pointer;user-select:none;" class="text-black rounded-3"
-                @onclick="() =>{Debug.WriteLine(sub.Name);Debug.WriteLine(sub.type); TabService.OpenTab(sub.Name, sub.type);}">
+                @onclick="() =>{if(ignoreDuplicates.Contains(sub.Name)){ TabService.OpenTab(sub.Name, sub.type,ignoreDuplicate:true);}else{TabService.OpenTab(sub.Name, sub.type);}}">
                 <Marquee text="@sub.Name" marqueeTextTriggerLength="7"/>
             </li>
 
@@ -59,7 +60,7 @@
         </ul>
     }
     </div>
-    ;
+        ;
 
     class MenuType
     {
@@ -187,8 +188,17 @@
     {
         try
         {
+            
             if (menuV.SubMenus.Count == 0)
             {
+                Debug.WriteLine("ignoreDuplicate = " + ignoreDuplicates.Contains(menuV.Name).ToString());
+                if (ignoreDuplicates.Contains(menuV.Name))
+				{
+
+					// If the menu is one of the ignore duplicates, just navigate to the path
+                    TabService.OpenTab(menuV.Name, menuV.type,ignoreDuplicate: true);
+					return;
+				}
                 TabService.OpenTab(menuV.Name, menuV.type);
                 //Navigation.NavigateTo(menuV.Path);
             }

@@ -110,6 +110,7 @@
 
 <Loader show="isLoading" customText="@loaderText" />
 @code {
+
     PaymentReciptType supplierCredits = new();
     List<Supplier> suppliers = new();
 
@@ -360,15 +361,15 @@
 
             List<Ledger> ledgers = new List<Ledger>();
             
-            if (cashLedger.DR_Amount > 0)
+            if (cashLedger.CR_Amount > 0)
             {
                 ledgers.Add(cashLedger);
             }
-            if (bankLedger.DR_Amount > 0)
+            if (bankLedger.CR_Amount > 0)
             {
                 ledgers.Add(bankLedger);
             }
-            if(cardLedger.DR_Amount > 0)
+            if(cardLedger.CR_Amount > 0)
             {
                 ledgers.Add(cardLedger);
             }
@@ -390,6 +391,7 @@
         catch (Exception e)
         {
             Debug.WriteLine(e.Message);
+            Debug.WriteLine(e.Source);
             ToastService.ShowToast(e.Message, ToastType.error);
         }
     }

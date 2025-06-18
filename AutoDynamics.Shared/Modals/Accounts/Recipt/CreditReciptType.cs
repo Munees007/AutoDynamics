@@ -22,6 +22,7 @@ namespace AutoDynamics.Shared.Modals.Accounts.Recipt
         public DateTime ReciptDate { get; set; } = DateTime.Now;
         public UserModal customer { get; set; } = new();
         public decimal TotalAmountPaid { get; set; } = new();
+        public PaymentTypes paymentType { get; set; }
         public List<CreditBill> creditBills { get; set; } = new();
     }
 
