@@ -24,6 +24,7 @@
 					<th style="min-width: 200px;">Particulars</th>
 					<th style="min-width: 120px;">Dr Amount</th>
 					<th style="min-width: 120px;">Cr Amount</th>
+					<th style="min-width:100px">Payment Type</th>
 					<th style="min-width: 100px;">Actions</th>
 				</tr>
 			</thead>
@@ -58,8 +59,16 @@
 							<input type="number" @bind="ledger.CR_Amount" class="form-control" placeholder="Cr Amount" />
 						</td>
 						<td>
+							<select @bind="ledger.PaymentMode" class="form-select">
+								<option value="@PaymentTypes.CASH">CASH</option>
+								<option value="@PaymentTypes.CARD">CARD</option>
+								<option value="@PaymentTypes.BANK">BANK</option>
+								<option value="@PaymentTypes.UPI">UPI</option>
+							</select>
+						</td>
+						<td>
 							<button class="btn btn-sm btn-danger" @onclick="() => removeLedger(ledger)">🗑️ Remove</button>
-							<button class="btn btn-sm btn-info" @onclick="()=>createDoubleEntry(ledger)">��</button>
+							
 						</td>
 					</tr>
 				}
