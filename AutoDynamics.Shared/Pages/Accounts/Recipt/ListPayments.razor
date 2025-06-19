@@ -62,8 +62,8 @@ else
                                         <th>Name</th>
                                         <th>Mobile No</th>
                                         <th>Branch</th>
-                                        <th>Check Number</th>
-                                        <th>Receipt Date</th>
+                                        <th>Cheque Number</th>
+                                        <th>Payment Date</th>
                                         <th>Total</th>
                                         <th>Actions</th>
                                     </tr>
@@ -77,11 +77,12 @@ else
                                             <td>@bill.supplier.Name</td>
                                             <td>@bill.supplier.Contact</td>
                                             <td>@bill.Branch</td>
-                                            <td>@(bill.CheckNumber != string.Empty ? bill.CheckNumber : "")</td>
+                                            <td>@bill.CheckNumber</td>
                                             <td>@bill.PaymentDate.ToString("yyyy-MM-dd")</td>
                                             <td>₹@(Math.Round(bill.TotalAmountPaid))</td>
                                             <td>
                                                 <button class="btn btn-sm btn-success" @onclick="() => DownloadBill(bill)">Download</button>
+                                                <button class="btn btn-sm btn-secondary" @onclick="() => ViewReceipt(bill)">View</button>
                                                 @if (isAdmin)
                                                 {
                                                     @* <button class="btn btn-sm btn-danger">Update</button> *@
@@ -120,8 +121,8 @@ else
                                         <th>Name</th>
                                         <th>Mobile No</th>
                                         <th>Branch</th>
-                                        <th>Check Number</th>
-                                        <th>Receipt Date</th>
+                                        <th>Cheque Number</th>
+                                        <th>Payment Date</th>
                                         <th>Total</th>
                                         <th>Actions</th>
                                     </tr>
@@ -136,11 +137,12 @@ else
                                             <td>@bill.supplier.Name</td>
                                             <td>@bill.supplier.Contact</td>
                                             <td>@bill.Branch</td>
-                                            <td>@(bill.CheckNumber != string.Empty ? bill.CheckNumber : "No Check Number")</td>
+                                            <td>@bill.CheckNumber</td>
                                             <td>@bill.PaymentDate.ToString("yyyy-MM-dd")</td>
                                             <td>₹@bill.TotalAmountPaid</td>
                                             <td>
                                                 <button class="btn btn-sm btn-success" @onclick="() => DownloadBill(bill)">Download</button>
+                                                <button class="btn btn-sm btn-success" @onclick="() => ViewReceipt(bill)">View</button>
                                                 @if (isAdmin)
                                                 {
                                                     @* <button class="btn btn-sm btn-danger" >Update</button> *@
@@ -190,6 +192,16 @@ else
     Dictionary<string, dynamic> Parameters;
 
     CustomDialogBox excelDialog = new CustomDialogBox();
+
+    public void ViewReceipt(PaymentReciptType creditRecipt)
+    {
+        Dictionary<string, dynamic> parameters = new Dictionary<string, dynamic>
+            {
+
+            {"paymentReceipt", creditRecipt}
+            };
+        TabService.OpenWithParameter($"Payment No: {CreateBillNo(creditRecipt)}", typeof(ViewPayment), parameters);
+    }
 
     public void SearchBills(ChangeEventArgs e)
     {

@@ -1,0 +1,64 @@
+﻿<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0">View Payment</h3>
+        </div>
+        <div class="card-body">
+            <h5 class="mb-3">Payment Details</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Payment Date:</strong> @paymentReceipt.PaymentDate.ToString("dd/MM/yyyy")</p>
+                    <p><strong>Payment Number:</strong> @((paymentReceipt.Branch == "Sivakasi" ? "RC_SFR" : "RC_BPR") + paymentReceipt.PaymentNo.ToString().PadLeft(4, '0'))</p>
+                    <p><strong>Cheque Number:</strong> @paymentReceipt.CheckNumber</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Supplier ID:</strong> @paymentReceipt.supplier.SupplierID</p>
+                    <p><strong>Name:</strong> @paymentReceipt.supplier.Name</p>
+                    <p><strong>Mobile:</strong> @paymentReceipt.supplier.Contact</p>
+                </div>
+            </div>
+
+            <hr />
+
+            <h5 class="mt-4">Payment Bills</h5>
+            <p><strong>Payment Type:</strong> @paymentReceipt.paymentBills[0].paymentType.ToString()</p>
+
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th>S.No</th>
+                            <th>Purchase Date</th>
+                            <th>Purchase Number</th>
+                            <th>Invoice No</th>
+                            <th>Narration</th>
+                            <th class="text-end">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var bill in paymentReceipt.paymentBills)
+                        {
+                            <tr>
+                                <td>@(paymentReceipt.paymentBills.IndexOf(bill) + 1)</td>
+                                <td>@bill.purchaseDate.ToString("dd/MM/yyyy")</td>
+                                <td>@((bill.branch == "Sivakasi" ? "SFRP" : "BPRP") + bill.purchaseNo.ToString().PadLeft(4, '0'))</td>
+                                <td>@bill.invoice</td>
+                                <td>@paymentReceipt.Narration</td>
+                                <td class="text-end">@bill.amountPayed.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="mt-3 text-end fw-bold fs-5">
+                Total Amount: ₹@paymentReceipt.TotalAmountPaid.ToString("N2")
+            </p>
+        </div>
+    </div>
+</div>
+
+
+@code
+{
+    [Parameter] public PaymentReciptType paymentReceipt { get; set; } = new();
+}

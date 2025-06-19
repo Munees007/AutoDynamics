@@ -1940,7 +1940,7 @@ WHERE p.ProductID = @ProductID";
                     {
                         purchaseBillID = receiptsItemReader.GetInt32("PurchaseBillID"),
                         purchaseNo = receiptsItemReader.GetInt32("BillNo"),
-                        purchaseDate = receiptsItemReader.GetDateTime("BillDate"),
+                        purchaseDate = receiptsItemReader.GetDateTime("PurchaseDate"),
                         amountPayed = receiptsItemReader.GetDecimal("AmountPaid"),
                         invoice = receiptsItemReader.GetString("InvoiceNumber")
                     };

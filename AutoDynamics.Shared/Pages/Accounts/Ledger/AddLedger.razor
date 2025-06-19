@@ -3,14 +3,55 @@
 @inject IToastService ToastService
 @inject IMyLocalStorageService MyLocalStorageService
 <div class="container my-4">
-	
-	<div class="d-flex justify-content-between align-items-center mb-3">
-		<h3 class="mb-0">Ledger Entry</h3>
-		<div>
-			<button class="btn btn-primary me-2" @onclick="addLedger">➕ Add Ledger</button>
 
+	<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+		<!-- Title and Buttons -->
+		<div class="flex-grow-1">
+			<h3 class="mb-3">Ledger Entry</h3>
+			<div class="d-flex gap-2 flex-wrap">
+				<button class="btn btn-primary" @onclick="addLedger">
+					➕ Add Ledger
+				</button>
+				<button class="btn btn-outline-secondary" @onclick="() => { accountType.showDialog = true; StateHasChanged(); }">
+					➕ Add Account
+				</button>
+			</div>
+		</div>
 
-			<button class="btn btn-outline-secondary" @onclick="() => { accountType.showDialog = true; StateHasChanged(); }">➕ Add Account</button>
+		<!-- Select Options -->
+		<div class="d-flex flex-column flex-md-row gap-3">
+			<div>
+				<label class="form-label fw-semibold">Ledger Type</label>
+				<select class="form-select" @bind="LedgerType">
+					<option value="SE">Single Entry</option>
+					<option value="DE">Double Entry</option>
+				</select>
+			</div>
+
+			@if(LedgerType == "SE")
+			{
+				<div>
+					<label class="form-label fw-semibold">Transaction Type</label>
+					<select class="form-select" @bind="transactionType">
+						<option value="@TransactionType.EXPENSE">EXPENSE</option>
+						<option value="@TransactionType.OTHER">OTHER</option>
+					</select>
+				</div>
+			}
+
+			@if(LedgerType == "SE")
+			{
+				<div>
+					<label class="form-label fw-semibold">Payment Type</label>
+					<select class="form-select" @bind="paymentType">
+						<option value="@PaymentTypes.CASH">CASH</option>
+						<option value="@PaymentTypes.CARD">CARD</option>
+						<option value="@PaymentTypes.BANK">BANK</option>
+						<option value="@PaymentTypes.UPI">UPI</option>
+					</select>
+				</div>
+			}
+
 		</div>
 	</div>
 
@@ -20,11 +61,19 @@
 				<tr>
 					<th style="min-width: 120px;">Date</th>
 					<th style="min-width: 160px;">Account Type</th>
-					<th style="min-width: 160px;">Transaction Type</th>
+					@if(LedgerType == "DE")
+					{
+						<th style="min-width: 160px;">Transaction Type</th>
+					}
+
 					<th style="min-width: 200px;">Particulars</th>
 					<th style="min-width: 120px;">Dr Amount</th>
 					<th style="min-width: 120px;">Cr Amount</th>
-					<th style="min-width:100px">Payment Type</th>
+					@if(LedgerType == "DE")
+					{
+						<th style="min-width:100px">Payment Type</th>
+					}
+
 					<th style="min-width: 100px;">Actions</th>
 				</tr>
 			</thead>
@@ -43,12 +92,15 @@
 								}
 							</select>
 						</td>
-						<td>
-							<select @bind="ledger.TransactionType" class="form-select">
-								<option value="@TransactionType.EXPENSE">EXPENSE</option>
-								<option value="@TransactionType.OTHER">OTHER</option>
-							</select>
-						</td>
+						@if(LedgerType == "DE")
+						{
+							<td>
+								<select @bind="ledger.TransactionType" class="form-select">
+									<option value="@TransactionType.EXPENSE">EXPENSE</option>
+									<option value="@TransactionType.OTHER">OTHER</option>
+								</select>
+							</td>
+						}
 						<td>
 							<input type="text" @bind="ledger.Particulars" class="form-control" placeholder="Particulars" />
 						</td>
@@ -58,31 +110,42 @@
 						<td>
 							<input type="number" @bind="ledger.CR_Amount" class="form-control" placeholder="Cr Amount" />
 						</td>
-						<td>
-							<select @bind="ledger.PaymentMode" class="form-select">
-								<option value="@PaymentTypes.CASH">CASH</option>
-								<option value="@PaymentTypes.CARD">CARD</option>
-								<option value="@PaymentTypes.BANK">BANK</option>
-								<option value="@PaymentTypes.UPI">UPI</option>
-							</select>
-						</td>
+						@if (LedgerType == "DE")
+						{
+							<td>
+								<select @bind="ledger.PaymentMode" class="form-select">
+									<option value="@PaymentTypes.CASH">CASH</option>
+									<option value="@PaymentTypes.CARD">CARD</option>
+									<option value="@PaymentTypes.BANK">BANK</option>
+									<option value="@PaymentTypes.UPI">UPI</option>
+								</select>
+							</td>
+						}
 						<td>
 							<button class="btn btn-sm btn-danger" @onclick="() => removeLedger(ledger)">🗑️ Remove</button>
-							
+
 						</td>
 					</tr>
 				}
 			</tbody>
 		</table>
 	</div>
-	<button class="btn btn-success mt-3" @onclick="SaveLedgerEntries" disabled="@(ledgers.Count == 0 || !IsBalanced)">
+
+	@if(LedgerType == "SE")
+	{
+		<button class="btn btn-success mt-3 " @onclick="()=>{ledgers = createSingleEntry();}" disabled="@(ledgers.Count == 0)">
+			✅ Check Single Entry
+		</button>
+	}
+
+	<button class="btn btn-success mt-3" style="margin-left:10px" @onclick="SaveLedgerEntries" disabled="@(ledgers.Count == 0 || !IsBalanced)">
 		✅ Post Entries
 	</button>
 </div>
 <div class="mt-3">
 	<div class="d-flex justify-content-end gap-3">
 		<div><strong>Total Dr:</strong> ₹@TotalDr</div>
-		<div><strong>Total Cr:</strong> ₹@TotalCr</div>
+		@* <div><strong>Total Cr:</strong> ₹@TotalCr</div> *@
 		@if (!IsBalanced)
 		{
 			<div class="text-danger"><strong>Unbalanced: ₹@Difference</strong></div>
@@ -105,6 +168,10 @@
 	string branch = "";
 	bool isLoading = false;
 	string loaderText = "";
+
+	string LedgerType = "SE";
+	TransactionType transactionType = TransactionType.EXPENSE;
+	PaymentTypes paymentType = PaymentTypes.CASH;
 	List<LedgerAcccounts> accountTypes = new List<LedgerAcccounts>();
 
 	LedgerAcccounts temp = new LedgerAcccounts();
@@ -169,10 +236,41 @@
 		isLoading = false;
 		loaderText = "";
 	}
+
+	List<Ledger> createSingleEntry()
+	{
+		List<Ledger> newLedgers = new();
+
+		foreach(var ledger in ledgers)
+		{
+			ledger.TransactionType = transactionType;
+			ledger.PaymentMode = paymentType;
+			newLedgers.Add(ledger);
+
+			if (ledger.DR_Amount > 0 || ledger.CR_Amount > 0)
+			{
+				// Create opposite entry for single entry mode
+				Ledger oppositeEntry = new Ledger
+						{
+							Date = ledger.Date,
+							AccountID = accountTypes.FirstOrDefault((a) => a.AccountName.ToString() == $"{paymentType.ToString().ToUpper()} A/C")?.AcccountId ?? 0,
+							TransactionType = transactionType,
+							Particulars = $"{ledger.AccountType.AccountName} paid by {paymentType}",
+							Branch = ledger.Branch,
+							PaymentMode = paymentType,
+							DR_Amount = ledger.CR_Amount,
+							CR_Amount = ledger.DR_Amount
+						};
+				newLedgers.Add(oppositeEntry);
+			}
+		}
+		return newLedgers;
+	}
 	async Task SaveLedgerEntries()
 	{
 		try
 		{
+
 			if (!IsBalanced)
 			{
 				ToastService.ShowToast("Cannot save: Dr and Cr are not balanced!", ToastType.warning);
@@ -181,6 +279,11 @@
 
 			isLoading = true;
 			loaderText = "Saving Ledger...";
+
+			if (LedgerType == "Single Entry")
+			{
+				ledgers = createSingleEntry();
+			}
 
 			await DatabaseHandler.InsertOrUpdateMultipleLedger(ledgers);
 			isLoading = false;
