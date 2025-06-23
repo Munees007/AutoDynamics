@@ -345,6 +345,90 @@ namespace AutoDynamics.Services
             return receipts;
         }
 
+        public async Task<List<PaymentReciptType>> GetPaymentReceipts(bool isCustomerOnly, string? SupplierID)
+        {
+            var receipts = new List<PaymentReciptType>();
+
+            using (var connection = new MySqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+
+                string query = @"
+            SELECT 
+                r.PaymentID, r.SupplierID, r.PaymentDate, r.TotalAmountPaid, r.LedgerID,r.Branch,
+                c.Name,
+                rb.PurchaseBillID, rb.AmountPaid, rb.BalanceAmount,
+                cr.SupplierCreditID, cr.PaidAmount, cr.Status
+            FROM Payments r
+            JOIN Suppliers c ON r.SupplierID = c.SupplierID
+            LEFT JOIN PaymentBills rb ON r.PaymentID = rb.PaymentID
+            LEFT JOIN SupplierCreditRecord cr ON rb.PurchaseBillID = cr.PurchaseBillID";
+
+                if (isCustomerOnly && !string.IsNullOrEmpty(SupplierID))
+                {
+                    query += " WHERE r.SupplierID = @SupplierID";
+                }
+
+                using (var command = new MySqlCommand(query, connection))
+                {
+                    if (isCustomerOnly && !string.IsNullOrEmpty(SupplierID))
+                    {
+                        command.Parameters.AddWithValue("@SupplierID", SupplierID);
+                    }
+
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        var receiptDict = new Dictionary<int, PaymentReciptType>();
+
+                        while (await reader.ReadAsync())
+                        {
+                            int receiptId = reader.GetInt32("PaymentID");
+
+                            if (!receiptDict.ContainsKey(receiptId))
+                            {
+                                var receipt = new PaymentReciptType
+                                {
+                                    PaymentId = receiptId,
+                                    Branch = reader.GetString("Branch"),
+                                    PaymentDate = reader.GetDateTime("PaymentDate"),
+                                    TotalAmountPaid = reader.GetDecimal("TotalAmountPaid"),
+                                    supplier = new Supplier
+                                    {
+                                        SupplierID = reader.GetString("SupplierID"),
+                                        Name = reader.GetString("Name")
+                                    },
+                                    paymentBills = new List<PaymentBill>()
+                                };
+
+                                receiptDict[receiptId] = receipt;
+                            }
+
+                            // Add CreditBill if present
+                            if (!reader.IsDBNull(reader.GetOrdinal("PurchaseBillID")))
+                            {
+                                var bill = new PaymentBill
+                                {
+
+                                    purchaseBillID = reader.GetInt32("PurchaseBillID"),
+                                    amountPayed = reader.GetDecimal("AmountPaid"),
+                                    dueAmount = reader.GetDecimal("BalanceAmount") + reader.GetDecimal("AmountPaid"),
+                                   supplierCreditId =   reader.GetInt32("SupplierCreditID"),
+                                    CreditStatus = Enum.TryParse(reader.GetString("Status"), out CreditStatus status) ? status : CreditStatus.Pending
+                                };
+
+                                receiptDict[receiptId].paymentBills.Add(bill);
+                            }
+                        }
+
+                        receipts = receiptDict.Values.ToList();
+                    }
+                }
+            }
+
+            return receipts;
+        }
+
+
 
 
         public async Task<int> InsertReceipt(CreditReciptType creditRecipt, bool isUpdating, List<Ledger> ledgers)
@@ -1259,11 +1343,12 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                                 // ✅ Update if exists
                                 string updateCreditQuery = @"
             UPDATE CreditRecord 
-            SET CreditAmount = @CreditAmount, DueDate = @DueDate, Status = 'Pending' 
+            SET CustomerID = @CustomerID, CreditAmount = @CreditAmount, DueDate = @DueDate, Status = 'Pending' 
             WHERE BillID = @BillID";
 
                                 using (var updateCommand = new MySqlCommand(updateCreditQuery, connection, (MySqlTransaction)transaction))
                                 {
+                                    updateCommand.Parameters.AddWithValue("@CustomerID", bill.CustomerID);
                                     updateCommand.Parameters.AddWithValue("@BillID", bill.BillID);
                                     updateCommand.Parameters.AddWithValue("@CreditAmount", billPayment.BankAmount);
                                     updateCommand.Parameters.AddWithValue("@DueDate", DateTime.UtcNow.AddMonths(1).ToString("yyyy-MM-dd")); // Example: 1-month due date

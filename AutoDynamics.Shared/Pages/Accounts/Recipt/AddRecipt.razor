@@ -3,7 +3,8 @@
 @inject IMyLocalStorageService MyLocalStorageService
 @inject IToastService ToastService
 <div class="container p-3">
-    <h3 class="mb-4 fw-bold">Enter Receipt</h3>
+    @if (!IsUpdating) {<h3 class="mb-4 fw-bold">Enter Receipt</h3>
+    }
 
     <!-- Date and Customer Search -->
     <div class="row g-4 mb-4">
@@ -108,8 +109,8 @@
 
 <Loader show="isLoading" customText="@loaderText"/>
 @code{
-
-    CreditReciptType creditReciptTypes = new();
+    [Parameter] public bool IsUpdating { get; set; } = false;
+    [Parameter] public CreditReciptType creditReciptTypes { get; set; } = new();
     List<UserModal> customers = new();
 
     private string CustomerSearch = "";
@@ -124,6 +125,8 @@
     private List<CreditBill> filteredCreditBills { get; set; } = new List<CreditBill>();
     private SearchSelect<CreditBill> creditBillRef;
     bool showCreditSuggestion = false;
+
+    string SelectedCustomer = "No Customer Selected";
 
     bool isLoading = false;
     string loaderText = "";
@@ -179,22 +182,30 @@
 
     protected override async Task OnInitializedAsync()
     {
+        loaderText = "Fetching Data";
+        isLoading = true;
         try
         {
-            loaderText = "Fetching Data";
-            isLoading = true;
+            if(IsUpdating)
+            {
+				filteredCreditBills = creditReciptTypes.creditBills;
+				creditBills = creditReciptTypes.creditBills;
+				CustomerSearch = creditReciptTypes.customer.CustomerId; 
+                currentBranch = creditReciptTypes.Branch;
+            }
             currentBranch = await MyLocalStorageService.GetItemAsync("Branch") ?? "";
             await NecessaryData();
-            isLoading = false;
-            loaderText = "";
-
-            StateHasChanged();
+            
             ToastService.ShowToast("Fetch Successful", ToastType.sucess);
         }
         catch(Exception e)
         {
             ToastService.ShowToast(e.Message, ToastType.sucess);
         }
+        isLoading = false;
+        loaderText = "";
+
+        StateHasChanged();
 
     }
 
@@ -278,10 +289,11 @@
     }
     public async Task HandleSubmit()
     {
+        isLoading = true;
+        loaderText = "Adding Receipt";
         try
         {
-            isLoading = true;
-            loaderText = "Adding Receipt";
+            
             string errorText = "";
             if(!validateData(out errorText))
             {
@@ -385,15 +397,16 @@
             splitAmount = 0;
             CustomerSearch = "";
             ToastService.ShowToast("Receipt Added Successfully", ToastType.sucess);
-            isLoading = false;
-            loaderText = "";
-            StateHasChanged();
+            
         }
         catch(Exception e)
         {
             Debug.WriteLine(e.Message);
             ToastService.ShowToast(e.Message,ToastType.error);
         }
+        isLoading = false;
+        loaderText = "";
+        StateHasChanged();
     }
 
     private async Task SelectCustomer(UserModal customer)
@@ -404,6 +417,7 @@
             isLoading = true;
             CustomerSearch = customer.CustomerId;
             creditReciptTypes.customer = customer;
+			SelectedCustomer = $"{customer.Name} - {customer.Contact}";
             string fetchCreditQuery = "SELECT * FROM CreditRecord cr JOIN Bills b ON b.BillID = cr.BillID WHERE cr.CustomerID = @CustomerID";
 
 			var bills = await DatabaseHandler.ExecuteQueryAsync(fetchCreditQuery, new Dictionary<string, object>

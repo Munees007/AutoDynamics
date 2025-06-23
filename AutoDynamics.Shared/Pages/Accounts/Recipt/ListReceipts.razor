@@ -85,7 +85,7 @@ else
                                                 <button class="btn btn-sm btn-success" @onclick="() => ViewReceipt(bill)">View</button>
                                                 @if (isAdmin)
                                                 {
-                                                    @* <button class="btn btn-sm btn-danger">Update</button> *@
+                                                    <button class="btn btn-sm btn-danger" @onclick="() => UpdateReceipt(bill)">Update</button>
                                                 }
                                             </td>
 
@@ -143,7 +143,7 @@ else
                                                 <button class="btn btn-sm btn-secondary" @onclick="() => ViewReceipt(bill)">View</button>
                                                 @if(isAdmin)
                                                 {
-                                                    @* <button class="btn btn-sm btn-danger" >Update</button> *@
+                                                    <button class="btn btn-sm btn-danger" @onclick="() => UpdateReceipt(bill)">Update</button>
                                                 }
                                             </td>
                                         </tr>
@@ -191,6 +191,15 @@ else
 
     CustomDialogBox excelDialog = new CustomDialogBox();
 
+    public void UpdateReceipt(CreditReciptType creditRecipt)
+    {
+        string billNo = (creditRecipt.Branch == "Sivakasi" ? "RC_SFR" : "RC_BPR") + creditRecipt.ReceiptNO.ToString().PadLeft(4, '0');
+        Parameters = new Dictionary<string, dynamic>
+                    {
+            {"creditReceipt",creditRecipt}
+                    };
+        TabService.OpenWithParameter("Update Receipt No: " + billNo, typeof(UpdateReceipt), Parameters);
+    }
     public void ViewReceipt(CreditReciptType creditRecipt)
     {
 		Dictionary<string, dynamic> parameters = new Dictionary<string, dynamic>
@@ -245,29 +254,6 @@ else
 
     }
 
-    private void ViewBill(BillDetails bill)
-    {
-        string billNo = ( bill.Bill.Branch == "Sivakasi" ? "SFR" : "BPR") + bill.Bill.BillNo.ToString().PadLeft(4,'0');
-        Parameters = new Dictionary<string, dynamic>
-            {
-            {"billData",bill}
-            };
-        TabService.OpenWithParameter("View Bill No: " + billNo, typeof(BillView),Parameters);
-        // CurrentData.Set(CurrentType.Bill,bill);
-        // Navigation.NavigateTo("/bill/single-view");
-    }
-
-    private void UpdateBill(BillDetails bill)
-    {
-        string billNo = (bill.Bill.Branch == "Sivakasi" ? "SFR" : "BPR") + bill.Bill.BillNo.ToString().PadLeft(4, '0');
-        Parameters = new Dictionary<string, dynamic>
-                {
-            {"updatingBill",bill}
-                };
-        TabService.OpenWithParameter("Update Bill No: " + billNo, typeof(UpdateBill), Parameters);
-        // CurrentData.Set(CurrentType.Bill,bill);
-        // Navigation.NavigateTo($"/updateBill");
-    }
     async void DownloadBill(CreditReciptType data)
     {
         try

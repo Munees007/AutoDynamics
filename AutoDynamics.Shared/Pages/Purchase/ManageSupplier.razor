@@ -44,7 +44,7 @@
                             <td>@customer.City</td>
                             <td>@customer.GSTIN</td>
                             <td>
-                                @* <button class="btn btn-primary btn-sm" @onclick="() => ViewCustomer(customer    )">View</button>  *@
+                                <button class="btn btn-primary btn-sm" @onclick="() => ViewCustomer(customer    )">View</button> 
                                 <button class="btn btn-dark btn-sm" @onclick="() => UpdateCustomer(customer)">Update</button> 
 
                                 <button class="btn btn-danger btn-sm" @onclick="() => DeleteCustomer(customer.SupplierID)">Delete</button> 
@@ -132,9 +132,9 @@
     {
         Dictionary<string, dynamic> Parameters = new Dictionary<string, dynamic>
         {
-            { "",user}
+            { "supplierData",user}
         };
-        //TabService.OpenWithParameter("Viewing Supplier: " + user.Name, typeof());
+        TabService.OpenWithParameter("Viewing Supplier: " + user.Name, typeof(SingleSupplierView),Parameters);
     }
 
     private async Task DeleteCustomer(string customerId)

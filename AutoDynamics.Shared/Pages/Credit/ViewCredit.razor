@@ -243,10 +243,14 @@
         {
 
             var groupedRecords = result
-                .GroupBy(row => row["CustomerID"].ToString())  // Group by CustomerID
+                .GroupBy(row => new
+                {
+                    CustomerID = row["CustomerID"].ToString(),
+                    Branch = row["Branch"].ToString().ToLower()
+                })  // Group by CustomerID
                 .Select(group => new CreditRecord
                     {
-                        CustomerID = group.Key,  // Group key is the CustomerID
+                        CustomerID = group.Key.CustomerID,  // Group key is the CustomerID
                         BillNo = group.FirstOrDefault()?["BillNo"].ToString(),
                         Branch = group.FirstOrDefault()?["Branch"].ToString(),
                         CreditAmount = group.Sum(row => Convert.ToDecimal(row["CreditAmount"])),  // Sum of CreditAmount
@@ -257,7 +261,7 @@
                         CreatedAt = group.FirstOrDefault()?["CreatedAt"] == DBNull.Value ? DateTime.MinValue : Convert.ToDateTime(group.FirstOrDefault()?["CreatedAt"]),
                         Customer = new UserModal
                         {
-                            CustomerId = group.Key,
+                            CustomerId = group.Key.CustomerID,
                             Name = group.FirstOrDefault()?["Name"].ToString() ?? "",
                             Contact = group.FirstOrDefault()?["Contact"].ToString() ?? "",
                             GSTIN = group.FirstOrDefault()?["GSTIN"].ToString() ?? "",

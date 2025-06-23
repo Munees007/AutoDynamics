@@ -1,0 +1,8 @@
+@page "/receipt/update"
+<h1>Update Receipt</h1>
+
+<AddRecipt IsUpdating=true creditReciptTypes="@creditReceipt"/>
+
+@code {
+	[Parameter] public CreditReciptType creditReceipt { set; get; } = new CreditReciptType();
+}

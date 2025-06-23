@@ -1,0 +1,861 @@
+﻿@page "/supplier/details"
+@inject ICurrentData CurrentCustomer
+@inject IDatabaseHandler DatabaseHandler
+@inject NavigationManager Navigation
+@inject IFormFactor FormFactor
+@inject IPDFGenerator PDFGenerator
+@inject IAlertService AlertService
+@inject IJSRuntime JS
+@inject ITabService TabService
+@inject IToastService ToastService
+
+@using System.Diagnostics
+
+<div class="container mt-4">
+	<DialoBox dialogBox="statementDialog"></DialoBox>
+	<div class="card shadow-lg">
+		<div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">
+			<h4 class="mb-0">Supplier Details</h4>
+			<button class="btn btn-sm btn-dark" @onclick="()=>{statementDialog.showDialog = true;StateHasChanged();}">💾 Download Statement</button>
+		</div>
+		<div class="card-body">
+			<div class="row">
+				<div class="col-md-6">
+					<p><strong>Supplier ID:</strong> @supplierData.SupplierID</p>
+					<p><strong>Name:</strong> @supplierData.Name</p>
+					<p><strong>Contact:</strong> @supplierData.Contact</p>
+					<p><strong>GSTIN:</strong> @supplierData.GSTIN</p>
+					<p><strong>Address:</strong> @supplierData.Address</p>
+					<p><strong>Area:</strong> @supplierData.Area</p>
+					<p><strong>City:</strong> @supplierData.City</p>
+					<p><strong>State:</strong> @supplierData.State</p>
+					<p><strong>Country:</strong> @supplierData.Country</p>
+					<p><strong>District:</strong> @supplierData.District</p>
+					<p><strong>PinCode:</strong> @supplierData.PinCode</p>
+					<p><strong>Nationality:</strong> @supplierData.Nationality</p>
+				</div>
+				<div class="col-md-6">
+					<p><strong>Email:</strong> @supplierData.Email</p>
+					
+					<p><strong>Created By:</strong> @supplierData.CreatedBy</p>
+					<p><strong>Created At:</strong> @supplierData.CreateAt</p>
+					<p><strong>Updated By:</strong> @supplierData.LastUpdatedBy</p>
+					<p><strong>Last Updated At:</strong> @supplierData.LastUpdatedAt</p>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<div class="btn-group mt-4 ms-3" role="group" aria-label="Component Navigation">
+	@foreach (ButtonType button in buttons)
+	{
+		<button type="button"
+				class="btn btn-outline-primary @(currentComponent == button.componentNumber ? "active" : "")"
+				disabled="@(currentComponent == button.componentNumber)"
+				@onclick="() => SetCurrentComponent(button.componentNumber)">
+			@button.Text
+		</button>
+	}
+</div>
+<Loader show="isLoading" customText="Fetching Supplier..." />
+
+@components[currentComponent]
+
+@code
+{
+	public class ButtonType
+	{
+		public string Text { get; set; }
+		public int componentNumber { get; set; }
+	}
+	[Parameter]
+	public Supplier supplierData { get; set; } = new Supplier();
+	[Parameter] public bool isCredit { get; set; } = false;
+	[Parameter] public bool isBill { get; set; } = false;
+	List<VehicleType> vehicles { get; set; } = new List<VehicleType>();
+	List<PurchaseDetails> bills { get; set; } = new List<PurchaseDetails>();
+	List<PurchaseDetails> sivakasiBills { get; set; } = new List<PurchaseDetails>();
+	List<PurchaseDetails> bypassBills { get; set; } = new List<PurchaseDetails>();
+	List<SupplierCreditRecord> creditRecords { get; set; } = new List<SupplierCreditRecord>();
+	List<PaymentReciptType> creditRecipts { get; set; } = new List<PaymentReciptType>();
+	List<PaymentReciptType> sivakasiCreditRecipts { get; set; } = new List<PaymentReciptType>();
+	List<PaymentReciptType> bypassCreditRecipts { get; set; } = new List<PaymentReciptType>();
+	RenderFragment vehiclesFront, recordsFront, billsFront, ReceiptFront;
+
+	List<RenderFragment> components = new List<RenderFragment>();
+
+	string statementBranch = "Sivakasi";
+
+	CustomDialogBox statementDialog = new CustomDialogBox();
+
+	List<ButtonType> buttons = new List<ButtonType>
+		{
+		new ButtonType{Text="Vehicles",componentNumber=0},
+		new ButtonType{Text="Bills",componentNumber=1},
+		new ButtonType{Text="Credit",componentNumber=2},
+		new ButtonType{ Text = "Receipt",componentNumber=3}
+		};
+	bool isLoading = false;
+	int currentComponent = 0;
+
+	DateTime? startDate;
+	DateTime? endDate;
+
+	public void SetCurrentComponent(int index)
+	{
+		currentComponent = index;
+		StateHasChanged();
+	}
+
+	protected override void OnInitialized()
+	{
+
+		statementDialog = new CustomDialogBox
+				{
+					Title = "Download Excel",
+					body = @<div class="mb-4">
+		<label class="form-label fw-bold">Select Start Date, and End Date</label>
+
+		<div class="row g-3 align-items-end">
+			<!-- Branch Dropdown -->
+			<!-- Start Date -->
+			<div class="col-md-6">
+				<label for="startDate" class="form-label">Start Date</label>
+				<input type="date" id="startDate" @bind="startDate" class="form-control" />
+			</div>
+
+			<!-- End Date -->
+			<div class="col-md-6">
+				<label for="endDate" class="form-label">End Date</label>
+				<input type="date" id="endDate" @bind="endDate" class="form-control" />
+			</div>
+		</div>
+	</div>
+
+
+
+	,
+			footers = new List<FooterBtn>
+			{
+				new FooterBtn
+				{
+					Button = @<button class="btn btn-danger" @onclick="()=>{statementDialog.showDialog = false; StateHasChanged();}">CANCEL</button>
+                },
+				new FooterBtn
+				{
+						  Button = @<button class="btn btn-primary" @onclick="()=>{DownloadStatement(startDate,endDate);}">OK</button>
+	        	},
+					},
+				OnCloase = EventCallback.Factory.Create(this, async () =>
+			{
+				statementDialog.showDialog = false;
+
+
+				StateHasChanged();
+			}),
+			};
+
+		vehiclesFront =
+	@<div class="container mt-4">
+		<div class="card-header bg-primary text-white">
+			<h4 class="mb-0">Vehicle Details</h4>
+		</div>
+		<div class="table-responsive">
+			<table class="table table-striped table-bordered">
+				<thead class="table-dark">
+					<tr>
+						<th>Vehicle No</th>
+						<th>Vehicle Make</th>
+						<th>Model Name</th>
+					</tr>
+				</thead>
+				<tbody>
+					@if (vehicles.Count == 0)
+				{
+					<tr>
+						<td colspan="10" class="text-center text-muted">No Vehicle found.</td>
+					</tr>
+				}
+				else
+				{
+					@foreach (var vehicleCustomer in vehicles)
+				{
+					<tr>
+						<td>@vehicleCustomer.VehicleNo</td>
+						<td>@vehicleCustomer.VehicleMake</td>
+						<td>@vehicleCustomer.ModelName</td>
+					</tr>
+				}
+				}
+				</tbody>
+			</table>
+		</div>
+	</div>;
+
+		billsFront = @<div class="col-md-6 w-100">
+		<div class="card shadow-lg mt-4">
+			<div class="card-header bg-primary text-white">
+				<h5 class="mb-0">Sivakasi Branch</h5>
+			</div>
+			<div class="card-body">
+				@if (sivakasiBills.Any())
+			{
+				<table class="table table-bordered table-hover">
+					<thead class="table-dark">
+						<tr>
+							<th>Purchase No</th>
+							<th>Invoice No</th>
+							<th>Supplier ID</th>
+							<th>Name</th>
+							<th>Mobile No</th>
+							<th>Branch</th>
+
+							<th>Purchase Date</th>
+							<th>Total</th>
+							<th>Actions</th>
+						</tr>
+					</thead>
+					<tbody>
+						@foreach (var bill in sivakasiBills)
+					{
+						<tr>
+							<td style="cursor:pointer;" @onclick="()=> {}">@("BPRP" + (bill.purchase.BillNo.ToString().PadLeft(4, '0')))</td>
+
+							<td>@bill.purchase.InvoiceNumber</td>
+							<td>@bill.purchase.SupplierID</td>
+							<td>@bill.purchase.Supplier.Name</td>
+							<td>@bill.purchase.Supplier.Contact</td>
+							<td>@bill.purchase.Branch</td>
+
+							<td>@bill.purchase.PurchaseDate.ToString("yyyy-MM-dd")</td>
+							<td>₹@(Math.Round(bill.purchase.TotalAmount))</td>
+							<td>
+								<button class="btn btn-sm btn-success" @onclick="() => {}">Download</button>
+							</td>
+
+						</tr>
+					}
+					</tbody>
+				</table>
+			}
+			else
+			{
+				<p class="text-muted text-center">No records for Sivakasi.</p>
+			}
+			</div>
+		</div>
+
+		<div class="card shadow-lg mt-4">
+			<div class="card-header bg-primary text-white">
+				<h5 class="mb-0">ByPass Branch</h5>
+			</div>
+			<div class="card-body">
+				@if (bypassBills.Any())
+			{
+				<table class="table table-bordered table-hover">
+					<thead class="table-dark">
+						<tr>
+							<th>Purchase No</th>
+							<th>Invoice No</th>
+							<th>Supplier ID</th>
+							<th>Name</th>
+							<th>Mobile No</th>
+							<th>Branch</th>
+							
+							<th>Purchase Date</th>
+							<th>Total</th>
+							<th>Actions</th>
+						</tr>
+					</thead>
+					<tbody>
+						@foreach (var bill in bypassBills)
+					{
+						<tr>
+							<td style="cursor:pointer;" @onclick="()=> {}">@("BPRP" + (bill.purchase.BillNo.ToString().PadLeft(4, '0')))</td>
+							
+							<td>@bill.purchase.InvoiceNumber</td>
+							<td>@bill.purchase.SupplierID</td>
+							<td>@bill.purchase.Supplier.Name</td>
+							<td>@bill.purchase.Supplier.Contact</td>
+							<td>@bill.purchase.Branch</td>
+							
+							<td>@bill.purchase.PurchaseDate.ToString("yyyy-MM-dd")</td>
+							<td>₹@(Math.Round(bill.purchase.TotalAmount))</td>
+							<td>
+								<button class="btn btn-sm btn-success" @onclick="() => {}">Download</button>
+							</td>
+
+						</tr>
+					}
+					</tbody>
+				</table>
+			}
+			else
+			{
+				<p class="text-muted text-center">No records for ByPass.</p>
+			}
+			</div>
+		</div>
+	</div>;
+
+		recordsFront = @<div class="container mt-4">
+		<div class="table-responsive">
+			<table class="table table-striped table-bordered">
+				<thead class="table-dark">
+					<tr>
+						<th>S. No</th>
+						<th>Purchase No</th>
+						<th>Ivoice No</th>
+						<th>Branch</th>
+						<th>Supplier Name</th>
+						<th>Supplier Mobile</th>
+						<th>Credit Amount</th>
+						<th>Paid Amount</th>
+						<th>Remaining Balance</th>
+						<th>Due Date</th>
+						<th>Status</th>
+						<th>Created At</th>
+					</tr>
+				</thead>
+				<tbody>
+					@if (creditRecords.Count == 0)
+				{
+					<tr>
+						<td colspan="10" class="text-center text-muted">No Credit found.</td>
+					</tr>
+				}
+				else
+				{
+				int sno = 1;
+					@foreach (var record in creditRecords)
+				{
+					<tr>
+						<td>@sno</td>
+						<td>@record.PurchaseBillNo</td>
+						<td>@record.Invoice</td>
+						<td>@record.Branch</td>
+						<td>@record.Supplier.Name</td>
+						<td>@record.Supplier.Contact</td>
+						<td>@record.CreditAmount</td>
+						<td>@record.PaidAmount</td>
+						<td>@record.RemainingBalance</td>
+						<td>@record.DueDate</td>
+						<td>@record.Status</td>
+						<td>@record.CreatedAt</td>
+					</tr>
+				sno++;
+				}
+				}
+				</tbody>
+			</table>
+		</div>
+	</div>
+	;
+
+		ReceiptFront =@<div class="col-md-6 w-100">
+		<div class="card shadow-lg mt-4">
+			<div class="card-header bg-primary text-white">
+				<h5 class="mb-0">Sivakasi Branch</h5>
+			</div>
+			<div class="card-body">
+				@if (sivakasiCreditRecipts.Any())
+			{
+				<table class="table table-bordered table-hover">
+					<thead class="table-dark">
+						<tr>
+							<th>Payment ID</th>
+							<th>Payment Date</th>
+							<th>Supplier ID</th>
+							<th>Name</th>
+							<th>Total Amount Paid</th>
+
+						</tr>
+					</thead>
+					<tbody>
+						@foreach (var bill in sivakasiCreditRecipts)
+					{
+						<tr>
+							<td style="cursor:pointer;">@("PY_SFR" + (bill.PaymentNo.ToString().PadLeft(7, '0')))</td>
+							<td>@bill.PaymentDate.ToString("dd-MMM-yyyy")</td>
+							<td>@bill.supplier.SupplierID</td>
+							<td>@bill.supplier.Name</td>
+
+							<td>₹@bill.TotalAmountPaid</td>
+
+
+
+						</tr>
+					}
+					</tbody>
+				</table>
+			}
+			else
+			{
+				<p class="text-muted text-center">No receipts for Sivakasi.</p>
+			}
+			</div>
+		</div>
+
+		<div class="card shadow-lg mt-4">
+			<div class="card-header bg-primary text-white">
+				<h5 class="mb-0">ByPass Branch</h5>
+			</div>
+			<div class="card-body">
+				@if (bypassCreditRecipts.Any())
+			{
+				<table class="table table-bordered table-hover">
+					<thead class="table-dark">
+						<tr>
+							<th>Payment ID</th>
+							<th>Payment Date</th>
+							<th>Supplier ID</th>
+							<th>Name</th>
+							<th>Total Amount Paid</th>
+
+						</tr>
+					</thead>
+					<tbody>
+						@foreach (var bill in bypassCreditRecipts)
+					{
+						<tr>
+							<td style="cursor:pointer;">@("PY_SFR" + (bill.PaymentNo.ToString().PadLeft(7, '0')))</td>
+							<td>@bill.PaymentDate.ToString("dd-MMM-yyyy")</td>
+							<td>@bill.supplier.SupplierID</td>
+							<td>@bill.supplier.Name</td>
+
+							<td>₹@bill.TotalAmountPaid</td>
+
+
+
+						</tr>
+					}
+					</tbody>
+				</table>
+			}
+			else
+			{
+				<p class="text-muted text-center">No receipt for ByPass.</p>
+			}
+			</div>
+		</div>
+	</div>
+	;
+
+		components.Add(vehiclesFront);
+		components.Add(billsFront);
+		components.Add(recordsFront);
+		components.Add(ReceiptFront);
+
+		if (isCredit)
+		{
+			currentComponent = 2;
+		}
+		if (isBill)
+		{
+			currentComponent = 1;
+		}
+
+
+
+	}
+
+	private void ViewBill(BillDetails bill)
+	{
+		string billNo = (bill.Bill.Branch == "Sivakasi" ? "SFR" : "BPR") + bill.Bill.BillNo.ToString().PadLeft(4, '0');
+		Dictionary<string, dynamic> Parameters = new Dictionary<string, dynamic>
+			{
+			{"billData",bill}
+			};
+		TabService.OpenWithParameter("View Bill No: " + billNo, typeof(BillView), Parameters);
+	}
+
+	async void DownloadBill(BillDetails data)
+	{
+		if (FormFactor.GetFormFactor() == "Web")
+		{
+			string path = await PDFGenerator.GeneratePdfAsync(data, JS);
+			await AlertService.ShowAlertAsync("Download PDF", path, "OK");
+		}
+		else
+		{
+			string path = await PDFGenerator.GeneratePdfAsync(data, null);
+			await AlertService.ShowAlertAsync("Download PDF", path, "OK");
+		}
+
+	}
+
+	public List<CustomerStatement> createLedgers()
+	{
+		List<CustomerStatement> customerStatements = new();
+		List<PurchaseDetails> neededBills = sivakasiBills;
+		List<PaymentReciptType> neededReceipts = sivakasiCreditRecipts;
+
+		neededBills.Sort((a, b) => a.purchase.PurchaseDate.CompareTo(b.purchase.PurchaseDate));
+		neededReceipts.Sort((a, b) => a.PaymentDate.CompareTo(b.PaymentDate));
+
+		int i = 0, j = 0;
+
+		while (i < neededBills.Count && j < neededReceipts.Count)
+		{
+			var billDate = neededBills[i].purchase.PurchaseDate;
+			var receiptDate = neededReceipts[j].PaymentDate;
+
+			if (billDate <= receiptDate)
+			{
+				var bill = neededBills[i++];
+
+				// Always add the bill entry
+				customerStatements.Add(new CustomerStatement
+					{
+						date = bill.purchase.PurchaseDate,
+						credit = bill.purchase.TotalAmount,
+						debit = 0,
+						particulars = "To sales for Bill No: " + bill.purchase.BillNo,
+						accountType = "SALES A/C",
+						type = TransactionType.BILL.ToString()
+					});
+
+				// Add immediate payment if any
+				if (bill.purchase.type  == PaymentType.CASH)
+				{
+					customerStatements.Add(new CustomerStatement
+						{
+							date = bill.purchase.PurchaseDate, // Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
+							credit = 0,
+							debit = bill.purchase.TotalAmount,
+							particulars = "By cash received for Bill No: " + bill.purchase.BillNo,
+							accountType = "CASH A/C",
+							type = TransactionType.RECEIPT.ToString()
+						});
+				}
+				// if (bill.purchase.type == PaymentType.CREDIT)
+				// {
+				// 	customerStatements.Add(new CustomerStatement
+				// 		{
+				// 			date = bill.Bill.BillDate, Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
+				// 			credit = 0,
+				// 			debit = bill.BillPayment.CardAmount,
+				// 			particulars = "By card received for Bill No: " + bill.Bill.BillNo,
+				// 			accountType = "CARD A/C",
+				// 			type = TransactionType.RECEIPT.ToString()
+				// 		});
+				// }
+				
+				// if (bill.BillPayment.BankAmount > 0)
+				// {
+				// 	customerStatements.Add(new CustomerStatement
+				// 		{
+				//date = bill.Bill.BillDate, // Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
+				// 			credit = bill.BillPayment.BankAmount,
+				// 			debit = 0,
+				// 			particulars = "By credit for Bill No: " + bill.Bill.BillNo,
+				// 			accountType = "CUSTOMER CREDIT A/C",
+				// 			type = TransactionType.RECEIPT.ToString()
+				// 		});
+				// }
+
+			}
+			else
+			{
+				var receipt = neededReceipts[j++];
+
+				customerStatements.Add(new CustomerStatement
+					{
+						date = receipt.PaymentDate,
+						credit = 0,
+						debit = receipt.TotalAmountPaid,
+						particulars = "By receipt for Receipt No: " + receipt.PaymentNo,
+						accountType = "PAYMENT A/C",
+						type = TransactionType.RECEIPT.ToString()
+					});
+			}
+		}
+
+		// Add remaining bills
+		while (i < neededBills.Count)
+		{
+			var bill = neededBills[i++];
+
+			customerStatements.Add(new CustomerStatement
+				{
+					date = bill.purchase.PurchaseDate,
+					credit = bill.purchase.TotalAmount,
+					debit = 0,
+					particulars = "To sales for Bill No: " + bill.purchase.BillNo,
+					accountType = "SALES A/C",
+					type = TransactionType.BILL.ToString()
+				});
+
+			// Add immediate payment if any
+			if (bill.purchase.type == PaymentType.CASH)
+			{
+				customerStatements.Add(new CustomerStatement
+					{
+						date = bill.purchase.PurchaseDate, // Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
+						credit = 0,
+						debit = bill.purchase.TotalAmount,
+						particulars = "By cash received for Bill No: " + bill.purchase.BillNo,
+						accountType = "CASH A/C",
+						type = TransactionType.RECEIPT.ToString()
+					});
+			}
+			
+			// if (bill.BillPayment.BankAmount > 0)
+			// {
+			// 	customerStatements.Add(new CustomerStatement
+			// 		{
+			//date = bill.Bill.BillDate, // Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
+			// 			credit = bill.BillPayment.BankAmount,
+			// 			debit = 0,
+			// 			particulars = "By credit for Bill No: " + bill.Bill.BillNo,
+			// 			accountType = "CUSTOMER CREDIT A/C",
+			// 			type = TransactionType.RECEIPT.ToString()
+			// 		});
+			// }
+		}
+
+		// Add remaining receipts
+		while (j < neededReceipts.Count)
+		{
+			var receipt = neededReceipts[j++];
+
+			customerStatements.Add(new CustomerStatement
+				{
+					date = receipt.PaymentDate,
+					credit = 0,
+					debit = receipt.TotalAmountPaid,
+					particulars = "By receipt for Receipt No: " + receipt.PaymentNo,
+					accountType = "PAYMENT A/C",
+					type = TransactionType.RECEIPT.ToString()
+				});
+		}
+
+		// Optional: sort again in case dates are equal or include time later
+		customerStatements.Sort((a, b) => a.date.CompareTo(b.date));
+
+		return customerStatements;
+	}
+
+	public async Task<decimal> GetOpeningBalanceAsync(List<CustomerStatement> customerStatements, DateTime? statementStartDate)
+	{
+		// 	string query = @"
+		//        SELECT COALESCE(SUM(CrAmount - DrAmount), 0) AS OpeningBalance
+		//        FROM CashBankLedger
+		//        WHERE ForWho = @customerId AND Date < @startDate AND AccountID not in(14) Order By Date;";
+
+		// 	var parameters = new Dictionary<string, object>
+		// {
+		// 	{ "@customerId", customerId },
+		// 	{ "@startDate", statementStartDate.Value.Date.ToString("yyyy-MM-dd") }
+		// };
+
+		// 	var result = await DatabaseHandler.ExecuteQueryAsync(query, parameters);
+
+		// 	return result.Count > 0 ? Convert.ToDecimal(result[0]["OpeningBalance"]) : 0;
+		if (statementStartDate == null)
+			return 0;
+
+		// Filter only entries before the statementStartDate
+		var priorEntries = customerStatements
+			.Where(cs => cs.date < statementStartDate)
+			.ToList();
+
+		decimal openingBalance = 0;
+
+		foreach (var entry in priorEntries)
+		{
+			if (entry.accountType == "SALES A/C")
+			{
+				openingBalance += entry.credit; // Customer owes us more
+			}
+			else if (entry.accountType == "CASH A/C" || entry.accountType == "BANK A/C" || entry.accountType == "CARD A/C")
+			{
+				openingBalance -= entry.debit; // Customer paid us
+			}
+			else if (entry.accountType == "RECEIPT A/C")
+			{
+				openingBalance -= entry.debit; // Receipt is money received, reduce the balance
+			}
+		}
+
+		return openingBalance;
+
+
+	}
+
+	async void DownloadStatement(DateTime? startDate, DateTime? endDate)
+	{
+		List<CustomerStatement> customerStatements = createLedgers(); ;
+
+		decimal openingBalance = await GetOpeningBalanceAsync(customerStatements, startDate);
+		if (startDate != null && endDate != null)
+		{
+			customerStatements = customerStatements
+				.Where(x => x.date >= startDate && x.date <= endDate)
+				.ToList();
+		}
+
+
+
+		if (customerStatements.Count > 0)
+		{
+
+			string path = await PDFGenerator.GenerateSupplierStatement(customerStatements, openingBalance, supplierData);
+
+			ToastService.ShowToast($"SavedAt = {path}", ToastType.sucess);
+		}
+		else
+		{
+			ToastService.ShowToast("No Records There", ToastType.info);
+		}
+	}
+	public async Task<List<PurchaseDetails>> FetchData(Supplier supplier)
+	{
+		try
+		{
+			List<PurchaseDetails> purchaseBills = new();
+			
+
+			// 1. Fetch all purchase bills
+			string billsQuery = $@"SELECT pb.*,pb.CreatedAt AS PurchaseCreatedAt,s.*,s.CreatedAt AS SupplierCreatedAt
+FROM PurchaseBills pb
+JOIN Suppliers s ON pb.SupplierID = s.SupplierID WHERE pb.SupplierID = '{supplier.SupplierID}'";
+
+			var billsResult = await DatabaseHandler.ExecuteQueryAsync(billsQuery, null);
+			Debug.WriteLine(billsResult.Count);
+			var allResults = new List<(Purchase, List<PurchaseItems>)>();
+
+			foreach (var billRow in billsResult)
+			{
+				var purchaseBillId = Convert.ToInt32(billRow["PurchaseBillID"]);
+
+				var purchaseBill = new Purchase
+					{
+						PurchaseBillID = purchaseBillId,
+						Branch = billRow["Branch"].ToString(),
+						InvoiceNumber = billRow["InvoiceNumber"].ToString(),
+						taxType = Enum.Parse<TaxType>(billRow["TaxType"].ToString()),
+						BillingYear = Convert.ToInt32(billRow["BillingYear"]),
+						BillNo = Convert.ToInt32(billRow["BillNo"]),
+						SupplierID = billRow["SupplierID"].ToString() ?? "",
+						Supplier = new Supplier
+						{
+							SupplierID = billRow["SupplierID"].ToString() ?? "",
+							Name = billRow["Name"].ToString() ?? "",
+							GSTIN = billRow["GSTIN"].ToString() ?? "",
+							Contact = billRow["Contact"].ToString() ?? ""
+						},
+						type = Enum.Parse<PaymentType>(billRow["PaymentType"].ToString()),
+						PurchaseDate = Convert.ToDateTime(billRow["PurchaseDate"]),
+						CreatedAt = Convert.ToDateTime(billRow["PurchaseCreatedAt"]),
+						TotalAmount = Convert.ToDecimal(billRow["TotalAmount"]),
+						DiscountAmount = Convert.ToDecimal(billRow["DiscountAmount"]),
+						GrandTotal = Convert.ToDecimal(billRow["GrandTotal"]),
+						Notes = billRow["Notes"].ToString() ?? ""
+					};
+
+				// 2. Fetch items for each bill
+				string itemsQuery = @"
+            SELECT
+    p.*,
+    pr.BrandID,
+    pr.ProductID,
+    br.*
+FROM
+    PurchaseItems p
+JOIN
+    Product pr
+    ON pr.ProductID = p.ProductID
+JOIN
+    Brands br
+    ON br.BrandID = pr.BrandID
+WHERE
+    p.PurchaseBillID = @PurchaseBillID;
+";
+
+				var itemParams = new Dictionary<string, object>
+			{
+				{ "@PurchaseBillID", purchaseBillId }
+			};
+
+				var itemsResult = await DatabaseHandler.ExecuteQueryAsync(itemsQuery, itemParams);
+
+				var itemList = new List<PurchaseItems>();
+
+				foreach (var itemRow in itemsResult)
+				{
+					itemList.Add(new PurchaseItems
+						{
+							ProductID = itemRow["ProductID"].ToString(),
+							ProductName = itemRow["ItemName"].ToString(),
+							BrandName = itemRow["BrandName"].ToString(),
+							Quantity = Convert.ToInt32(itemRow["Quantity"]),
+							DiscountType = Enum.Parse<DiscountType>(itemRow["DiscountType"].ToString()),
+							DiscountValue = Convert.ToDecimal(itemRow["DiscountValue"]),
+							DiscountScope = Enum.Parse<DiscountScope>(itemRow["DiscountScope"].ToString()),
+							FrightValue = Convert.ToDecimal(itemRow["Fright"].ToString()),
+							TaxRate = Enum.Parse<TaxRate>(itemRow["TaxRate"].ToString()),
+							UnitPrice = Convert.ToDecimal(itemRow["UnitPrice"]),
+							TotalPrice = Convert.ToDecimal(itemRow["TotalPrice"])
+						});
+				}
+
+				purchaseBills.Add(new PurchaseDetails
+					{
+						purchase = purchaseBill,
+						purchaseItems = itemList
+					});
+			}
+			return purchaseBills;
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine("Error: " + ex.Message);
+			throw;
+		}
+	}
+	protected override async Task OnInitializedAsync()
+	{
+		isLoading = true;
+		vehicles.Clear();
+		creditRecords.Clear();
+		bills.Clear();
+		creditRecipts.Clear();
+		bills = await FetchData(supplierData);
+
+		sivakasiBills = bills.Where((b => b.purchase.Branch == "Sivakasi")).ToList();
+		bypassBills = bills.Where((b => b.purchase.Branch == "ByPass")).ToList();
+
+		string creditQuery = $"SELECT c.*,b.* FROM SupplierCreditRecord c JOIN PurchaseBills b ON b.PurchaseBillID = c.PurchaseBillID WHERE c.SupplierID = '{supplierData.SupplierID}'";
+		var res1 = await DatabaseHandler.ExecuteQueryAsync(creditQuery);
+		if (res1.Count > 0)
+		{
+			foreach (var row in res1)
+			{
+				creditRecords.Add(new SupplierCreditRecord
+					{
+						SupplierCreditID = Convert.ToUInt64(row["SupplierCreditID"]),
+						SupplierID = row["SupplierID"].ToString() ?? "",
+						PurchaseBillNo = row["BillNo"].ToString() ?? "",
+						Branch = row["Branch"].ToString() ?? "",
+						PurchaseBillID = row["PurchaseBillID"] == DBNull.Value ? null : Convert.ToUInt64(row["PurchaseBillID"]),
+						CreditAmount = Convert.ToDecimal(row["CreditAmount"]),
+						PaidAmount = Convert.ToDecimal(row["PaidAmount"]),
+						RemainingBalance = row["RemainingBalance"] == DBNull.Value ? null : Convert.ToDecimal(row["RemainingBalance"]),
+						DueDate = Convert.ToDateTime(row["DueDate"]),
+						Status = row["Status"].ToString() ?? "",
+						CreatedAt = Convert.ToDateTime(row["CreatedAt"]),
+						Supplier = supplierData
+					});
+			}
+		}
+		creditRecipts = await DatabaseHandler.GetPaymentReceipts(true, supplierData.SupplierID);
+		sivakasiCreditRecipts = creditRecipts.Where((cr) => cr.Branch == "Sivakasi").ToList();
+		bypassCreditRecipts = creditRecipts.Where((cr) => cr.Branch == "ByPass").ToList();
+		Debug.WriteLine(vehicles.Count);
+		Debug.WriteLine(bills.Count);
+		Debug.WriteLine(creditRecords.Count);
+		Debug.WriteLine(creditRecipts.Count);
+		isLoading = false;
+	}
+}

@@ -12,7 +12,7 @@ namespace AutoDynamics.Shared.Modals.Credit
         public ulong SupplierCreditID { get; set; }
         public string SupplierID { get; set; }
         public Supplier Supplier { get; set; }
-
+        public string PurchaseBillNo { get; set; }
         public string Invoice { get; set; }
         public ulong? PurchaseBillID { get; set; }
         public string Branch { get; set; }

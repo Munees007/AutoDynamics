@@ -1232,6 +1232,105 @@ namespace AutoDynamics.Services
             }
         }
 
+        public async Task<string> GenerateSupplierStatement(List<CustomerStatement> customerStatements, decimal openingBalance, Supplier supplier)
+        {
+            try
+            {
+                using (var memoryStream = new MemoryStream())
+                {
+                    Document document = new Document(PageSize.A4, 40, 40, 40, 40);
+                    PdfWriter writer = PdfWriter.GetInstance(document, memoryStream);
+
+                    var pageEvent = new StatementPageEvent();
+                    writer.PageEvent = pageEvent;
+
+                    document.Open();
+
+                    // Fonts
+                    var fontHeader = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
+                    var fontSubHeader = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 12);
+                    var fontRow = FontFactory.GetFont(FontFactory.HELVETICA, 10);
+
+                    // Header
+                    Paragraph companyInfo = new Paragraph("AutoDynamics\nCustomer Statement", fontHeader)
+                    {
+                        Alignment = iTextSharp.text.Element.ALIGN_CENTER
+                    };
+                    document.Add(companyInfo);
+
+                    Paragraph customerInfo = new Paragraph($"Customer: {supplier.Name}\nSupplier ID: {supplier.SupplierID}\nDate: {DateTime.Now:dd-MM-yyyy}", fontSubHeader)
+                    {
+                        SpacingAfter = 10
+                    };
+                    document.Add(customerInfo);
+
+                    // Opening Balance Display
+                    PdfPTable headerTable = CreateStatementTable(fontSubHeader);
+                    document.Add(headerTable);
+                    AddOpeningBalance(document, openingBalance, fontRow);
+
+                    decimal runningBalance = openingBalance;
+                    pageEvent.CarriedForwardBalance = openingBalance;
+
+                    // Sort entries by date to calculate correct balance
+                    var sortedStatements = customerStatements.OrderBy(s => s.date).ToList();
+
+                    // Entry Table
+                    foreach (var entry in sortedStatements)
+                    {
+                        PdfPTable entryTable = new PdfPTable(6) { WidthPercentage = 100 };
+                        entryTable.SetWidths(new float[] { 15f, 10f, 35f, 10f, 10f, 10f });
+
+                        entryTable.AddCell(CreateCell(entry.date.ToString("dd-MM-yyyy"), fontRow));
+                        entryTable.AddCell(CreateCell(entry.type, fontRow));
+                        entryTable.AddCell(CreateCell(entry.particulars, fontRow));
+                        entryTable.AddCell(CreateCell(entry.debit > 0 ? entry.debit.ToString("0.00") : "", fontRow, iTextSharp.text.Element.ALIGN_RIGHT));
+                        entryTable.AddCell(CreateCell(entry.credit > 0 ? entry.credit.ToString("0.00") : "", fontRow, iTextSharp.text.Element.ALIGN_RIGHT));
+
+                        // ✅ Balance Calculation
+                        if (entry.accountType == "SALES A/C")
+                        {
+                            runningBalance += entry.credit; // Customer owes us more
+                        }
+                        else if (entry.accountType == "CASH A/C" || entry.accountType == "BANK A/C" || entry.accountType == "CARD A/C")
+                        {
+                            runningBalance -= entry.debit; // Customer paid us
+                        }
+                        else if (entry.accountType == "RECEIPT A/C")
+                        {
+                            runningBalance -= entry.debit; // Receipt is money received, reduce the balance
+                        }
+
+                        entryTable.AddCell(CreateCell(runningBalance.ToString("0.00"), fontRow, iTextSharp.text.Element.ALIGN_RIGHT));
+
+                        document.Add(entryTable);
+                    }
+
+                    // Closing Balance
+                    AddClosingBalance(document, runningBalance, fontRow);
+
+                    document.Close();
+                    writer.Close();
+
+                    byte[] pdfBytes = memoryStream.ToArray();
+                    string tempPath = Path.Combine(FileSystem.CacheDirectory, "CustomerStatement.pdf");
+                    await File.WriteAllBytesAsync(tempPath, pdfBytes);
+
+                    if (DeviceInfo.Platform == DevicePlatform.WinUI)
+                    {
+                        Process.Start(new ProcessStartInfo { FileName = tempPath, UseShellExecute = true });
+                        return "Print dialog opened successfully.";
+                    }
+
+                    return "PDF generated successfully.";
+                }
+            }
+            catch (Exception ex)
+            {
+                return $"Error: {ex.Message}";
+            }
+        }
+
 
         private PdfPCell CreateCell(string text, iTextSharp.text.Font font, int align = iTextSharp.text.Element.ALIGN_LEFT,bool isLeft = true)
         {

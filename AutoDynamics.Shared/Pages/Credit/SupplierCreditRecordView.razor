@@ -197,10 +197,14 @@
         {
 
             var groupedRecords = result
-                .GroupBy(row => row["SupplierID"].ToString())  // Group by CustomerID
+                .GroupBy(row => new
+                {
+                    SupplierID = row["SupplierID"].ToString(),
+                    Branch = row["Branch"].ToString().ToLower()
+                })  // Group by CustomerID
                 .Select(group => new SupplierCreditRecord
                     {
-                        SupplierID = group.Key,  // Group key is the CustomerID
+                        SupplierID = group.Key.SupplierID,  // Group key is the CustomerID
                         PurchaseBillID = ulong.Parse(group.FirstOrDefault()?["PurchaseBillID"].ToString() ?? "0"),
                         Invoice = group.FirstOrDefault()?["InvoiceNumber"].ToString(),
                         Branch = group.FirstOrDefault()?["Branch"].ToString(),
@@ -212,7 +216,7 @@
                         CreatedAt = group.FirstOrDefault()?["CreatedAt"] == DBNull.Value ? DateTime.MinValue : Convert.ToDateTime(group.FirstOrDefault()?["CreatedAt"]),
                         Supplier = new Supplier
                         {
-                            SupplierID = group.Key,
+                            SupplierID = group.Key.SupplierID,
                             Name = group.FirstOrDefault()?["Name"].ToString() ?? "",
                             Contact = group.FirstOrDefault()?["Contact"].ToString() ?? "",
                             GSTIN = group.FirstOrDefault()?["GSTIN"].ToString() ?? "",

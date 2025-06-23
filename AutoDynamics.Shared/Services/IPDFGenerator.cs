@@ -13,5 +13,6 @@ namespace AutoDynamics.Shared.Services
         Task<string> CreatePaymentPDF(PaymentReciptType creditRecipt, IJSRuntime js);
         Task<string> CreateCreditRecordPDF(IJSRuntime js, string Branch, List<CreditRecord>? sivakasiCredit = null, List<CreditRecord>? bypassCredit = null);
         Task<string> GenerateCustomerStatement(List<CustomerStatement> customerStatements,decimal opening,UserModal customer);
+        Task<string> GenerateSupplierStatement(List<CustomerStatement> customerStatements, decimal openingBalance, Supplier supplier);
     }
 }
