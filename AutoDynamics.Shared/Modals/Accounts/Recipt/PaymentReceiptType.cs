@@ -20,7 +20,7 @@ namespace AutoDynamics.Shared.Modals.Accounts.Recipt
         public string Narration { get; set; } = string.Empty;
         public string CheckNumber { get; set; } = string.Empty;
         public int BillingYear { get; set; } = 0;
-
+        public PaymentTypes paymentType { get; set; }
         public int PaymentNo { get; set; } = 0;
     }
 

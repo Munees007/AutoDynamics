@@ -3,7 +3,7 @@
 @inject IToastService ToastService
 @inject IMyLocalStorageService MyLocalStorageService
 <div class="container my-4">
-
+	<DialoBox dialogBox="getCSTDialpg"></DialoBox>
 	<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
 		<!-- Title and Buttons -->
 		<div class="flex-grow-1">
@@ -102,20 +102,9 @@
 							</td>
 						}
 						<td>
-							<div class="col-md-4">
-								<label class="form-label">Customer/Supplier</label>
-
-								<div class="input-group">
-									<input @onkeydown="HandleSCT_Key" autocomplete="off" type="text" id="Customer" @bind="CST_Search" @oninput="OnCST_Search" class="form-control" placeholder="Search by ID, Name, or Contact" required>
-
-								</div>
-								<SearchSelect @ref="commonSCTList" Items="filteredCommonCSTs" OnSelect="@(c=> SelectCST(ledger,c))" T="CommonCSType" showSuggestions="ShowCSTSuggestion" ShowSuggestionsChanged="@((bool val) => ShowCSTSuggestion = val)">
-									<ItemTemplate Context="cust">
-										<div>@cust.role - @cust.Name - @cust.Contact</div>
-									</ItemTemplate>
-								</SearchSelect>
-
-								<p>@SelectedCST</p>
+							<div class="d-flex gap-3">
+							<button type="button" class="btn btn-outline-secondary" @onclick="()=>{currentLedger = ledger;getCSTDialpg.showDialog = true;StateHasChanged();}">+ </button>
+							<p>@ledger.ForWhoName</p>
 							</div>
 						</td>
 						<td>
@@ -186,6 +175,11 @@
 	bool isLoading = false;
 	string loaderText = "";
 
+	Ledger currentLedger;
+
+
+	CustomDialogBox getCSTDialpg = new();
+
 	string LedgerType = "SE";
 	TransactionType transactionType = TransactionType.EXPENSE;
 	PaymentTypes paymentType = PaymentTypes.CASH;
@@ -239,6 +233,7 @@
 		CST_Search = $"{commonCS.ID}";
 		SelectedCST = $"{commonCS.Name}-{commonCS.Contact}";
 		ledger.ForWho = commonCS.ID;
+		ledger.ForWhoName = commonCS.Name;
 		ShowCSTSuggestion = false;
 		StateHasChanged();
 
@@ -324,6 +319,7 @@
 							Particulars = $"{ledger.AccountType.AccountName} paid by {paymentType}",
 							Branch = ledger.Branch,
 							PaymentMode = paymentType,
+							ForWho = ledger.ForWho,
 							DR_Amount = ledger.CR_Amount,
 							CR_Amount = ledger.DR_Amount
 						};
@@ -402,6 +398,42 @@
 				StateHasChanged();
 			}),
 		};
+
+		getCSTDialpg = new CustomDialogBox
+		{
+				Title = "Select Customer/Supplier",
+				body = @<div class="container p-3 border rounded shadow-sm bg-light" style="max-width: 500px;">
+		<div class="input-group">
+			<input @onkeydown="HandleSCT_Key" autocomplete="off" type="text" id="Customer" @bind="CST_Search" @oninput="OnCST_Search" class="form-control" placeholder="Search by ID, Name, or Contact" required>
+
+		</div>
+		<SearchSelect @ref="commonSCTList" Items="filteredCommonCSTs" OnSelect="@(c=> SelectCST(currentLedger,c))" T="CommonCSType" showSuggestions="ShowCSTSuggestion" ShowSuggestionsChanged="@((bool val) => ShowCSTSuggestion = val)">
+			<ItemTemplate Context="cust">
+				<div>@cust.role - @cust.Name - @cust.Contact</div>
+			</ItemTemplate>
+		</SearchSelect>
+
+		<p>@SelectedCST</p>
+				</div>,
+			footers = new List<FooterBtn>
+			{
+				new FooterBtn
+				{
+					Button = @<button class="btn btn-danger" @onclick="()=>{getCSTDialpg.showDialog = false;  StateHasChanged();}">OK</button>
+                },
+				
+			},
+			OnCloase = EventCallback.Factory.Create(this, async () =>
+			{
+				getCSTDialpg.showDialog = false;
+				StateHasChanged();
+			}),
+		};
+	}
+
+	void HandleClick()
+	{
+		
 	}
 
 	async void SubmitAccountType()

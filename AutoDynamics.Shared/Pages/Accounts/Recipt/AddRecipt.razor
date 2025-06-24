@@ -41,15 +41,23 @@
             </SearchSelect>
         </div>
     </div>
-
+    <div class="input-group mb-3">
+        <select disabled="@IsUpdating" @bind="creditReciptTypes.paymentType" class="form-select">
+            <option value="@PaymentTypes.CASH">CASH</option>
+            <option value="@PaymentTypes.CARD">CARD</option>
+            <option value="@PaymentTypes.BANK">BANK</option>
+            <option value="@PaymentTypes.UPI">UPI</option>
+        </select>
+    </div>
     <!-- Credit Bills Section -->
     <h5 class="fw-semibold mb-3 fw-bold">Credit Bills</h5>
-
+    
     <div class="input-group mb-3">
         <span class="input-group-text fw-bold">Amount</span>
         <input type="number" id="amount" class="form-control" @bind="@splitAmount" placeholder="Enter amount" />
         <button class="btn btn-primary" type="button" @onclick="HandleSplitAmount">Apply</button>
     </div>
+
 
     <div class="table-responsive">
         <table class="table table-bordered align-middle text-center">
@@ -62,7 +70,7 @@
                     <th>Already Paid</th>
                     <th>Need to Pay</th>
                     <th>Amount Paid</th>
-                    <th>Payment Type</th>
+                    
 
                 </tr>
             </thead>
@@ -86,14 +94,7 @@
                         <td>
                             <input autocomplete="off" type="number" class="form-control text-end" @bind="item.amountPayed" min="1">
                         </td>
-                        <td>
-                            <select @bind="item.paymentType" class="form-select">
-                                <option value="@PaymentTypes.CASH">CASH</option>
-                                <option value="@PaymentTypes.CARD">CARD</option>
-                                <option value="@PaymentTypes.BANK">BANK</option>
-                                <option value="@PaymentTypes.UPI">UPI</option>
-                            </select>
-                        </td>
+                        
 
                     </tr>
                 }

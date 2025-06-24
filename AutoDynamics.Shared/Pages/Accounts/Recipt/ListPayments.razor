@@ -145,7 +145,7 @@ else
                                                 <button class="btn btn-sm btn-success" @onclick="() => ViewReceipt(bill)">View</button>
                                                 @if (isAdmin)
                                                 {
-                                                    @* <button class="btn btn-sm btn-danger" >Update</button> *@
+                                                    <button class="btn btn-sm btn-danger" @onclick="()=>UpdatePayment(bill)">Update</button>
                                                 }
                                             </td>
                                         </tr>
@@ -192,6 +192,16 @@ else
     Dictionary<string, dynamic> Parameters;
 
     CustomDialogBox excelDialog = new CustomDialogBox();
+
+    public void UpdatePayment(PaymentReciptType paymentRecipt)
+    {
+        string billNo = (paymentRecipt.Branch == "Sivakasi" ? "PY_SFR" : "PY_BPR") + paymentRecipt.PaymentNo.ToString().PadLeft(4, '0');
+        Parameters = new Dictionary<string, dynamic>
+                        {
+            {"paymentRecipt",paymentRecipt}
+                        };
+        TabService.OpenWithParameter("Update Payment No: " + billNo, typeof(UpdatePayment), Parameters);
+    }
 
     public void ViewReceipt(PaymentReciptType creditRecipt)
     {

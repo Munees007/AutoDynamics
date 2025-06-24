@@ -34,7 +34,7 @@
     </div>
 
     <div class="col-md-10 input-group mb-3">
-        <label class="input-group-text fw-bold">CheckNumber</label>
+        <label class="input-group-text fw-bold">Cheque Number</label>
         <input type="text" class="form-control" @bind="supplierCredits.CheckNumber" />
     </div>
 
@@ -42,7 +42,14 @@
         <label class="input-group-text fw-bold">Narration</label>
         <input type="text" class="form-control" @bind="supplierCredits.Narration" />
     </div>
-
+    <div class=" col-md-10 input-group mb-3">
+        <select disabled="@IsUpdating" @bind="supplierCredits.paymentType" class="form-select">
+            <option value="@PaymentTypes.CASH">CASH</option>
+            <option value="@PaymentTypes.CARD">CARD</option>
+            <option value="@PaymentTypes.BANK">BANK</option>
+            <option value="@PaymentTypes.UPI">UPI</option>
+        </select>
+    </div>
     <!-- Credit Bills Section -->
     <h5 class="fw-semibold mb-3 fw-bold">Credit Bills</h5>
 
@@ -63,8 +70,7 @@
                     <th>Already Paid</th>
                     <th>Need to Pay</th>
                     <th>Amount Paid</th>
-                    <th>Payment Type</th>
-
+                    
                 </tr>
             </thead>
             <tbody>
@@ -87,15 +93,7 @@
                         <td>
                             <input autocomplete="off" type="number" class="form-control text-end" @bind="item.amountPayed" min="1">
                         </td>
-                        <td>
-                            <select @bind="item.paymentType" class="form-select">
-                                <option value="@PaymentTypes.CASH">CASH</option>
-                                <option value="@PaymentTypes.CARD">CARD</option>
-                                <option value="@PaymentTypes.BANK">BANK</option>
-                                <option value="@PaymentTypes.UPI">UPI</option>
-                            </select>
-                        </td>
-
+                       
                     </tr>
                 }
             </tbody>
@@ -111,7 +109,8 @@
 <Loader show="isLoading" customText="@loaderText" />
 @code {
 
-    PaymentReciptType supplierCredits = new();
+    [Parameter] public bool IsUpdating { get; set; } = false;
+    [Parameter] public PaymentReciptType supplierCredits { get; set; } = new();
     List<Supplier> suppliers = new();
 
     private string SupplierSearch = "";
@@ -181,29 +180,64 @@
 
     protected override async Task OnInitializedAsync()
     {
+        loaderText = "Fetching Data";
+        isLoading = true;
         try
         {
-            loaderText = "Fetching Data";
-            isLoading = true;
+
             currentBranch = await MyLocalStorageService.GetItemAsync("Branch") ?? "";
             await NecessaryData();
-            isLoading = false;
-            loaderText = "";
-            StateHasChanged();
+            if (IsUpdating)
+            {
+                filteredPaymentBills = supplierCredits.paymentBills;
+                paymentBills = supplierCredits.paymentBills;
+                SupplierSearch = supplierCredits.supplier.SupplierID;
+                currentBranch = supplierCredits.Branch;
+            }
+
             ToastService.ShowToast("Fetch Successful", ToastType.sucess);
         }
         catch (Exception e)
         {
             ToastService.ShowToast(e.Message, ToastType.sucess);
         }
-
+        isLoading = false;
+        loaderText = "";
+        StateHasChanged();
     }
 
     async Task NecessaryData()
     {
         string customerSelect = "SELECT * FROM Suppliers";
         string fetch = "SELECT * FROM LedgerAccounts";
+        string fetchCreditQuery = "SELECT * FROM SupplierCreditRecord cr JOIN PurchaseBills b ON b.PurchaseBillID = cr.PurchaseBillID WHERE cr.SupplierID = @SupplierID AND cr.PurchaseBillID = @PurchaseBillID";
 
+        if(IsUpdating)
+        {
+            foreach (var paymentBills in supplierCredits.paymentBills)
+            {
+                Dictionary<string, object> parameter = new Dictionary<string, object>
+                {
+                    {"SupplierID",supplierCredits.supplier.SupplierID},
+                    {"@PurchaseBillID",paymentBills.purchaseBillID}
+                };
+
+                var res = await DatabaseHandler.ExecuteQueryAsync(fetchCreditQuery, parameter);
+                var row = res[0];
+                int id = int.Parse(res[0]["SupplierCreditID"].ToString() ?? "0");
+                
+                paymentBills.paymentId = Int32.Parse(row["SupplierCreditID"].ToString() ?? "0");
+                paymentBills.purchaseBillID = Int32.Parse(row["PurchaseBillID"].ToString() ?? "0");
+                paymentBills.invoice = row["InvoiceNumber"].ToString();
+                paymentBills.branch = row["Branch"].ToString() ?? "";
+                paymentBills.purchaseDate = DateTime.Parse(row["PurchaseDate"].ToString());
+                
+                paymentBills.dueAmount = decimal.Parse(row["CreditAmount"].ToString() ?? "0");
+                paymentBills.paidAmount = decimal.Parse(row["PaidAmount"].ToString() ?? "0");
+                paymentBills.remainingBalance = decimal.Parse(row["RemainingBalance"].ToString() ?? "0");
+                paymentBills.paymentType = Modals.PaymentTypes.CASH;
+            }
+        }
 
 
         var res1 = await DatabaseHandler.ExecuteQueryAsync(customerSelect);
@@ -280,10 +314,11 @@
 
     public async Task HandleSubmit()
     {
+        isLoading = true;
+        loaderText = "Adding Payment";
         try
         {
-            isLoading = true;
-            loaderText = "Adding Payment";
+            
             string errorText = "";
             if (!validateData(out errorText))
             {
@@ -379,14 +414,16 @@
 
 
             supplierCredits.Branch = currentBranch;
-            await DatabaseHandler.InsertPayment(supplierCredits, false, ledgers);
+            await DatabaseHandler.InsertPayment(supplierCredits, IsUpdating, ledgers);
             foreach (var item in supplierCredits.paymentBills)
             {
                 Debug.WriteLine($"Status: {item.CreditStatus}");
             }
-            ToastService.ShowToast("Receipt Added Successfully", ToastType.sucess);
-            isLoading = false;
-            loaderText = "";
+            supplierCredits = new PaymentReciptType();
+            splitAmount = 0;
+            SupplierSearch = "";
+            ToastService.ShowToast("Payment Added Successfully", ToastType.sucess);
+            
         }
         catch (Exception e)
         {
@@ -394,6 +431,8 @@
             Debug.WriteLine(e.Source);
             ToastService.ShowToast(e.Message, ToastType.error);
         }
+        isLoading = false;
+        loaderText = "";
     }
 
     private async Task SelectSupplier(Supplier supplier)

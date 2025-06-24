@@ -522,7 +522,7 @@ namespace AutoDynamics.Services
                     
                     billInfoTable.AddCell(new PdfPCell(new Phrase($"GSTIN: {creditRecipt.customer.GSTIN}", normalFont)) { Border = Rectangle.NO_BORDER, HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
 
-                    billInfoTable.AddCell(new PdfPCell(new Phrase($"Check Number: {creditRecipt.CheckNumber}", normalFont)) { Border = Rectangle.NO_BORDER });
+                    billInfoTable.AddCell(new PdfPCell(new Phrase($"Cheque Number: {creditRecipt.CheckNumber}", normalFont)) { Border = Rectangle.NO_BORDER });
 
                     //billInfoTable.AddCell(new PdfPCell(new Phrase($"GSTIN: {GSTIN}", normalFont)) { Border = Rectangle.NO_BORDER });
                     //billInfoTable.AddCell(new PdfPCell(new Phrase($"Payment Type: {createPaymentTypeString}", normalFont)) { Border = Rectangle.NO_BORDER, HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
@@ -750,11 +750,11 @@ namespace AutoDynamics.Services
                     billInfoTable.WidthPercentage = 100;
                     billInfoTable.SetWidths(new float[] { 1, 1 });
 
-                    string BillId = creditRecipt.Branch == "Sivakasi" ? "RC_SFR" + creditRecipt.PaymentNo.ToString().PadLeft(4, '0') : "PY_BPR" + creditRecipt.PaymentNo.ToString().PadLeft(4, '0');
-                    billInfoTable.AddCell(new PdfPCell(new Phrase($"Receipt No: {BillId}", boldFont)) { Border = Rectangle.NO_BORDER });
+                    string BillId = creditRecipt.Branch == "Sivakasi" ? "PY_SFR" + creditRecipt.PaymentNo.ToString().PadLeft(4, '0') : "PY_BPR" + creditRecipt.PaymentNo.ToString().PadLeft(4, '0');
+                    billInfoTable.AddCell(new PdfPCell(new Phrase($"Payment No: {BillId}", boldFont)) { Border = Rectangle.NO_BORDER });
                     billInfoTable.AddCell(new PdfPCell(new Phrase($"Date: {creditRecipt.PaymentDate:dd-MM-yyyy}", boldFont)) { Border = Rectangle.NO_BORDER, HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
 
-                    billInfoTable.AddCell(new PdfPCell(new Phrase($"Customer: {creditRecipt.supplier.SupplierID}", normalFont)) { Border = Rectangle.NO_BORDER });
+                    billInfoTable.AddCell(new PdfPCell(new Phrase($"Supplier: {creditRecipt.supplier.SupplierID}", normalFont)) { Border = Rectangle.NO_BORDER });
                     billInfoTable.AddCell(new PdfPCell(new Phrase($"M: {creditRecipt.supplier.Contact}", normalFont)) { Border = Rectangle.NO_BORDER, HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
 
 
@@ -762,7 +762,7 @@ namespace AutoDynamics.Services
 
                     billInfoTable.AddCell(new PdfPCell(new Phrase($"GSTIN: {creditRecipt.supplier.GSTIN}", normalFont)) { Border = Rectangle.NO_BORDER, HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
 
-                    billInfoTable.AddCell(new PdfPCell(new Phrase($"Check Number: {creditRecipt.CheckNumber}", normalFont)) { Border = Rectangle.NO_BORDER });
+                    billInfoTable.AddCell(new PdfPCell(new Phrase($"Cheque Number: {creditRecipt.CheckNumber}", normalFont)) { Border = Rectangle.NO_BORDER });
 
                     //billInfoTable.AddCell(new PdfPCell(new Phrase($"GSTIN: {GSTIN}", normalFont)) { Border = Rectangle.NO_BORDER });
                     //billInfoTable.AddCell(new PdfPCell(new Phrase($"Payment Type: {createPaymentTypeString}", normalFont)) { Border = Rectangle.NO_BORDER, HorizontalAlignment = iTextSharp.text.Element.ALIGN_RIGHT });
@@ -801,8 +801,8 @@ namespace AutoDynamics.Services
 
                     // ✅ First Header Row (Merging CGST & SGST)
                     PdfPCell snoCell = new PdfPCell(new Phrase("S.No", headerFont)) { Rowspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
-                    PdfPCell billDateCell = new PdfPCell(new Phrase("Bill Date", headerFont)) { Rowspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
-                    PdfPCell billNoCell = new PdfPCell(new Phrase("Bill No", headerFont)) { Rowspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
+                    PdfPCell billDateCell = new PdfPCell(new Phrase("Purchase Date", headerFont)) { Rowspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
+                    PdfPCell billNoCell = new PdfPCell(new Phrase("Purchase No", headerFont)) { Rowspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
                     PdfPCell notationCell = new PdfPCell(new Phrase("Narration", headerFont)) { Rowspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
                     PdfPCell amountCell = new PdfPCell(new Phrase("Amount", headerFont)) { Rowspan = 2, HorizontalAlignment = iTextSharp.text.Element.ALIGN_CENTER, BackgroundColor = new BaseColor(224, 224, 224) };
 

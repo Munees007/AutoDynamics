@@ -356,7 +356,7 @@
 			}
 			else
 			{
-				<p class="text-muted text-center">No receipts for Sivakasi.</p>
+				<p class="text-muted text-center">No Payments for Sivakasi.</p>
 			}
 			</div>
 		</div>
@@ -399,7 +399,7 @@
 			}
 			else
 			{
-				<p class="text-muted text-center">No receipt for ByPass.</p>
+				<p class="text-muted text-center">No Payment for ByPass.</p>
 			}
 			</div>
 		</div>
@@ -472,10 +472,10 @@
 				customerStatements.Add(new CustomerStatement
 					{
 						date = bill.purchase.PurchaseDate,
-						credit = bill.purchase.TotalAmount,
-						debit = 0,
-						particulars = "To sales for Bill No: " + bill.purchase.BillNo,
-						accountType = "SALES A/C",
+						debit = bill.purchase.TotalAmount,
+						credit = 0,
+						particulars = "To purchase for Bill No : " + bill.purchase.BillNo,
+						accountType = "PURCHASE A/C",
 						type = TransactionType.BILL.ToString()
 					});
 
@@ -485,9 +485,9 @@
 					customerStatements.Add(new CustomerStatement
 						{
 							date = bill.purchase.PurchaseDate, // Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
-							credit = 0,
-							debit = bill.purchase.TotalAmount,
-							particulars = "By cash received for Bill No: " + bill.purchase.BillNo,
+							debit = 0,
+							credit = bill.purchase.TotalAmount,
+							particulars = "By cash received for Bill No : " + bill.purchase.BillNo,
 							accountType = "CASH A/C",
 							type = TransactionType.RECEIPT.ToString()
 						});
@@ -528,7 +528,7 @@
 						date = receipt.PaymentDate,
 						credit = 0,
 						debit = receipt.TotalAmountPaid,
-						particulars = "By receipt for Receipt No: " + receipt.PaymentNo,
+						particulars = "By payment for payment No : " + receipt.PaymentNo,
 						accountType = "PAYMENT A/C",
 						type = TransactionType.RECEIPT.ToString()
 					});
@@ -545,8 +545,8 @@
 					date = bill.purchase.PurchaseDate,
 					credit = bill.purchase.TotalAmount,
 					debit = 0,
-					particulars = "To sales for Bill No: " + bill.purchase.BillNo,
-					accountType = "SALES A/C",
+					particulars = "To purchase for purchase No : " + bill.purchase.BillNo,
+					accountType = "PURCHASE A/C",
 					type = TransactionType.BILL.ToString()
 				});
 
@@ -556,9 +556,9 @@
 				customerStatements.Add(new CustomerStatement
 					{
 						date = bill.purchase.PurchaseDate, // Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
-						credit = 0,
-						debit = bill.purchase.TotalAmount,
-						particulars = "By cash received for Bill No: " + bill.purchase.BillNo,
+						debit = 0,
+						credit = bill.purchase.TotalAmount,
+						particulars = "By cash paid for purchase No : " + bill.purchase.BillNo,
 						accountType = "CASH A/C",
 						type = TransactionType.RECEIPT.ToString()
 					});
@@ -588,7 +588,7 @@
 					date = receipt.PaymentDate,
 					credit = 0,
 					debit = receipt.TotalAmountPaid,
-					particulars = "By receipt for Receipt No: " + receipt.PaymentNo,
+					particulars = "By payment for payment No: " + receipt.PaymentNo,
 					accountType = "PAYMENT A/C",
 					type = TransactionType.RECEIPT.ToString()
 				});
@@ -628,17 +628,17 @@
 
 		foreach (var entry in priorEntries)
 		{
-			if (entry.accountType == "SALES A/C")
+			if (entry.accountType == "PURCHASE A/C")
 			{
-				openingBalance += entry.credit; // Customer owes us more
+				openingBalance += entry.debit; // Customer owes us more
 			}
-			else if (entry.accountType == "CASH A/C" || entry.accountType == "BANK A/C" || entry.accountType == "CARD A/C")
+			else if (entry.accountType == "CASH A/C")
 			{
-				openingBalance -= entry.debit; // Customer paid us
+				openingBalance -= entry.credit; // Customer paid us
 			}
-			else if (entry.accountType == "RECEIPT A/C")
+			else if (entry.accountType == "PAYMENT A/C")
 			{
-				openingBalance -= entry.debit; // Receipt is money received, reduce the balance
+				openingBalance -= entry.credit; // Receipt is money received, reduce the balance
 			}
 		}
 

@@ -1,0 +1,8 @@
+@page "/payment/update"
+<h1>Update Payment</h1>
+
+<AddPayment IsUpdating=true supplierCredits="@paymentRecipt" />
+
+@code {
+	[Parameter] public PaymentReciptType paymentRecipt { set; get; } = new PaymentReciptType();
+}

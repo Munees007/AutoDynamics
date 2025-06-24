@@ -563,8 +563,8 @@ namespace AutoDynamics.Services
                             }
 
                             // Insert new receipt
-                            string insertQuery = @"INSERT INTO Receipts (CustomerID, PaymentDate, TotalAmountPaid,Branch,BillingYear,ReceiptNo,CheckNumber,Narration) 
-                                           VALUES (@CustomerID, @PaymentDate, @TotalAmountPaid,@Branch,@BillingYear,@ReceiptNo,@CheckNumber,@Narration); 
+                            string insertQuery = @"INSERT INTO Receipts (CustomerID, PaymentDate, TotalAmountPaid,Branch,BillingYear,ReceiptNo,CheckNumber,Narration,PaymentMode) 
+                                           VALUES (@CustomerID, @PaymentDate, @TotalAmountPaid,@Branch,@BillingYear,@ReceiptNo,@CheckNumber,@Narration,@PaymentMode); 
                                            SELECT LAST_INSERT_ID();";
 
                             using (var command = new MySqlCommand(insertQuery, connection, (MySqlTransaction)transaction))
@@ -577,7 +577,7 @@ namespace AutoDynamics.Services
                                 command.Parameters.AddWithValue("@ReceiptNo", newBillNo);
                                 command.Parameters.AddWithValue("@CheckNumber", creditRecipt.CheckNumber);
                                 command.Parameters.AddWithValue("@Narration", creditRecipt.narration);
-
+                                command.Parameters.AddWithValue("@PaymentMode", creditRecipt.paymentType.ToString());
                                 var result = await command.ExecuteScalarAsync();
                                 receiptId = int.Parse(result?.ToString() ?? "0");
 
@@ -666,8 +666,20 @@ namespace AutoDynamics.Services
                             {
                                 ledger.ReferenceID = paymentID;
                             }
-                            List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers,true);
-                            int mainLedgerId = ledgerIds[0];
+
+                            string insertQuery = @"UPDATE Payments SET TotalAmountPaid = @TotalAmountPaid
+                                        ,CheckNumber = @CheckNumber,Narration = @Narration
+                                            WHERE PaymentID = @PaymentID; 
+                                           ";
+                            using (var command = new MySqlCommand(insertQuery, connection, (MySqlTransaction)transaction))
+                            {
+                                command.Parameters.AddWithValue("@TotalAmountPaid", creditRecipt.paymentBills.Sum(x => x.amountPayed));
+                                command.Parameters.AddWithValue("@CheckNumber", creditRecipt.CheckNumber);
+                                command.Parameters.AddWithValue("@Narration", creditRecipt.Narration);
+                                command.Parameters.AddWithValue("@PaymentID", creditRecipt.PaymentId);
+                                await command.ExecuteNonQueryAsync();
+                            }
+                               
 
                             // 1. Fetch existing ReceiptBills
                             var existingReceipts = new List<(long CreditID, decimal AmountPaid)>();
@@ -714,29 +726,28 @@ namespace AutoDynamics.Services
                                 await command.ExecuteNonQueryAsync();
                             }
 
-                            // 4. Update the CreditRecipt table
-                            string updateReceipt = @"UPDATE SupplierCreditRecord
-                                             SET SupplierID = @SupplierID, PaymentDate = @PaymentDate, 
-                                                 TotalAmountPaid = @TotalAmountPaid, LedgerID = @LedgerID 
-                                             WHERE SupplierCreditID = @SupplierCreditID";
-                            using (var command = new MySqlCommand(updateReceipt, connection, (MySqlTransaction)transaction))
-                            {
-                                command.Parameters.AddWithValue("@SupplierID", creditRecipt.supplier.SupplierID);
-                                command.Parameters.AddWithValue("@PaymentDate", creditRecipt.PaymentDate);
-                                command.Parameters.AddWithValue("@TotalAmountPaid", creditRecipt.paymentBills.Sum(x => x.amountPayed));
-                                command.Parameters.AddWithValue("@LedgerID", mainLedgerId);
-                                command.Parameters.AddWithValue("@PaymentID", paymentID);
-                                await command.ExecuteNonQueryAsync();
-                            }
 
-                            // 5. Update reference in CashBankLedger
-                            //string updateLedgerRefQuery = @"UPDATE CashBankLedger SET ReferenceID = @ReferenceID WHERE LedgerID = @LedgerID";
-                            //using (var updateCmd = new MySqlCommand(updateLedgerRefQuery, connection, (MySqlTransaction)transaction))
-                            //{
-                            //    updateCmd.Parameters.AddWithValue("@ReferenceID", receiptId);
-                            //    updateCmd.Parameters.AddWithValue("@LedgerID", mainLedgerId);
-                            //    await updateCmd.ExecuteNonQueryAsync();
-                            //}
+                            ledgers.First<Ledger>().Particulars += (creditRecipt.Branch == "Sivakasi" ? "PY_SFR" : "PY_BPR") + paymentID.ToString().PadLeft(4, '0');
+                            foreach (var ledger in ledgers)
+                            {
+                                ledger.billOrInvoiceNo = (creditRecipt.Branch == "Sivakasi" ? "PY_SFR" : "PY_BPR") + paymentID.ToString().PadLeft(4, '0');
+                            }
+                            List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers, false);
+                            
+                            int mainLedgerId = ledgerIds[0];
+                            Debug.WriteLine("Ledgers Count = " + ledgerIds.Count.ToString());
+                            // Set receipt reference in ledgers
+                            foreach (int id in ledgerIds)
+                            {
+                                string updateLedgerRefQuery = @"UPDATE CashBankLedger SET ReferenceID = @ReferenceID, EntryID = @EntryID WHERE LedgerID = @LedgerID";
+                                using (var updateCmd = new MySqlCommand(updateLedgerRefQuery, connection, (MySqlTransaction)transaction))
+                                {
+                                    updateCmd.Parameters.AddWithValue("@ReferenceID", paymentID);
+                                    updateCmd.Parameters.AddWithValue("@LedgerID", id);
+                                    updateCmd.Parameters.AddWithValue("@EntryID", mainLedgerId);
+                                    await updateCmd.ExecuteNonQueryAsync();
+                                }
+                            }
                         }
                         else
                         {
@@ -766,8 +777,8 @@ namespace AutoDynamics.Services
                             }
 
                             // Insert new receipt
-                            string insertQuery = @"INSERT INTO Payments (SupplierID, PaymentDate, TotalAmountPaid,Branch,CheckNumber,PaymentNo,Narration,BillingYear) 
-                                           VALUES (@SupplierID, @PaymentDate, @TotalAmountPaid,@Branch,@CheckNumber,@PaymentNo,@Narration,@BillingYear); 
+                            string insertQuery = @"INSERT INTO Payments (SupplierID, PaymentDate, TotalAmountPaid,Branch,CheckNumber,PaymentNo,Narration,BillingYear,PaymentMode) 
+                                           VALUES (@SupplierID, @PaymentDate, @TotalAmountPaid,@Branch,@CheckNumber,@PaymentNo,@Narration,@BillingYear,@PaymentMode); 
                                            SELECT LAST_INSERT_ID();";
 
                             using (var command = new MySqlCommand(insertQuery, connection, (MySqlTransaction)transaction))
@@ -780,6 +791,7 @@ namespace AutoDynamics.Services
                                 command.Parameters.AddWithValue("@CheckNumber", creditRecipt.CheckNumber);
                                 command.Parameters.AddWithValue("@PaymentNo", newBillNo);
                                 command.Parameters.AddWithValue("@Narration", creditRecipt.Narration);
+                                command.Parameters.AddWithValue("@PaymentMode", creditRecipt.paymentType.ToString());
                                 var result = await command.ExecuteScalarAsync();
                                 paymentID = int.Parse(result?.ToString() ?? "0");
 
