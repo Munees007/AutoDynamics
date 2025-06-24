@@ -90,10 +90,10 @@
 
 	List<ButtonType> buttons = new List<ButtonType>
 		{
-		new ButtonType{Text="Vehicles",componentNumber=0},
-		new ButtonType{Text="Bills",componentNumber=1},
+		
+		new ButtonType{Text="Purchases",componentNumber=1},
 		new ButtonType{Text="Credit",componentNumber=2},
-		new ButtonType{ Text = "Receipt",componentNumber=3}
+		new ButtonType{ Text = "Payment",componentNumber=3}
 		};
 	bool isLoading = false;
 	int currentComponent = 0;
@@ -155,42 +155,7 @@
 			}),
 			};
 
-		vehiclesFront =
-	@<div class="container mt-4">
-		<div class="card-header bg-primary text-white">
-			<h4 class="mb-0">Vehicle Details</h4>
-		</div>
-		<div class="table-responsive">
-			<table class="table table-striped table-bordered">
-				<thead class="table-dark">
-					<tr>
-						<th>Vehicle No</th>
-						<th>Vehicle Make</th>
-						<th>Model Name</th>
-					</tr>
-				</thead>
-				<tbody>
-					@if (vehicles.Count == 0)
-				{
-					<tr>
-						<td colspan="10" class="text-center text-muted">No Vehicle found.</td>
-					</tr>
-				}
-				else
-				{
-					@foreach (var vehicleCustomer in vehicles)
-				{
-					<tr>
-						<td>@vehicleCustomer.VehicleNo</td>
-						<td>@vehicleCustomer.VehicleMake</td>
-						<td>@vehicleCustomer.ModelName</td>
-					</tr>
-				}
-				}
-				</tbody>
-			</table>
-		</div>
-	</div>;
+		
 
 		billsFront = @<div class="col-md-6 w-100">
 		<div class="card shadow-lg mt-4">
@@ -441,7 +406,6 @@
 	</div>
 	;
 
-		components.Add(vehiclesFront);
 		components.Add(billsFront);
 		components.Add(recordsFront);
 		components.Add(ReceiptFront);

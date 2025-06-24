@@ -8,7 +8,7 @@
     <select @bind="selectedBranch"  class="form-select w-25 mb-3">
         <option value="Sivakasi">Sivakasi</option>
         <option value="ByPass">ByPass</option>
-       
+
     </select>
 </div>
 
@@ -49,7 +49,7 @@
                 <th>Date</th>
                 <th>Account Type</th>
                 <th>Transaction Type</th>
-
+                
                 <th>Particulars</th>
                 <th>Dr (₹)</th>
                 <th>Cr (₹)</th>
@@ -84,8 +84,8 @@
     string selectedBranch = "Sivakasi";
     string filterType = "all";
     string selectedSortingOption = "date";
-
     DateTime? startDate, endDate;
+
     async Task ApplyFilters()
     {
         ledgers.Clear();
@@ -120,7 +120,7 @@
         }
 
         string whereClause = "";
-        
+
         switch(selectedSortingOption)
         {
             case "date":
@@ -188,8 +188,6 @@
             ledger.Balance = runningBalance;
         }
 
-
-
     }
 
     int getAccountID(string type)
@@ -208,9 +206,10 @@
     {
 
         var fetch = @"SELECT * FROM LedgerAccounts";
-        
+
         var res1 = await DatabaseHandler.ExecuteQueryAsync(fetch);
-        if(res1.Count > 0)
+
+        if (res1.Count > 0)
         {
             foreach (var row in res1)
             {
@@ -225,13 +224,5 @@
                     });
             }
         }
-        
-        
-
-        
     }
-
-   
-
-    
 }

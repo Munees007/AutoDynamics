@@ -10,7 +10,7 @@
     <div class="row g-4 mb-4">
         <div class="col-md-4">
             <label for="paymentDate" class="form-label fw-bold">Date</label>
-            <input type="date" id="paymentDate" class="form-control" @bind="@creditReciptTypes.ReciptDate" />
+            <input type="date" disabled="@IsUpdating" id="paymentDate" class="form-control" @bind="@creditReciptTypes.ReciptDate" />
         </div>
 
         <div class="col-md-10 input-group">
@@ -26,7 +26,7 @@
         <div class="col-md-8">
             <label for="Customer" class="form-label fw-bold">Customer</label>
             <div class="input-group">
-                <input @onkeydown="HandleCustomerKey" autocomplete="off" type="text" id="Customer"
+                <input @onkeydown="HandleCustomerKey" disabled="@IsUpdating" autocomplete="off" type="text" id="Customer"
                 @bind="CustomerSearch" @oninput="OnCustomerSearch"
                 class="form-control" placeholder="Search by ID, Name, or Contact" required>
 
@@ -186,16 +186,17 @@
         isLoading = true;
         try
         {
-            if(IsUpdating)
+
+            currentBranch = await MyLocalStorageService.GetItemAsync("Branch") ?? "";
+
+            await NecessaryData();
+            if (IsUpdating)
             {
-				filteredCreditBills = creditReciptTypes.creditBills;
-				creditBills = creditReciptTypes.creditBills;
-				CustomerSearch = creditReciptTypes.customer.CustomerId; 
+                filteredCreditBills = creditReciptTypes.creditBills;
+                creditBills = creditReciptTypes.creditBills;
+                CustomerSearch = creditReciptTypes.customer.CustomerId;
                 currentBranch = creditReciptTypes.Branch;
             }
-            currentBranch = await MyLocalStorageService.GetItemAsync("Branch") ?? "";
-            await NecessaryData();
-            
             ToastService.ShowToast("Fetch Successful", ToastType.sucess);
         }
         catch(Exception e)
@@ -213,6 +214,36 @@
     {
         string customerSelect = "SELECT * FROM Customers";
         string fetch = "SELECT * FROM LedgerAccounts";
+        string fetchCreditQuery = "SELECT * FROM CreditRecord cr JOIN Bills b ON b.BillID = cr.BillID WHERE cr.CustomerID = @CustomerID AND cr.BillID = @BillID";
+
+        if(IsUpdating)
+        {
+            foreach(var creditBill in creditReciptTypes.creditBills)
+            {
+                Dictionary<string, object> parameter = new Dictionary<string, object>
+                {
+                    {"CustomerID",creditReciptTypes.customer.CustomerId},
+                    {"@BillID",creditBill.billId}
+                };
+                var res = await DatabaseHandler.ExecuteQueryAsync(fetchCreditQuery, parameter);
+                var row = res[0];
+                int id = int.Parse(res[0]["CreditID"].ToString() ?? "0");
+                
+                
+                creditBill.creditId = Int32.Parse(row["CreditID"].ToString() ?? "0");
+                creditBill.billId = Int32.Parse(row["BillID"].ToString() ?? "0");
+                creditBill.billNo = Int32.Parse(row["BillNo"].ToString() ?? "0");
+                creditBill.branch = row["Branch"].ToString() ?? "";
+                creditBill.BillDate = DateTime.Parse(row["BillDate"].ToString());
+                
+                creditBill.dueAmount = decimal.Parse(row["CreditAmount"].ToString() ?? "0");
+                creditBill.paidAmount = decimal.Parse(row["PaidAmount"].ToString() ?? "0");
+                creditBill.remainingBalance = decimal.Parse(row["RemainingBalance"].ToString() ?? "0");
+                creditBill.paymentType = Modals.PaymentTypes.CASH;
+                
+
+            }
+        }
 
 
 
@@ -388,7 +419,7 @@
 
 
             creditReciptTypes.Branch = currentBranch;
-            await DatabaseHandler.InsertReceipt(creditReciptTypes, false, ledgers);
+            await DatabaseHandler.InsertReceipt(creditReciptTypes, IsUpdating, ledgers);
             foreach(var item in creditReciptTypes.creditBills)
             {
                 Debug.WriteLine($"Status: {item.CreditStatus}");

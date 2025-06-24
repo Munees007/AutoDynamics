@@ -65,7 +65,7 @@
 					{
 						<th style="min-width: 160px;">Transaction Type</th>
 					}
-					<th style="min-width: 200px;">For Who</th>
+					<th style="min-width: 300px;">For Who</th>
 					<th style="min-width: 200px;">Particulars</th>
 					<th style="min-width: 120px;">Dr Amount</th>
 					<th style="min-width: 120px;">Cr Amount</th>
@@ -101,6 +101,23 @@
 								</select>
 							</td>
 						}
+						<td>
+							<div class="col-md-4">
+								<label class="form-label">Customer/Supplier</label>
+
+								<div class="input-group">
+									<input @onkeydown="HandleSCT_Key" autocomplete="off" type="text" id="Customer" @bind="CST_Search" @oninput="OnCST_Search" class="form-control" placeholder="Search by ID, Name, or Contact" required>
+
+								</div>
+								<SearchSelect @ref="commonSCTList" Items="filteredCommonCSTs" OnSelect="@(c=> SelectCST(ledger,c))" T="CommonCSType" showSuggestions="ShowCSTSuggestion" ShowSuggestionsChanged="@((bool val) => ShowCSTSuggestion = val)">
+									<ItemTemplate Context="cust">
+										<div>@cust.role - @cust.Name - @cust.Contact</div>
+									</ItemTemplate>
+								</SearchSelect>
+
+								<p>@SelectedCST</p>
+							</div>
+						</td>
 						<td>
 							<input type="text" @bind="ledger.Particulars" class="form-control" placeholder="Particulars" />
 						</td>
@@ -177,6 +194,55 @@
 	LedgerAcccounts temp = new LedgerAcccounts();
 
 	CustomDialogBox accountType = new CustomDialogBox();
+
+	private string SelectedCST = "No Customer Selected";
+	private string CST_Search = "";
+
+	List<UserModal> customers = new List<UserModal>();
+	List<Supplier> suppliers = new List<Supplier>();
+
+	List<CommonCSType> commonCSTs = new List<CommonCSType>();
+	List<CommonCSType> filteredCommonCSTs = new List<CommonCSType>();
+	private SearchSelect<CommonCSType> commonSCTList;
+	private bool ShowCSTSuggestion = false;
+
+	public void HandleSCT_Key(KeyboardEventArgs e)
+	{
+		commonSCTList?.HandleKeyDown(e);
+	}
+
+	public async void OnCST_Search(ChangeEventArgs e)
+	{
+		CST_Search = e.Value.ToString() ?? "";
+		// CustomerSearch.Replace(" ", "").Replace(".", "");
+		SelectedCST = "No Customer Selected";
+		if (string.IsNullOrWhiteSpace(CST_Search))
+		{
+			ShowCSTSuggestion = false;
+			filteredCommonCSTs.Clear();
+			return;
+		}
+
+		filteredCommonCSTs = commonCSTs
+		.Where(c => c.ID.Contains(CST_Search, StringComparison.OrdinalIgnoreCase) ||
+					c.Name.Contains(CST_Search, StringComparison.OrdinalIgnoreCase) ||
+					c.Contact.Contains(CST_Search, StringComparison.OrdinalIgnoreCase))
+		.ToList();
+
+
+		ShowCSTSuggestion = filteredCommonCSTs.Any();
+
+	}
+
+	private void SelectCST(Ledger ledger, CommonCSType commonCS)
+	{
+		CST_Search = $"{commonCS.ID}";
+		SelectedCST = $"{commonCS.Name}-{commonCS.Contact}";
+		ledger.ForWho = commonCS.ID;
+		ShowCSTSuggestion = false;
+		StateHasChanged();
+
+	}
 
 	bool isDoubleEntryMode = true; // Default to double-entry mode
 	void ToggleEntryMode()
@@ -379,7 +445,7 @@
 			accountType.showDialog = false;
 			isLoading = false;
 			loaderText = "";
-			
+
 			await fetchAccountTypes();
 
 			StateHasChanged();
@@ -392,11 +458,59 @@
 
 
 	}
+	protected async Task FetchCST()
+	{
+		var fetchCustomer = @"SELECT * FROM Customers";
+		var fetchSupplier = @"SELECT * FROM Suppliers";
 
+		var res2 = await DatabaseHandler.ExecuteQueryAsync(fetchCustomer);
+		var res3 = await DatabaseHandler.ExecuteQueryAsync(fetchSupplier);
+
+		if (res2.Count > 0)
+		{
+			foreach (var row in res2)
+			{
+				// customers.Add(new UserModal
+				//     {
+				//         CustomerId = row["CustomerID"].ToString() ?? "",
+				//         Name = row["Name"].ToString() ?? "",
+				//         Contact = row["Contact"].ToString() ?? "",
+				//     });
+				commonCSTs.Add(new CommonCSType
+					{
+						ID = row["CustomerID"].ToString() ?? "",
+						Name = row["Name"].ToString() ?? "",
+						Contact = row["Contact"].ToString() ?? "",
+						role = "Customer"
+					});
+			}
+		}
+
+		if (res3.Count > 0)
+		{
+			foreach (var row in res3)
+			{
+				// suppliers.Add(new Supplier
+				//     {
+				//         SupplierID = row["SupplierID"].ToString() ?? "",
+				//         Name = row["Name"].ToString() ?? "",
+				//         Contact = row["Contact"].ToString() ?? "",
+				//     });
+				commonCSTs.Add(new CommonCSType
+					{
+						ID = row["SupplierID"].ToString() ?? "",
+						Name = row["Name"].ToString() ?? "",
+						Contact = row["Contact"].ToString() ?? "",
+						role = "Supplier"
+					});
+			}
+		}
+	}
 	protected override async Task OnInitializedAsync()
 	{
 		branch = await MyLocalStorageService.GetItemAsync("Branch") ?? "";
 		accountTypes.Clear();
+		await FetchCST();
 		await fetchAccountTypes();
 	}
 

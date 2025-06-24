@@ -450,8 +450,24 @@ namespace AutoDynamics.Services
                             {
                                 ledger.ReferenceID = receiptId;
                             }
-                            List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers,true);
-                            int mainLedgerId = ledgerIds[0];
+                            
+                            string insertQuery = @"UPDATE Receipts SET TotalAmountPaid = @TotalAmountPaid
+                                        ,CheckNumber = @CheckNumber,Narration = @Narration
+                                            WHERE ReceiptID = @ReceiptID; 
+                                           ";
+
+                            using (var command = new MySqlCommand(insertQuery, connection, (MySqlTransaction)transaction))
+                            {
+                                
+                                command.Parameters.AddWithValue("@TotalAmountPaid", creditRecipt.creditBills.Sum(x => x.amountPayed));
+                                
+                                command.Parameters.AddWithValue("@CheckNumber", creditRecipt.CheckNumber);
+                                command.Parameters.AddWithValue("@Narration", creditRecipt.narration);
+                                command.Parameters.AddWithValue("@ReceiptID", creditRecipt.ReceiptId);
+
+                                await command.ExecuteNonQueryAsync();
+
+                            }
 
                             // 1. Fetch existing ReceiptBills
                             var existingReceipts = new List<(long CreditID, decimal AmountPaid)>();
@@ -498,29 +514,25 @@ namespace AutoDynamics.Services
                                 await command.ExecuteNonQueryAsync();
                             }
 
-                            // 4. Update the CreditRecipt table
-                            string updateReceipt = @"UPDATE CreditRecipt 
-                                             SET CustomerID = @CustomerID, PaymentDate = @PaymentDate, 
-                                                 TotalAmountPaid = @TotalAmountPaid, LedgerID = @LedgerID 
-                                             WHERE ReceiptID = @ReceiptID";
-                            using (var command = new MySqlCommand(updateReceipt, connection, (MySqlTransaction)transaction))
+                            ledgers.First<Ledger>().Particulars += (creditRecipt.Branch == "Sivakasi" ? "RC_SFR" : "RC_BPR") + receiptId.ToString().PadLeft(4, '0');
+                            foreach (var ledger in ledgers)
                             {
-                                command.Parameters.AddWithValue("@CustomerID", creditRecipt.customer.CustomerId);
-                                command.Parameters.AddWithValue("@PaymentDate", creditRecipt.ReciptDate);
-                                command.Parameters.AddWithValue("@TotalAmountPaid", creditRecipt.creditBills.Sum(x => x.amountPayed));
-                                command.Parameters.AddWithValue("@LedgerID", mainLedgerId);
-                                command.Parameters.AddWithValue("@ReceiptID", receiptId);
-                                await command.ExecuteNonQueryAsync();
+                                ledger.billOrInvoiceNo = (creditRecipt.Branch == "Sivakasi" ? "RC_SFR" : "RC_BPR") + receiptId.ToString().PadLeft(4, '0');
                             }
 
-                            // 5. Update reference in CashBankLedger
-                            //string updateLedgerRefQuery = @"UPDATE CashBankLedger SET ReferenceID = @ReferenceID WHERE LedgerID = @LedgerID";
-                            //using (var updateCmd = new MySqlCommand(updateLedgerRefQuery, connection, (MySqlTransaction)transaction))
-                            //{
-                            //    updateCmd.Parameters.AddWithValue("@ReferenceID", receiptId);
-                            //    updateCmd.Parameters.AddWithValue("@LedgerID", mainLedgerId);
-                            //    await updateCmd.ExecuteNonQueryAsync();
-                            //}
+                            List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers, true);
+                            int mainLedgerId = ledgerIds[0];
+                            foreach (int id in ledgerIds)
+                            {
+                                string updateLedgerRefQuery = @"UPDATE CashBankLedger SET ReferenceID = @ReferenceID, EntryID = @EntryID WHERE LedgerID = @LedgerID";
+                                using (var updateCmd = new MySqlCommand(updateLedgerRefQuery, connection, (MySqlTransaction)transaction))
+                                {
+                                    updateCmd.Parameters.AddWithValue("@ReferenceID", receiptId);
+                                    updateCmd.Parameters.AddWithValue("@LedgerID", id);
+                                    updateCmd.Parameters.AddWithValue("@EntryID", mainLedgerId);
+                                    await updateCmd.ExecuteNonQueryAsync();
+                                }
+                            }
                         }
                         else
                         {
@@ -1888,6 +1900,7 @@ WHERE p.ProductID = @ProductID";
                     Branch = receiptReader.GetString("Branch"),
                     TotalAmountPaid = receiptReader.GetDecimal("TotalAmountPaid"),
                     paymentType = Enum.Parse<PaymentTypes>(receiptReader.GetString("PaymentMode")),
+                    narration = receiptReader.GetString("Narration"),
                     creditBills = new List<CreditBill>()
                 };
             }
