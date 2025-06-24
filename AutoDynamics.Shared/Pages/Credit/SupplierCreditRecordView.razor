@@ -190,7 +190,7 @@
         isLoading = true;
         sivakasiCreditTotal = 0m;
         bypassCreditTotal = 0m;
-        string fetchQuery = "SELECT c.*,cu.*,b.* FROM SupplierCreditRecord c JOIN Suppliers cu ON c.SupplierID = cu.SupplierID LEFT JOIN PurchaseBills b ON c.PurchaseBillID = b.PurchaseBillID";
+        string fetchQuery = "SELECT c.*,cu.*,b.* FROM SupplierCreditRecord c JOIN Suppliers cu ON c.SupplierID = cu.SupplierID LEFT JOIN PurchaseBills b ON c.PurchaseBillID = b.PurchaseBillID WHERE Status not in ('Paid')";
 
         var result = await DatabaseHandler.ExecuteQueryAsync(fetchQuery);
         if (result.Count > 0)

@@ -159,31 +159,50 @@ namespace AutoDynamics.Services
     MySqlTransaction transaction,
     List<Ledger> ledgers,bool isUpdating)
         {
+            List<int> insertedOrUpdatedIds = new List<int>();
             string insertQuery = @"
         INSERT INTO CashBankLedger 
         (Date, AccountID, Branch, TransactionType, ReferenceID, Particulars, DrAmount, CrAmount, Balance,ForWho,billOrInvoiceNo) 
         VALUES (@Date, @AccountID, @Branch, @TransactionType, @ReferenceID, @Particulars, @DrAmount, @CrAmount, @Balance,@ForWho,@billOrInvoiceNo);
         SELECT LAST_INSERT_ID();";
 
-            string deactivateQuery = @"UPDATE CashBankLedger SET isActive = 0 WHERE ReferenceID = @ReferenceID";
-
+            string deactivateQuery = @"UPDATE CashBankLedger SET isActive = 0 WHERE ReferenceID = @ReferenceID AND TransactionType = @TransactionType AND Branch = @Branch";
+            string getLedgerIDs = @"SELECT LedgerID FROM CashBankLedger WHERE ReferenceID = @ReferenceID AND TransactionType = @TransactionType AND Branch = @Branch";
             if (isUpdating)
             {
                 using (var command = new MySqlCommand(deactivateQuery, connection, transaction))
                 {
-                    command.Parameters.AddWithValue("@ReferenceID", ledgers[0].ReferenceID);                                                                                         
+                    command.Parameters.AddWithValue("@ReferenceID", ledgers[0].ReferenceID);
+                    command.Parameters.AddWithValue("@Branch", ledgers[0].Branch);
+                    command.Parameters.AddWithValue("@TransactionType", ledgers[0].TransactionType.ToString());
                     await command.ExecuteNonQueryAsync();
+                }
+
+                using (var getCommand = new MySqlCommand(getLedgerIDs, connection, transaction))
+                {
+                    getCommand.Parameters.AddWithValue("@ReferenceID", ledgers[0].ReferenceID);
+                    getCommand.Parameters.AddWithValue("@Branch", ledgers[0].Branch);
+                    getCommand.Parameters.AddWithValue("@TransactionType", ledgers[0].TransactionType.ToString());
+                    using (var reader = await getCommand.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            insertedOrUpdatedIds.Add(reader.GetInt32(0));
+                        }
+                    }
                 }
             }
 
+
             string updateQuery = @"
         UPDATE CashBankLedger 
-        SET  Branch = @Branch, isActive = 1,
-            TransactionType = @TransactionType,
+        SET   isActive = 1,Branch = @Branch,
+        TransactionType = @TransactionType,
+            
             Particulars = @Particulars, DrAmount = @DrAmount, CrAmount = @CrAmount, Balance = @Balance , ForWho = @ForWho,billOrInvoiceNo = @billOrInvoiceNo
-        WHERE AccountID = @AccountID AND ReferenceID = @ReferenceID;";
+        WHERE AccountID = @AccountID AND ReferenceID = @ReferenceID AND TransactionType = @TransactionType AND Branch = @Branch;";
 
-            List<int> insertedOrUpdatedIds = new List<int>();
+           
 
             foreach (var ledger in ledgers)
             {
@@ -191,6 +210,7 @@ namespace AutoDynamics.Services
 
                 if (isUpdating) // update
                 {
+
                     using (var command = new MySqlCommand(updateQuery, connection, transaction))
                     {
                         
@@ -228,12 +248,7 @@ namespace AutoDynamics.Services
                                 insertedOrUpdatedIds.Add(newId);
                             }
                             
-                        }
-                        else
-                        {
-                            insertedOrUpdatedIds.Add(ledger.LedgerID);
-                        }
-                            
+                        } 
                     }
                 }
                 else // insert
@@ -452,7 +467,7 @@ namespace AutoDynamics.Services
                             }
                             
                             string insertQuery = @"UPDATE Receipts SET TotalAmountPaid = @TotalAmountPaid
-                                        ,CheckNumber = @CheckNumber,Narration = @Narration
+                                        ,CheckNumber = @CheckNumber,Narration = @Narration,PaymentMode = @PaymentMode
                                             WHERE ReceiptID = @ReceiptID; 
                                            ";
 
@@ -464,6 +479,7 @@ namespace AutoDynamics.Services
                                 command.Parameters.AddWithValue("@CheckNumber", creditRecipt.CheckNumber);
                                 command.Parameters.AddWithValue("@Narration", creditRecipt.narration);
                                 command.Parameters.AddWithValue("@ReceiptID", creditRecipt.ReceiptId);
+                                command.Parameters.AddWithValue("@PaymentMode", creditRecipt.paymentType.ToString());
 
                                 await command.ExecuteNonQueryAsync();
 
@@ -668,7 +684,7 @@ namespace AutoDynamics.Services
                             }
 
                             string insertQuery = @"UPDATE Payments SET TotalAmountPaid = @TotalAmountPaid
-                                        ,CheckNumber = @CheckNumber,Narration = @Narration
+                                        ,CheckNumber = @CheckNumber,Narration = @Narration,PaymentMode = @PaymentMode
                                             WHERE PaymentID = @PaymentID; 
                                            ";
                             using (var command = new MySqlCommand(insertQuery, connection, (MySqlTransaction)transaction))
@@ -677,6 +693,7 @@ namespace AutoDynamics.Services
                                 command.Parameters.AddWithValue("@CheckNumber", creditRecipt.CheckNumber);
                                 command.Parameters.AddWithValue("@Narration", creditRecipt.Narration);
                                 command.Parameters.AddWithValue("@PaymentID", creditRecipt.PaymentId);
+                                command.Parameters.AddWithValue("@PaymentMode", creditRecipt.paymentType.ToString());
                                 await command.ExecuteNonQueryAsync();
                             }
                                
@@ -730,9 +747,10 @@ namespace AutoDynamics.Services
                             ledgers.First<Ledger>().Particulars += (creditRecipt.Branch == "Sivakasi" ? "PY_SFR" : "PY_BPR") + paymentID.ToString().PadLeft(4, '0');
                             foreach (var ledger in ledgers)
                             {
+
                                 ledger.billOrInvoiceNo = (creditRecipt.Branch == "Sivakasi" ? "PY_SFR" : "PY_BPR") + paymentID.ToString().PadLeft(4, '0');
                             }
-                            List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers, false);
+                            List<int> ledgerIds = await InsertOrUpdateMultipleLedgerAsync(connection, transaction, ledgers, true);
                             
                             int mainLedgerId = ledgerIds[0];
                             Debug.WriteLine("Ledgers Count = " + ledgerIds.Count.ToString());
@@ -2029,6 +2047,9 @@ WHERE p.ProductID = @ProductID";
                     PaymentDate = receiptReader.GetDateTime("PaymentDate"),
                     Branch = receiptReader.GetString("Branch"),
                     TotalAmountPaid = receiptReader.GetDecimal("TotalAmountPaid"),
+                    paymentType = receiptReader["PaymentMode"] == DBNull.Value
+    ? PaymentTypes.CASH
+    : Enum.Parse<PaymentTypes>(receiptReader.GetString("PaymentMode")),
                     paymentBills = new List<PaymentBill>()
                 };
             }

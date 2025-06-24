@@ -43,7 +43,7 @@
         <input type="text" class="form-control" @bind="supplierCredits.Narration" />
     </div>
     <div class=" col-md-10 input-group mb-3">
-        <select disabled="@IsUpdating" @bind="supplierCredits.paymentType" class="form-select">
+        <select @bind="supplierCredits.paymentType" class="form-select">
             <option value="@PaymentTypes.CASH">CASH</option>
             <option value="@PaymentTypes.CARD">CARD</option>
             <option value="@PaymentTypes.BANK">BANK</option>
@@ -70,7 +70,7 @@
                     <th>Already Paid</th>
                     <th>Need to Pay</th>
                     <th>Amount Paid</th>
-                    
+
                 </tr>
             </thead>
             <tbody>
@@ -93,7 +93,7 @@
                         <td>
                             <input autocomplete="off" type="number" class="form-control text-end" @bind="item.amountPayed" min="1">
                         </td>
-                       
+
                     </tr>
                 }
             </tbody>
@@ -225,13 +225,13 @@
                 var res = await DatabaseHandler.ExecuteQueryAsync(fetchCreditQuery, parameter);
                 var row = res[0];
                 int id = int.Parse(res[0]["SupplierCreditID"].ToString() ?? "0");
-                
+
                 paymentBills.paymentId = Int32.Parse(row["SupplierCreditID"].ToString() ?? "0");
                 paymentBills.purchaseBillID = Int32.Parse(row["PurchaseBillID"].ToString() ?? "0");
                 paymentBills.invoice = row["InvoiceNumber"].ToString();
                 paymentBills.branch = row["Branch"].ToString() ?? "";
                 paymentBills.purchaseDate = DateTime.Parse(row["PurchaseDate"].ToString());
-                
+
                 paymentBills.dueAmount = decimal.Parse(row["CreditAmount"].ToString() ?? "0");
                 paymentBills.paidAmount = decimal.Parse(row["PaidAmount"].ToString() ?? "0");
                 paymentBills.remainingBalance = decimal.Parse(row["RemainingBalance"].ToString() ?? "0");
@@ -318,7 +318,7 @@
         loaderText = "Adding Payment";
         try
         {
-            
+
             string errorText = "";
             if (!validateData(out errorText))
             {
@@ -340,45 +340,56 @@
                 throw new Exception("No Bills Selected");
             }
             supplierCredits.paymentBills = selectedBills;
-            Ledger cashLedger = new Ledger
-                {
-                    CR_Amount = selectedBills.Where((b) => b.paymentType == PaymentTypes.CASH).Sum(b => b.amountPayed),
-                    DR_Amount = 0,
-                    Branch = currentBranch,
-                    TransactionType = TransactionType.PAYMENT,
-                    AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "CASH A/C")?.AcccountId ?? 0,
-                //AccountType = LedgerAccountType.CASH,
-                    Balance = 0,
-                    Particulars = $"By Cash",
-                    Date = supplierCredits.PaymentDate,
-                    ForWho = supplierCredits.supplier.SupplierID
-                };
-            Ledger bankLedger = new Ledger
-                {
-                    CR_Amount = selectedBills.Where((b) => b.paymentType != PaymentTypes.CASH && b.paymentType != PaymentTypes.CARD).Sum(b => b.amountPayed),
-                    DR_Amount = 0,
-                    Branch = currentBranch,
-                    TransactionType = TransactionType.PAYMENT,
-                    AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "BANK A/C")?.AcccountId ?? 0,
-                //AccountType = LedgerAccountType.BANK,
-                    Balance = 0,
-                    Particulars = $"By Bank",
-                    Date = supplierCredits.PaymentDate,
-                    ForWho = supplierCredits.supplier.SupplierID
-                };
-            Ledger cardLedger = new Ledger
+            Ledger cashLedger = new(), bankLedger = new(), cardLedger = new();
+            if(supplierCredits.paymentType == PaymentTypes.CASH)
             {
-                     CR_Amount= selectedBills.Where((b) => b.paymentType == PaymentTypes.CARD).Sum(b => b.amountPayed),
-                    DR_Amount = 0,
-                    Branch = currentBranch,
-                    TransactionType = TransactionType.PAYMENT,
-                    AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "CARD A/C")?.AcccountId ?? 0,
-                //AccountType = LedgerAccountType.BANK,
-                    Balance = 0,
-                    Particulars = $"By Card",
-                    Date = supplierCredits.PaymentDate,
-                    ForWho = supplierCredits.supplier.SupplierID
-            };
+                cashLedger = new Ledger
+                    {
+                        CR_Amount = selectedBills.Sum(b => b.amountPayed),
+                        DR_Amount = 0,
+                        Branch = currentBranch,
+                        TransactionType = TransactionType.PAYMENT,
+                        AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "CASH A/C")?.AcccountId ?? 0,
+                    //AccountType = LedgerAccountType.CASH,
+                        Balance = 0,
+                        Particulars = $"By Cash",
+                        Date = supplierCredits.PaymentDate,
+                        ForWho = supplierCredits.supplier.SupplierID
+                    };
+            }
+            if (supplierCredits.paymentType == PaymentTypes.BANK || supplierCredits.paymentType == PaymentTypes.UPI)
+            {
+                bankLedger = new Ledger
+                    {
+                        CR_Amount = selectedBills.Sum(b => b.amountPayed),
+                        DR_Amount = 0,
+                        Branch = currentBranch,
+                        TransactionType = TransactionType.PAYMENT,
+                        AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "BANK A/C")?.AcccountId ?? 0,
+                    //AccountType = LedgerAccountType.BANK,
+                        Balance = 0,
+                        Particulars = $"By Bank",
+                        Date = supplierCredits.PaymentDate,
+                        ForWho = supplierCredits.supplier.SupplierID
+                    };
+            }
+            if (supplierCredits.paymentType == PaymentTypes.CARD)
+            {
+
+                cardLedger = new Ledger
+                    {
+                        CR_Amount = selectedBills.Sum(b => b.amountPayed),
+                        DR_Amount = 0,
+                        Branch = currentBranch,
+                        TransactionType = TransactionType.PAYMENT,
+                        AccountID = AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == "CARD A/C")?.AcccountId ?? 0,
+                    //AccountType = LedgerAccountType.BANK,
+                        Balance = 0,
+                        Particulars = $"By Card",
+                        Date = supplierCredits.PaymentDate,
+                        ForWho = supplierCredits.supplier.SupplierID
+                    };
+            }
             // Credit: Customer (they paid, so reduce what they owe)
             Ledger customerCreditLedger = new Ledger
                 {
