@@ -91,9 +91,9 @@
 	List<ButtonType> buttons = new List<ButtonType>
 		{
 		
-		new ButtonType{Text="Purchases",componentNumber=1},
-		new ButtonType{Text="Credit",componentNumber=2},
-		new ButtonType{ Text = "Payment",componentNumber=3}
+		new ButtonType{Text="Purchases",componentNumber=0},
+		new ButtonType{Text="Credit",componentNumber=1},
+		new ButtonType{ Text = "Payment",componentNumber=2}
 		};
 	bool isLoading = false;
 	int currentComponent = 0;
@@ -184,7 +184,7 @@
 						@foreach (var bill in sivakasiBills)
 					{
 						<tr>
-							<td style="cursor:pointer;" @onclick="()=> {}">@("BPRP" + (bill.purchase.BillNo.ToString().PadLeft(4, '0')))</td>
+							<td style="cursor:pointer;" @onclick="()=> {}">@("SFRP" + (bill.purchase.BillNo.ToString().PadLeft(4, '0')))</td>
 
 							<td>@bill.purchase.InvoiceNumber</td>
 							<td>@bill.purchase.SupplierID</td>
@@ -340,7 +340,7 @@
 						@foreach (var bill in sivakasiCreditRecipts)
 					{
 						<tr>
-							<td style="cursor:pointer;">@("PY_SFR" + (bill.PaymentNo.ToString().PadLeft(7, '0')))</td>
+							<td style="cursor:pointer;">@("PY_SFR" + (bill.PaymentNo.ToString().PadLeft(4, '0')))</td>
 							<td>@bill.PaymentDate.ToString("dd-MMM-yyyy")</td>
 							<td>@bill.supplier.SupplierID</td>
 							<td>@bill.supplier.Name</td>
@@ -383,7 +383,7 @@
 						@foreach (var bill in bypassCreditRecipts)
 					{
 						<tr>
-							<td style="cursor:pointer;">@("PY_SFR" + (bill.PaymentNo.ToString().PadLeft(7, '0')))</td>
+							<td style="cursor:pointer;">@("PY_BPR" + (bill.PaymentNo.ToString().PadLeft(4, '0')))</td>
 							<td>@bill.PaymentDate.ToString("dd-MMM-yyyy")</td>
 							<td>@bill.supplier.SupplierID</td>
 							<td>@bill.supplier.Name</td>
@@ -412,11 +412,11 @@
 
 		if (isCredit)
 		{
-			currentComponent = 2;
+			currentComponent = 1;
 		}
 		if (isBill)
 		{
-			currentComponent = 1;
+			currentComponent = 0;
 		}
 
 

@@ -288,7 +288,7 @@ namespace AutoDynamics.Services
 
                 string query = @"
             SELECT 
-                r.ReceiptID, r.CustomerID, r.PaymentDate, r.TotalAmountPaid, r.LedgerID,r.Branch,
+                r.ReceiptID, r.CustomerID, r.PaymentDate, r.TotalAmountPaid, r.LedgerID,r.Branch,r.ReceiptNo,
                 c.Name,
                 rb.BillID, rb.AmountPaid, rb.BalanceAmount,
                 cr.CreditID, cr.PaidAmount, cr.Status
@@ -322,6 +322,7 @@ namespace AutoDynamics.Services
                                 var receipt = new CreditReciptType
                                 {
                                     ReceiptId = receiptId,
+                                    ReceiptNO = reader.GetInt32("ReceiptNo"),
                                     Branch = reader.GetString("Branch"),
                                     ReciptDate = reader.GetDateTime("PaymentDate"),
                                     TotalAmountPaid = reader.GetDecimal("TotalAmountPaid"),
@@ -370,7 +371,7 @@ namespace AutoDynamics.Services
 
                 string query = @"
             SELECT 
-                r.PaymentID, r.SupplierID, r.PaymentDate, r.TotalAmountPaid, r.LedgerID,r.Branch,
+                r.PaymentID, r.SupplierID, r.PaymentDate, r.TotalAmountPaid, r.LedgerID,r.Branch,r.PaymentNo,
                 c.Name,
                 rb.PurchaseBillID, rb.AmountPaid, rb.BalanceAmount,
                 cr.SupplierCreditID, cr.PaidAmount, cr.Status
@@ -404,6 +405,7 @@ namespace AutoDynamics.Services
                                 var receipt = new PaymentReciptType
                                 {
                                     PaymentId = receiptId,
+                                    PaymentNo = reader.GetInt32("PaymentNo"),
                                     Branch = reader.GetString("Branch"),
                                     PaymentDate = reader.GetDateTime("PaymentDate"),
                                     TotalAmountPaid = reader.GetDecimal("TotalAmountPaid"),

@@ -359,7 +359,7 @@
 				<table class="table table-bordered table-hover">
 					<thead class="table-dark">
 						<tr>
-							<th>Receipt ID</th>
+							<th>Receipt No</th>
 							<th>Receipt Date</th>
 							<th>Customer ID</th>
 							<th>Name</th>
@@ -371,7 +371,7 @@
 						@foreach (var bill in sivakasiCreditRecipts)
 					{
 						<tr>
-							<td style="cursor:pointer;">@("R_SFR" + (bill.ReceiptId.ToString().PadLeft(7, '0')))</td>
+							<td style="cursor:pointer;">@("RC_SFR" + (bill.ReceiptNO.ToString().PadLeft(4, '0')))</td>
 							<td>@bill.ReciptDate.ToString("dd-MMM-yyyy")</td>
 							<td>@bill.customer.CustomerId</td>
 							<td>@bill.customer.Name</td>
@@ -402,7 +402,7 @@
 				<table class="table table-bordered table-hover">
 					<thead class="table-dark">
 						<tr>
-							<th>Receipt ID</th>
+							<th>Receipt No</th>
 							<th>Receipt Date</th>
 							<th>Customer ID</th>
 							<th>Name</th>
@@ -414,7 +414,7 @@
 						@foreach (var bill in bypassCreditRecipts)
 					{
 						<tr>
-							<td style="cursor:pointer;">@("R_SFR" + (bill.ReceiptId.ToString().PadLeft(7, '0')))</td>
+							<td style="cursor:pointer;">@("RC_BPR" + (bill.ReceiptNO.ToString().PadLeft(4, '0')))</td>
 							<td>@bill.ReciptDate.ToString("dd-MMM-yyyy")</td>
 							<td>@bill.customer.CustomerId</td>
 							<td>@bill.customer.Name</td>

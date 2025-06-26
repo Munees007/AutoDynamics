@@ -315,6 +315,14 @@
             error = "Customer must be selected";
             return false;
         }
+        List<CreditBill> selectedBills = creditReciptTypes.creditBills
+                .Where(b => b.isSelected && b.amountPayed > 0)
+                .ToList();
+        if(splitAmount > 0 && splitAmount != selectedBills.Sum((b)=> b.amountPayed))
+        {
+            error = "Amount not matched";
+            return false;
+        }
 
         error = "";
         return true;
