@@ -1,27 +1,18 @@
-﻿@page "/ledger"
-@inject IDatabaseHandler DatabaseHandler
-@inject ITabService TabService
-<h3 class="mb-3">Ledger Entries</h3>
+﻿@inject IDatabaseHandler DatabaseHandler
+@inject IToastService ToastService
+
+
+<h3 class="mb-3">@LedgerAccount.AccountName</h3>
 
 <div class="mb-3">
     <label>Branch: </label>
-    <select @bind="selectedBranch"  class="form-select w-25 mb-3">
+    <select @bind="selectedBranch" class="form-select w-25 mb-3">
         <option value="Sivakasi">Sivakasi</option>
         <option value="ByPass">ByPass</option>
 
     </select>
 </div>
 
-<div class="mb-3">
-    <label>Filter By: </label>
-    <select @bind="filterType"  class="form-select w-25 mb-3">
-        <option value="all">All</option>
-        <option value="CASH A/C">CASH A/C</option>
-        <option value="BANK A/C">BANK A/C</option>
-        <option value="CARD A/C">CARD A/C</option>
-        <option value="ac">A/C</option>
-    </select>
-</div>
 
 <div class="mb-3">
     <label>Sort By: </label>
@@ -42,90 +33,47 @@
 <div class="w-100 d-flex justify-content-between align-items-md-center">
     <button class="btn btn-primary mb-3" @onclick="ApplyFilters">Apply Filters</button>
 </div>
-@if(filterType == "ac")
-{
-    <div style="overflow-x:auto;">
-        <table class="table table-bordered table-hover text-center align-middle ledger-table">
-            <thead class="table-secondary">
-                <tr>
-                    <th>Account Type</th>
-                    <th>Account Names</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var account in AccountTypes)
-                {
-                    if (!account.isActive) continue;
-                    if (account.AccountName == "CASH A/C" || account.AccountName == "BANK A/C" || account.AccountName == "CARD A/C") continue;
-                    <tr>
-                        <td>@account.AccountType.ToString()</td>
-                        <td>@account.AccountName</td>
-                        <td>
-                            <button class="btn btn-warning btn-sm" @onclick="()=>{ViewAccount(account);}">VIEW</button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-}
-else
-{
-    <div style="overflow-x:auto;">
-        <table class="table table-bordered table-hover text-center align-middle ledger-table">
-            <thead class="table-secondary">
-                <tr>
-                    <th>Date</th>
-                    <th>Account Type</th>
-                    <th>Transaction Type</th>
-                    <th>ForWho</th>
-                    <th>Particulars</th>
-                    <th>Dr (₹)</th>
-                    <th>Cr (₹)</th>
-                    <th>Balance</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var ledger in ledgers)
-                {
-                    <tr>
-                        <td>@ledger.Date.ToString("dd-MM-yyyy")</td>
-                        <td>@ledger.AccountType?.AccountName</td>
-                        <td>@ledger.TransactionType</td>
-                        <td>@ledger.ForWhoName</td>
-                        <td>@ledger.Particulars</td>
-                        <td class="text-end">@ledger.DR_Amount.ToString("N2")</td>
-                        <td class="text-end">@ledger.CR_Amount.ToString("N2")</td>
-                        <td class="text-end">@GetFormattedBalance(ledger.Balance)</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-}
 
-
-@code {
+<div style="overflow-x:auto;">
+    <table class="table table-bordered table-hover text-center align-middle ledger-table">
+        <thead class="table-secondary">
+            <tr>
+                <th>Date</th>
+                <th>Account Type</th>
+                <th>Transaction Type</th>
+                <th>ForWho</th>
+                <th>Particulars</th>
+                <th>Dr (₹)</th>
+                <th>Cr (₹)</th>
+                <th>Balance</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var ledger in ledgers)
+            {
+                <tr>
+                    <td>@ledger.Date.ToString("dd-MM-yyyy")</td>
+                    <td>@ledger.AccountType?.AccountName</td>
+                    <td>@ledger.TransactionType</td>
+                    <td>@ledger.ForWhoName</td>
+                    <td>@ledger.Particulars</td>
+                    <td class="text-end">@ledger.DR_Amount.ToString("N2")</td>
+                    <td class="text-end">@ledger.CR_Amount.ToString("N2")</td>
+                    <td class="text-end">@GetFormattedBalance(ledger.Balance)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+@code{
+    [Parameter] public LedgerAcccounts LedgerAccount { get; set; } = new();
     List<Ledger> ledgers = new();
     List<Ledger> sortedLedgers = new();
-    List<LedgerAcccounts> AccountTypes = new();
-    string currentSortColumn = nameof(Ledger.Date);
-    bool sortAscending = true;
-    string selectedAccountType = "";
     string selectedBranch = "Sivakasi";
-    string filterType = "all";
     string selectedSortingOption = "date";
+
     DateTime? startDate, endDate;
 
-    void ViewAccount(LedgerAcccounts ledgerAccount)
-    {
-        Dictionary<string, dynamic> parameter = new Dictionary<string, dynamic>
-        {
-            {"LedgerAccount",ledgerAccount}
-        };
-        TabService.OpenWithParameter(ledgerAccount.AccountName, typeof(ViewSingleAccountLedger), parameter);
-    }
 
     async Task ApplyFilters()
     {
@@ -147,10 +95,10 @@ else
         // Build a WHERE clause for opening balance (same filter by AccountID if needed)
         string openingWhereClause = $"WHERE Date < '{openingDateBoundary:yyyy-MM-dd HH:mm:ss}' AND isActive = 1 AND Branch = '{selectedBranch}'";
 
-        if (filterType != "all" && filterType != "ac")
-        {
-            openingWhereClause += $" AND AccountID = {getAccountID(filterType)}";
-        }
+
+
+        openingWhereClause += $" AND AccountID = {LedgerAccount.AcccountId}";
+
 
         // Query for opening balance
         var openingBalanceQuery = $@"SELECT SUM(DrAmount - CrAmount) as OpeningBalance FROM CashBankLedger {openingWhereClause}";
@@ -162,7 +110,7 @@ else
 
         string whereClause = "";
 
-        switch(selectedSortingOption)
+        switch (selectedSortingOption)
         {
             case "date":
                 whereClause += $"WHERE DATE(Date) = '{today:yyyy-MM-dd}' AND Branch = '{selectedBranch}'";
@@ -182,17 +130,16 @@ else
             default:
                 break;
         }
-        if(filterType != "all" && filterType != "ac")
+
+        if (whereClause == "")
         {
-            if(whereClause == "")
-            {
-                whereClause += $"WHERE AccountID = {getAccountID(filterType)} AND Branch = '{selectedBranch}'";
-            }
-            else
-            {
-                whereClause += $" AND AccountID = {getAccountID(filterType)} AND Branch = '{selectedBranch}'";
-            }
+            whereClause += $"WHERE AccountID = {LedgerAccount.AcccountId} AND Branch = '{selectedBranch}'";
         }
+        else
+        {
+            whereClause += $" AND AccountID = {LedgerAccount.AcccountId} AND Branch = '{selectedBranch}'";
+        }
+
         var query = $@"SELECT LedgerID, Date, AccountID, Branch, TransactionType,ForWho, ReferenceID, Particulars, CrAmount, DrAmount, Balance,isActive
                       FROM CashBankLedger {whereClause} Order By Date";
         Debug.WriteLine(query);
@@ -201,14 +148,14 @@ else
         if (res.Count > 0)
         {
             ledgers.Add(new Ledger
-                {
-                    Branch = selectedBranch,
-                    Date = openingDateBoundary,
-                    Particulars = "Opening Balance",
-                    DR_Amount = 0.0m,
-                    CR_Amount = 0.0m,
-                    Balance = openingBalance
-                });
+            {
+                Branch = selectedBranch,
+				Date = openingDateBoundary,
+			    Particulars = "Opening Balance",
+				DR_Amount = 0.0m,
+				CR_Amount = 0.0m,
+                Balance = openingBalance
+            });
             foreach (var row in res)
             {
                 bool active = row["isActive"].ToString() == "1" ? true : false;
@@ -218,7 +165,7 @@ else
                         LedgerID = Convert.ToInt32(row["LedgerID"]),
                         Date = Convert.ToDateTime(row["Date"]),
                         AccountID = Convert.ToInt32(row["AccountID"]),
-                        AccountType = AccountTypes.FirstOrDefault((b) => b.AcccountId == Convert.ToInt32(row["AccountID"] ?? "0")),
+                        AccountType = LedgerAccount,
                         Branch = row["Branch"]?.ToString() ?? "",
                         TransactionType = Enum.TryParse<TransactionType>(row["TransactionType"].ToString(), out var tran) ? tran : TransactionType.OTHER,
                         ReferenceID = row["ReferenceID"] != DBNull.Value ? Convert.ToInt32(row["ReferenceID"]) : 0,
@@ -229,7 +176,7 @@ else
                         Balance = Convert.ToDecimal(row["Balance"]),
                         isActive = active
                     };
-                if(temp.TransactionType == TransactionType.BILL || temp.TransactionType == TransactionType.RECEIPT)
+                if (temp.TransactionType == TransactionType.BILL || temp.TransactionType == TransactionType.RECEIPT)
                 {
                     string getCustomerDetails = $"SELECT Name FROM Customers WHERE CustomerID = '{temp.ForWho}'";
                     var customerDetails = await DatabaseHandler.ExecuteQueryAsync(getCustomerDetails);
@@ -262,10 +209,7 @@ else
 
     }
 
-    int getAccountID(string type)
-    {
-        return AccountTypes.FirstOrDefault((a) => a.AccountName.ToString() == type)?.AcccountId ?? 0;
-    }
+    
     string GetFormattedBalance(decimal balance)
     {
         if (balance == 0)
@@ -274,27 +218,9 @@ else
         var suffix = balance > 0 ? " Dr" : " Cr";
         return Math.Abs(balance).ToString("N2") + suffix;
     }
-    protected override async Task OnInitializedAsync()
-    {
 
-        var fetch = @"SELECT * FROM LedgerAccounts";
-
-        var res1 = await DatabaseHandler.ExecuteQueryAsync(fetch);
-
-        if (res1.Count > 0)
-        {
-            foreach (var row in res1)
-            {
-                LedgerAccountsType at;
-                Enum.TryParse<LedgerAccountsType>(row["AccountType"].ToString(), out at);
-                AccountTypes.Add(new LedgerAcccounts
-                    {
-                        AcccountId = Int32.Parse(row["AccountID"].ToString() ?? "0"),
-                        AccountName = row["AccountName"].ToString(),
-                        AccountType = at,
-                        isActive = bool.Parse(row["IsActive"].ToString() ?? "true")
-                    });
-            }
-        }
-    }
+	protected async override Task OnInitializedAsync()
+	{
+		
+	}
 }
