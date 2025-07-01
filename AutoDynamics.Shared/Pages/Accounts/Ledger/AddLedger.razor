@@ -47,7 +47,7 @@
 						<option value="@PaymentTypes.CASH">CASH</option>
 						<option value="@PaymentTypes.CARD">CARD</option>
 						<option value="@PaymentTypes.BANK">BANK</option>
-						<option value="@PaymentTypes.UPI">UPI</option>
+
 					</select>
 				</div>
 			}
@@ -103,8 +103,8 @@
 						}
 						<td>
 							<div class="d-flex gap-3">
-							<button type="button" class="btn btn-outline-secondary" @onclick="()=>{currentLedger = ledger;getCSTDialpg.showDialog = true;StateHasChanged();}">+ </button>
-							<p>@ledger.ForWhoName</p>
+								<button type="button" class="btn btn-outline-secondary" @onclick="()=>{currentLedger = ledger;getCSTDialpg.showDialog = true;StateHasChanged();}">+ </button>
+								<p>@ledger.ForWhoName</p>
 							</div>
 						</td>
 						<td>
@@ -123,7 +123,7 @@
 									<option value="@PaymentTypes.CASH">CASH</option>
 									<option value="@PaymentTypes.CARD">CARD</option>
 									<option value="@PaymentTypes.BANK">BANK</option>
-									<option value="@PaymentTypes.UPI">UPI</option>
+
 								</select>
 							</td>
 						}
@@ -139,8 +139,14 @@
 
 	@if(LedgerType == "SE")
 	{
-		<button class="btn btn-success mt-3 " @onclick="()=>{ledgers = createSingleEntry();}" disabled="@(ledgers.Count == 0)">
+		<button class="btn btn-success mt-3 " @onclick="()=>{ledgers = createSingleEntry(false);}" disabled="@(ledgers.Count == 0)">
 			✅ Check Single Entry
+		</button>
+	}
+	@if(LedgerType == "DE")
+	{
+		<button class="btn btn-success mt-3 " @onclick="()=>{ledgers = createSingleEntry(true);}" disabled="@(ledgers.Count == 0)">
+			✅ Check Double Entry
 		</button>
 	}
 
@@ -298,12 +304,17 @@
 		loaderText = "";
 	}
 
-	List<Ledger> createSingleEntry()
+	List<Ledger> createSingleEntry(bool isDouble)
 	{
 		List<Ledger> newLedgers = new();
 
 		foreach(var ledger in ledgers)
 		{
+			if(isDouble)
+			{
+				transactionType = ledger.TransactionType;
+				paymentType = ledger.PaymentMode;
+			}
 			ledger.TransactionType = transactionType;
 			ledger.PaymentMode = paymentType;
 			newLedgers.Add(ledger);
@@ -344,7 +355,11 @@
 
 			if (LedgerType == "Single Entry")
 			{
-				ledgers = createSingleEntry();
+				ledgers = createSingleEntry(false);
+			}
+			else
+			{
+				ledgers = createSingleEntry(true);
 			}
 
 			await DatabaseHandler.InsertOrUpdateMultipleLedger(ledgers);

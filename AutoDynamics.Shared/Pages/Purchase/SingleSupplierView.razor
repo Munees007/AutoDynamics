@@ -664,7 +664,7 @@
 		if (customerStatements.Count > 0)
 		{
 
-			string path = await PDFGenerator.GenerateSupplierStatement(customerStatements, openingBalance, supplierData);
+			string path = await PDFGenerator.GenerateSupplierStatement(customerStatements, openingBalance, supplierData,startDate?.ToString("dd/MM/yyyy"),endDate?.ToString("dd/MM/yyyy"));
 
 			ToastService.ShowToast($"SavedAt = {path}", ToastType.sucess);
 		}

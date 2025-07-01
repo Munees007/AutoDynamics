@@ -1,6 +1,8 @@
 ﻿@page "/ledger"
 @inject IDatabaseHandler DatabaseHandler
 @inject ITabService TabService
+@inject IToastService ToastService
+
 <h3 class="mb-3">Ledger Entries</h3>
 
 <div class="mb-3">
@@ -57,7 +59,8 @@
                 @foreach (var account in AccountTypes)
                 {
                     if (!account.isActive) continue;
-                    if (account.AccountName == "CASH A/C" || account.AccountName == "BANK A/C" || account.AccountName == "CARD A/C") continue;
+                    if (account.AccountName == "CASH A/C" || account.AccountName == "BANK A/C" || account.AccountName == "CARD A/C"
+                    || account.AccountName == "CUSTOMER A/C" || account.AccountName == "CUSTOMER CREDIT A/C" || account.AccountName == "SUPPLIER A/C") continue;
                     <tr>
                         <td>@account.AccountType.ToString()</td>
                         <td>@account.AccountName</td>
@@ -106,6 +109,7 @@ else
 }
 
 
+<Loader show="@isLoading" customText="Fetching Data..."></Loader>
 @code {
     List<Ledger> ledgers = new();
     List<Ledger> sortedLedgers = new();
@@ -117,6 +121,7 @@ else
     string filterType = "all";
     string selectedSortingOption = "date";
     DateTime? startDate, endDate;
+    bool isLoading = false;
 
     void ViewAccount(LedgerAcccounts ledgerAccount)
     {
@@ -129,6 +134,7 @@ else
 
     async Task ApplyFilters()
     {
+        isLoading = true;
         ledgers.Clear();
         sortedLedgers.Clear();
         DateTime today = DateTime.Today;
@@ -260,6 +266,9 @@ else
             ledger.Balance = runningBalance;
         }
 
+        isLoading = false;
+        StateHasChanged();
+
     }
 
     int getAccountID(string type)
@@ -276,7 +285,7 @@ else
     }
     protected override async Task OnInitializedAsync()
     {
-
+        isLoading = true;
         var fetch = @"SELECT * FROM LedgerAccounts";
 
         var res1 = await DatabaseHandler.ExecuteQueryAsync(fetch);
@@ -296,5 +305,7 @@ else
                     });
             }
         }
+        isLoading = false;
+        StateHasChanged();
     }
 }

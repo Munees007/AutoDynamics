@@ -30,7 +30,8 @@ public static class MauiProgram
         builder.Services.AddSingleton<IMultiWindowService, MultiWindowService>();
         builder.Services.AddSingleton<ITabService,TabService>();
         builder.Services.AddSingleton<IApiService,ApiService>();
-        
+        builder.Services.AddSingleton<IExcelService,ExcelService>();
+
         builder.Services.AddScoped<IMyLocalStorageService, MyLocalStorageService>();
         builder.Services.AddScoped<IAlertService, AlertService>();
         

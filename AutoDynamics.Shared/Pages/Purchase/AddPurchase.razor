@@ -10,8 +10,12 @@
 @inject IJSRuntime JS
 @inject IDatabaseHandler DatabaseHandler
 <div style="max-width:100%">
-    <h3 class="text-primary">Purchase</h3>
-
+    <div class="d-flex justify-content-between">
+        <h3 class="text-primary">Purchase</h3>
+        <button type="button" class="btn btn-outline-secondary @(isViewing ? "visually-hidden" : "")" @onclick="async ()=>{await NecessaryData(true);}">
+            Refresh
+        </button>
+    </div>
     <div class="container w-100 m-3">
         <div class="row mb-4">
             <div class="col-md-4">
@@ -39,9 +43,7 @@
 
                 <div class="input-group">
                     <input disabled="@isViewing" @onkeydown="HandleCustomerKey" autocomplete="off" type="text" id="Customer" @bind="CustomerSearch" @oninput="OnCustomerSearch" class="form-control" placeholder="Search by ID, Name, or Contact" required>
-                    <button type="button" class="btn btn-outline-secondary" @onclick="NecessaryData">
-                        🔄
-                    </button>
+
                 </div>
                 <SearchSelect @ref="customerListRef" Items="filteredSuppliers" OnSelect="@(c=> SelectCustomer(c))" T="Supplier" showSuggestions="ShowCustomerSuggestion" ShowSuggestionsChanged="@((bool val) => ShowCustomerSuggestion = val)">
                     <ItemTemplate Context="cust">
@@ -453,7 +455,7 @@
             ledgers.Add(bankLedger);
         }
 
-        
+
 
 
 
@@ -504,8 +506,13 @@
         StateHasChanged();
     }
 
-    public async Task NecessaryData()
+    public async Task NecessaryData(bool isManual = false)
     {
+        if(isManual)
+        {
+            isProcessing = true;
+            loaderText = "Fetching Data...";
+        }
         string customerQuery = @"SELECT * FROM Suppliers";
         string productsQuery = @"SELECT * FROM Product p JOIN Brands b ON b.BrandID = p.BrandID";
 
@@ -570,6 +577,12 @@
                     });
             }
         }
+        if(isManual)
+        {
+            isProcessing = false;
+            loaderText = "";
+        }
+        StateHasChanged();
     }
 
     private void AddNewItem()

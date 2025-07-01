@@ -16,7 +16,7 @@
             Bill No: @((bill.Branch == "Sivakasi" ? "SFR" : "BPR") + bill.BillNo.ToString().PadLeft(4, '0'))
         </h3>
          <button type="button" class="btn btn-outline-secondary @(isViewing ? "visually-hidden" : "")" @onclick="async ()=>{await NecessaryData(true);}"> 
-            Fetch
+            Refresh
         </button> 
     </div>
     

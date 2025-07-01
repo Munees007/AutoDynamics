@@ -79,9 +79,12 @@ namespace AutoDynamics.Services
             }
         }
 
+
+
         public async Task<List<int>> InsertOrUpdateMultipleLedger(List<Ledger> ledgers)
         {
             List<int> insertedOrUpdatedIds = new List<int>();
+            int firstLedgerId = 0;
 
             using (var connection = new MySqlConnection(_connectionString))
             {
@@ -92,17 +95,17 @@ namespace AutoDynamics.Services
                     try
                     {
                         string insertQuery = @"
-                INSERT INTO CashBankLedger 
-                (Date, AccountID, Branch, TransactionType, ReferenceID, Particulars, DrAmount, CrAmount, Balance) 
-                VALUES (@Date, @AccountID, @Branch, @TransactionType, @ReferenceID, @Particulars, @DrAmount, @CrAmount, @Balance);
-                SELECT LAST_INSERT_ID();";
+                    INSERT INTO CashBankLedger 
+                    (Date, AccountID, Branch, TransactionType, ReferenceID, Particulars, DrAmount, CrAmount, Balance,ForWho)
+                    VALUES (@Date, @AccountID, @Branch, @TransactionType, @ReferenceID, @Particulars, @DrAmount, @CrAmount, @Balance,@ForWho);
+                    SELECT LAST_INSERT_ID();";
 
                         string updateQuery = @"
-                UPDATE CashBankLedger 
-                SET Date = @Date, AccountID = @AccountID, Branch = @Branch,
-                    TransactionType = @TransactionType, ReferenceID = @ReferenceID,
-                    Particulars = @Particulars, DrAmount = @DrAmount, CrAmount = @CrAmount, Balance = @Balance 
-                WHERE LedgerID = @LedgerID;";
+                    UPDATE CashBankLedger 
+                    SET Date = @Date, AccountID = @AccountID, Branch = @Branch,
+                        TransactionType = @TransactionType, ReferenceID = @ReferenceID,
+                        Particulars = @Particulars, DrAmount = @DrAmount, CrAmount = @CrAmount, Balance = @Balance ,ForWho = @ForWho
+                    WHERE LedgerID = @LedgerID;";
 
                         foreach (var ledger in ledgers)
                         {
@@ -124,6 +127,7 @@ namespace AutoDynamics.Services
                                 command.Parameters.AddWithValue("@DrAmount", ledger.DR_Amount);
                                 command.Parameters.AddWithValue("@CrAmount", ledger.CR_Amount);
                                 command.Parameters.AddWithValue("@Balance", ledger.Balance);
+                                command.Parameters.AddWithValue("@ForWho", ledger.ForWho);
 
                                 if (ledger.LedgerID > 0)
                                 {
@@ -137,6 +141,23 @@ namespace AutoDynamics.Services
                                     if (newId == 0) throw new Exception("Ledger insert failed");
                                     insertedOrUpdatedIds.Add(newId);
                                 }
+                            }
+                        }
+
+                        // Step: Get the first inserted or updated LedgerID
+                        firstLedgerId = insertedOrUpdatedIds.FirstOrDefault();
+                        if (firstLedgerId > 0)
+                        {
+                            // Update EntryID of all affected ledgers to firstLedgerId
+                            string updateEntryIdQuery = @"
+                        UPDATE CashBankLedger 
+                        SET EntryID = @EntryID 
+                        WHERE LedgerID IN (" + string.Join(",", insertedOrUpdatedIds) + ")";
+
+                            using (var entryCommand = new MySqlCommand(updateEntryIdQuery, connection, transaction))
+                            {
+                                entryCommand.Parameters.AddWithValue("@EntryID", firstLedgerId);
+                                await entryCommand.ExecuteNonQueryAsync();
                             }
                         }
 

@@ -1133,7 +1133,7 @@ namespace AutoDynamics.Services
         }
 
 
-        public async Task<string> GenerateCustomerStatement(List<CustomerStatement> customerStatements, decimal openingBalance, UserModal customer)
+        public async Task<string> GenerateCustomerStatement(List<CustomerStatement> customerStatements, decimal openingBalance, UserModal customer,string StartDate,string EndDate)
         {
             try
             {
@@ -1151,7 +1151,13 @@ namespace AutoDynamics.Services
                     var fontHeader = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16);
                     var fontSubHeader = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 12);
                     var fontRow = FontFactory.GetFont(FontFactory.HELVETICA, 10);
+                    //Date
 
+                    Paragraph dateInfo = new Paragraph($"{DateTime.Now.ToString("dd/MM/yyyy hh:mm tt")}",fontHeader) { 
+                        Alignment = iTextSharp.text.Element.ALIGN_RIGHT
+                    };
+                    document.Add(dateInfo);
+                    
                     // Header
                     Paragraph companyInfo = new Paragraph("AutoDynamics\nCustomer Statement", fontHeader)
                     {
@@ -1159,7 +1165,9 @@ namespace AutoDynamics.Services
                     };
                     document.Add(companyInfo);
 
-                    Paragraph customerInfo = new Paragraph($"Customer: {customer.Name}\nCustomer ID: {customer.CustomerId}\nDate: {DateTime.Now:dd-MM-yyyy}", fontSubHeader)
+                    
+
+                    Paragraph customerInfo = new Paragraph($"Customer: {customer.Name}\nCustomer ID: {customer.CustomerId}\nDate: from {StartDate} to {EndDate}", fontSubHeader)
                     {
                         SpacingAfter = 10
                     };
@@ -1232,7 +1240,7 @@ namespace AutoDynamics.Services
             }
         }
 
-        public async Task<string> GenerateSupplierStatement(List<CustomerStatement> customerStatements, decimal openingBalance, Supplier supplier)
+        public async Task<string> GenerateSupplierStatement(List<CustomerStatement> customerStatements, decimal openingBalance, Supplier supplier, string StartDate, string EndDate)
         {
             try
             {
@@ -1251,6 +1259,11 @@ namespace AutoDynamics.Services
                     var fontSubHeader = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 12);
                     var fontRow = FontFactory.GetFont(FontFactory.HELVETICA, 10);
 
+                    Paragraph dateInfo = new Paragraph($"{DateTime.Now.ToString("dd/MM/yyyy hh:mm tt")}", fontHeader)
+                    {
+                        Alignment = iTextSharp.text.Element.ALIGN_RIGHT
+                    };
+                    document.Add(dateInfo);
                     // Header
                     Paragraph companyInfo = new Paragraph("AutoDynamics\nCustomer Statement", fontHeader)
                     {
@@ -1258,7 +1271,7 @@ namespace AutoDynamics.Services
                     };
                     document.Add(companyInfo);
 
-                    Paragraph customerInfo = new Paragraph($"Customer: {supplier.Name}\nSupplier ID: {supplier.SupplierID}\nDate: {DateTime.Now:dd-MM-yyyy}", fontSubHeader)
+                    Paragraph customerInfo = new Paragraph($"Customer: {supplier.Name}\nSupplier ID: {supplier.SupplierID}\nDate: from {StartDate} to {EndDate}", fontSubHeader)
                     {
                         SpacingAfter = 10
                     };

@@ -3,6 +3,7 @@ using AutoDynamics.Shared.Services;
 using ClosedXML.Excel;
 using DocumentFormat.OpenXml.Spreadsheet;
 using iTextSharp.text.pdf.qrcode;
+using Microsoft.AspNetCore.Components.Forms;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -263,5 +264,32 @@ namespace AutoDynamics.Services
             workBook.SaveAs(ms);
             return ms.ToArray();
         }
+        public async Task<List<List<string>>> readData(IBrowserFile file,int workSheetPosition,int startRow)
+        {
+            var result = new List<List<string>>();
+
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            ms.Position = 0;
+
+            using var workbook = new XLWorkbook(ms);
+            var worksheet = workbook.Worksheet(workSheetPosition);
+            
+
+            foreach (var row in worksheet.RowsUsed().Where(r => r.RowNumber() >= startRow))
+            {
+                var rowData = new List<string>();
+                foreach (var cell in row.CellsUsed())
+                {
+                    rowData.Add(cell.GetValue<string>());
+                }
+                result.Add(rowData);
+            }
+
+            return result;
+        }
     }
+
+    
 }
