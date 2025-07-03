@@ -1265,13 +1265,13 @@ namespace AutoDynamics.Services
                     };
                     document.Add(dateInfo);
                     // Header
-                    Paragraph companyInfo = new Paragraph("AutoDynamics\nCustomer Statement", fontHeader)
+                    Paragraph companyInfo = new Paragraph("AutoDynamics\nSupplier Statement", fontHeader)
                     {
                         Alignment = iTextSharp.text.Element.ALIGN_CENTER
                     };
                     document.Add(companyInfo);
 
-                    Paragraph customerInfo = new Paragraph($"Customer: {supplier.Name}\nSupplier ID: {supplier.SupplierID}\nDate: from {StartDate} to {EndDate}", fontSubHeader)
+                    Paragraph customerInfo = new Paragraph($"Supplier: {supplier.Name}\nSupplier ID: {supplier.SupplierID}\nDate: from {StartDate} to {EndDate}", fontSubHeader)
                     {
                         SpacingAfter = 10
                     };
@@ -1301,7 +1301,7 @@ namespace AutoDynamics.Services
                         entryTable.AddCell(CreateCell(entry.credit > 0 ? entry.credit.ToString("0.00") : "", fontRow, iTextSharp.text.Element.ALIGN_RIGHT));
 
                         // ✅ Balance Calculation
-                        if (entry.accountType == "SALES A/C")
+                        if (entry.accountType == "PURCHASE A/C")
                         {
                             runningBalance += entry.credit; // Customer owes us more
                         }
@@ -1309,7 +1309,7 @@ namespace AutoDynamics.Services
                         {
                             runningBalance -= entry.debit; // Customer paid us
                         }
-                        else if (entry.accountType == "RECEIPT A/C")
+                        else if (entry.accountType == "PAYMENT A/C")
                         {
                             runningBalance -= entry.debit; // Receipt is money received, reduce the balance
                         }
@@ -1326,7 +1326,7 @@ namespace AutoDynamics.Services
                     writer.Close();
 
                     byte[] pdfBytes = memoryStream.ToArray();
-                    string tempPath = Path.Combine(FileSystem.CacheDirectory, "CustomerStatement.pdf");
+                    string tempPath = Path.Combine(FileSystem.CacheDirectory, "SupplierStatement.pdf");
                     await File.WriteAllBytesAsync(tempPath, pdfBytes);
 
                     if (DeviceInfo.Platform == DevicePlatform.WinUI)

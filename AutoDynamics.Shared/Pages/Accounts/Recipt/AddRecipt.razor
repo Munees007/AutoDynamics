@@ -359,7 +359,7 @@
             {
                 cashLedger = new Ledger
                     {
-                        DR_Amount = selectedBills.Where((b) => b.paymentType == PaymentTypes.CASH).Sum(b => b.amountPayed),
+                        DR_Amount = selectedBills.Sum(b => b.amountPayed),
                         CR_Amount = 0,
                         Branch = currentBranch,
                         TransactionType = TransactionType.RECEIPT,
@@ -375,7 +375,7 @@
             {
                 bankLedger = new Ledger
                     {
-                        DR_Amount = selectedBills.Where((b) => b.paymentType != PaymentTypes.CASH && b.paymentType != PaymentTypes.CARD).Sum(b => b.amountPayed),
+                        DR_Amount = selectedBills.Sum(b => b.amountPayed),
                         CR_Amount = 0,
                         Branch = currentBranch,
                         TransactionType = TransactionType.RECEIPT,
@@ -393,7 +393,7 @@
                     {
                         AccountID = AccountTypes.FirstOrDefault((b) => b.AccountName.ToString() == "CARD A/C")?.AcccountId ?? 0,
                     //AccountType = LedgerAccountType.BANK,
-                        DR_Amount = selectedBills.Where((b) => b.paymentType == PaymentTypes.CARD).Sum(b => b.amountPayed),
+                        DR_Amount = selectedBills.Sum(b => b.amountPayed),
                         Particulars = $"By Card",
                         TransactionType = TransactionType.RECEIPT,
                         Date = creditReciptTypes.ReciptDate,

@@ -353,14 +353,7 @@
 			isLoading = true;
 			loaderText = "Saving Ledger...";
 
-			if (LedgerType == "Single Entry")
-			{
-				ledgers = createSingleEntry(false);
-			}
-			else
-			{
-				ledgers = createSingleEntry(true);
-			}
+			
 
 			await DatabaseHandler.InsertOrUpdateMultipleLedger(ledgers);
 			isLoading = false;

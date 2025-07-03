@@ -471,11 +471,12 @@
 
             sivakasiStocks = stockDetails.Where(b => string.Equals(b.Branch, "Sivakasi", StringComparison.OrdinalIgnoreCase)).ToList();
             bypassStocks = stockDetails.Where(b => string.Equals(b.Branch, "ByPass", StringComparison.OrdinalIgnoreCase)).ToList();
-            HandleSelectTable();
+            
             filteredSivakasiStocks = sivakasiStocks;
             filteredBypassStocks = bypassStocks;
             filteredSivakasiStocks.ForEach(s => sivakasiStockTotal += s.AvailableQuantity);
             filteredBypassStocks.ForEach(s => bypassStockTotal += s.AvailableQuantity);
+            HandleSelectTable();
 
         }
     }
@@ -501,6 +502,8 @@
         s.Product.BrandID.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase)).ToList();
         filteredSivakasiStocks.ForEach(s => sivakasiStockTotal += s.AvailableQuantity);
         filteredBypassStocks.ForEach(s => bypassStockTotal += s.AvailableQuantity);
+
+        HandleSelectTable();
         StateHasChanged();
     }
 

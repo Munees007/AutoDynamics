@@ -235,18 +235,36 @@ else
                         Balance = Convert.ToDecimal(row["Balance"]),
                         isActive = active
                     };
-                if(temp.TransactionType == TransactionType.BILL || temp.TransactionType == TransactionType.RECEIPT)
+                if(temp.TransactionType == TransactionType.BILL)
                 {
-                    string getCustomerDetails = $"SELECT Name FROM Customers WHERE CustomerID = '{temp.ForWho}'";
+                    string getCustomerDetails = $"SELECT Name FROM Customers WHERE CustomerID = (SELECT CustomerID FROM Bills WHERE BillID = {temp.ReferenceID})";
                     var customerDetails = await DatabaseHandler.ExecuteQueryAsync(getCustomerDetails);
                     if (customerDetails.Count > 0)
                     {
                         temp.ForWhoName = customerDetails[0]["Name"].ToString() ?? "";
                     }
                 }
-                if (temp.TransactionType == TransactionType.PURCHASE || temp.TransactionType == TransactionType.PAYMENT)
+                if (temp.TransactionType == TransactionType.RECEIPT)
                 {
-                    string getCustomerDetails = $"SELECT Name FROM Suppliers WHERE SupplierID = '{temp.ForWho}'";
+                    string getCustomerDetails = $"SELECT Name FROM Customers WHERE CustomerID = (SELECT CustomerID FROM Receipts WHERE ReceiptID = {temp.ReferenceID})";
+                    var customerDetails = await DatabaseHandler.ExecuteQueryAsync(getCustomerDetails);
+                    if (customerDetails.Count > 0)
+                    {
+                        temp.ForWhoName = customerDetails[0]["Name"].ToString() ?? "";
+                    }
+                }
+                if (temp.TransactionType == TransactionType.PURCHASE)
+                {
+                    string getCustomerDetails = $"SELECT Name FROM Suppliers WHERE SupplierID = (SELECT SupplierID FROM PurchaseBills WHERE PurchaseBillID = {temp.ReferenceID})";
+                    var customerDetails = await DatabaseHandler.ExecuteQueryAsync(getCustomerDetails);
+                    if (customerDetails.Count > 0)
+                    {
+                        temp.ForWhoName = customerDetails[0]["Name"].ToString() ?? "";
+                    }
+                }
+                if (temp.TransactionType == TransactionType.PAYMENT)
+                {
+                    string getCustomerDetails = $"SELECT Name FROM Suppliers WHERE SupplierID = (SELECT SupplierID FROM Payments WHERE PaymentID = {temp.ReferenceID})";
                     var customerDetails = await DatabaseHandler.ExecuteQueryAsync(getCustomerDetails);
                     if (customerDetails.Count > 0)
                     {

@@ -1,7 +1,8 @@
-@page "/read-excel"
+﻿@page "/read-excel"
 @inject IExcelService ExcelService
-
-
+@inject IDatabaseHandler DatabaseHandler
+@inject IToastService ToastService
+@using System.Globalization
 <h3 class="text-center mt-4 mb-3 fw-bold text-primary">Read Excel File</h3>
 
 <div class="container">
@@ -9,6 +10,9 @@
         <InputFile OnChange="OnFileSelected" accept=".xlsx, .xls" class="form-control" />
     </div>
 
+    <div class="mb-4">
+        <button class="btn btn-lg bg-success" @onclick="ConvertData">Submit</button>
+    </div>
     @if (excelData != null)
     {
         <div class="card shadow mb-5">
@@ -76,14 +80,166 @@
         </div>
     }
 </div>
-
+<Loader show="@showLoader" customText="@loaderText"></Loader>
 
 @code {
     private List<List<string>> excelData = new();
     private List<List<string>> excelData1 = new();
 
+
+
+    private List<PurchaseDetails> purchaseDetails = new();
+    private List<PaymentReciptType> paymentRecipts = new();
+
+    private bool showLoader = false;
+    private string loaderText = "";
+
+    private async void ConvertData()
+    {
+        showLoader = true;
+        loaderText = "Inserting";
+        try
+        {
+            var result = await DatabaseHandler.ExecuteQueryAsync(
+    "SELECT IFNULL(MIN(BillNo), 1) AS MinBillNo FROM PurchaseBills WHERE Branch = @Branch AND BillingYear = @BillingYear",
+    new Dictionary<string, dynamic>
+            {
+        { "@Branch", "Sivakasi" },
+        { "@BillingYear", 2025 }
+            }
+    );
+
+            // Extract the value manually
+            int minBillNo = -1;
+            if (result.Count > 0 && result[0]["MinBillNo"] != DBNull.Value)
+            {
+                int dbMin = Convert.ToInt32(result[0]["MinBillNo"]);
+                minBillNo = dbMin > 0 ? -1 : dbMin - 1; // ✅ stay negative
+            }
+
+
+            var result1 = await DatabaseHandler.ExecuteQueryAsync(
+        "SELECT IFNULL(MAX(PaymentNo), 1) AS MaxBillNo FROM Payments WHERE Branch = @Branch AND BillingYear = @BillingYear",
+        new Dictionary<string, dynamic>
+                    {
+        { "@Branch", "Sivakasi" },
+        { "@BillingYear", 2025 }
+                    }
+        );
+
+            // Extract the value manually
+            int minBillNoPayment = 1;
+            if (result1.Count > 0 && result1[0]["MaxBillNo"] != DBNull.Value)
+            {
+                minBillNoPayment = Convert.ToInt32(result1[0]["MaxBillNo"]);
+            }
+
+
+            foreach (var row in excelData)
+            {
+
+                PurchaseDetails purchase = new PurchaseDetails
+                    {
+                        purchase = new Purchase
+                        {
+                            BillingYear = 2025,
+                            BillNo = minBillNo,
+                            Branch = "Sivakasi",
+                            PurchaseDate = DateTime.ParseExact(row[0], "dd.MM.yyyy", CultureInfo.InvariantCulture),
+                            InvoiceNumber = row[3],
+                            SupplierID = row[1],
+                            TotalAmount = decimal.Parse(row[2]),
+                            type = PaymentType.CREDIT,
+                            CreatedAt = DateTime.ParseExact(row[0], "dd.MM.yyyy", CultureInfo.InvariantCulture),
+                            taxType = TaxType.EXCLUSIVE_TAX
+                        }
+                    };
+                purchaseDetails.Add(purchase);
+                minBillNo--;
+
+            }
+
+            foreach (var row in excelData1)
+            {
+                PaymentReciptType temp = new PaymentReciptType
+                    {
+                        BillingYear = 2025,
+                        Branch = "Sivakasi",
+                        supplier = new Supplier
+                        {
+                            SupplierID = row[0]
+                        },
+                        PaymentDate = DateTime.ParseExact(row[1], "dd.MM.yyyy", CultureInfo.InvariantCulture),
+                        TotalAmountPaid = decimal.Parse(row[2]),
+                        paymentType = (PaymentTypes)Enum.Parse(typeof(PaymentTypes), row[3]),
+                        CheckNumber = row[4],
+                        Narration = row[5],
+                        PaymentNo = minBillNoPayment
+                    };
+                paymentRecipts.Add(temp);
+                minBillNoPayment++;
+            }
+
+            string insertIntoPurchase = @"INSERT INTO PurchaseBills (Branch,BillingYear,BillNo,PurchaseDate,InvoiceNumber,SupplierID,TotalAmount,PaymentType,
+TaxType,CreatedAt) VALUES(@Branch,@BillingYear,@BillNo,@PurchaseDate,@InvoiceNumber,@SupplierID,@TotalAmount,@PaymentType,@TaxType,@CreatedAt)";
+
+            foreach (var row in purchaseDetails)
+            {
+                Dictionary<string, dynamic> parameters = new Dictionary<string, dynamic>
+            {
+                {"@Branch",row.purchase.Branch},
+                {"@BillingYear",row.purchase.BillingYear},
+                {"@BillNo",row.purchase.BillNo},
+                {"@PurchaseDate",row.purchase.PurchaseDate},
+                {"@InvoiceNumber",row.purchase.InvoiceNumber},
+                {"@SupplierID",row.purchase.SupplierID},
+                {"@TotalAmount",row.purchase.TotalAmount},
+                {"@PaymentType",row.purchase.type.ToString()},
+                {"@TaxType",row.purchase.taxType.ToString()},
+                {"@CreatedAt",row.purchase.CreatedAt},
+            };
+
+                await DatabaseHandler.ExecuteNonQueryAsync(insertIntoPurchase, parameters);
+            }
+
+            string insertPayment = @"INSERT INTO Payments (SupplierID,PaymentDate,TotalAmountPaid,PaymentMode,CreatedAt,Branch,CheckNumber,BillingYear,PaymentNo,Narration)
+            VALUES (@SupplierID,@PaymentDate,@TotalAmountPaid,@PaymentMode,@CreatedAt,@Branch,@CheckNumber,@BillingYear,@PaymentNo,@Narration)";
+
+            foreach (var row in paymentRecipts)
+            {
+                Dictionary<string, dynamic> parameters = new Dictionary<string, dynamic>
+            {
+                {"SupplierID",row.supplier.SupplierID},
+                {"PaymentDate",row.PaymentDate},
+                {"TotalAmountPaid",row.TotalAmountPaid},
+                {"PaymentMode",row.paymentType.ToString()},
+                {"CreatedAt",row.PaymentDate},
+                {"Branch",row.Branch},
+                {"CheckNumber",row.CheckNumber},
+                {"BillingYear",row.BillingYear},
+                {"PaymentNo",row.PaymentNo},
+                {"Narration",row.Narration}
+            };
+                await DatabaseHandler.ExecuteNonQueryAsync(insertPayment, parameters);
+            }
+            ToastService.ShowToast("Inserting Successful", ToastType.sucess);
+        }
+        catch(Exception e)
+        {
+            ToastService.ShowToast(e.Message, ToastType.error);
+        }
+        
+
+        showLoader = false;
+        loaderText = "";
+        StateHasChanged();
+
+    }
+
     private async Task OnFileSelected(InputFileChangeEventArgs e)
     {
+        showLoader = true;
+        loaderText = "Reading File";
         var file = e.File as IBrowserFile;
         if (file != null)
         {
@@ -99,5 +255,8 @@
         {
             Console.WriteLine("File is null.");
         }
+        showLoader = false;
+        loaderText = "";
+        StateHasChanged();
     }
 }

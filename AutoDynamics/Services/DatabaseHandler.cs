@@ -294,7 +294,7 @@ namespace AutoDynamics.Services
                     }
                 }
             }
-
+            Debug.WriteLine(insertedOrUpdatedIds.Count);
             return insertedOrUpdatedIds;
         }
 
@@ -661,14 +661,14 @@ namespace AutoDynamics.Services
                             }
 
                             string updateCreditRecord = @"UPDATE CreditRecord 
-                                                  SET PaidAmount = PaidAmount + @PaidAmount, 
-                                                      Status = @Status 
+                                                  SET PaidAmount = PaidAmount + @PaidAmount
+                                                      
                                                   WHERE CreditID = @CreditID";
 
                             using (var command = new MySqlCommand(updateCreditRecord, connection, (MySqlTransaction)transaction))
                             {
                                 command.Parameters.AddWithValue("@PaidAmount", item.amountPayed);
-                                command.Parameters.AddWithValue("@Status", item.CreditStatus.ToString());
+                                
                                 command.Parameters.AddWithValue("@CreditID", item.creditId);
                                 await command.ExecuteNonQueryAsync();
                             }
