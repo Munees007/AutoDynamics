@@ -111,11 +111,15 @@
 
             // Extract the value manually
             int minBillNo = -1;
+
             if (result.Count > 0 && result[0]["MinBillNo"] != DBNull.Value)
             {
-                int dbMin = Convert.ToInt32(result[0]["MinBillNo"]);
-                minBillNo = dbMin > 0 ? -1 : dbMin - 1; // ✅ stay negative
+                int existingMin = Convert.ToInt32(result[0]["MinBillNo"]);
+
+                // Ensure we continue going down
+                minBillNo = existingMin < 0 ? existingMin - 1 : -1;
             }
+
 
 
             var result1 = await DatabaseHandler.ExecuteQueryAsync(
@@ -131,7 +135,7 @@
             int minBillNoPayment = 1;
             if (result1.Count > 0 && result1[0]["MaxBillNo"] != DBNull.Value)
             {
-                minBillNoPayment = Convert.ToInt32(result1[0]["MaxBillNo"]);
+                minBillNoPayment = Convert.ToInt32(result1[0]["MaxBillNo"]) + 1;
             }
 
 
@@ -226,6 +230,7 @@ TaxType,CreatedAt) VALUES(@Branch,@BillingYear,@BillNo,@PurchaseDate,@InvoiceNum
         }
         catch(Exception e)
         {
+            Debug.Write(e.Message);
             ToastService.ShowToast(e.Message, ToastType.error);
         }
         

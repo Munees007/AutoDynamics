@@ -1303,20 +1303,22 @@ namespace AutoDynamics.Services
                         // ✅ Balance Calculation
                         if (entry.accountType == "PURCHASE A/C")
                         {
-                            runningBalance += entry.credit; // Customer owes us more
+                            runningBalance += entry.debit; // Customer owes us more
                         }
                         else if (entry.accountType == "CASH A/C" || entry.accountType == "BANK A/C" || entry.accountType == "CARD A/C")
                         {
-                            runningBalance -= entry.debit; // Customer paid us
+                            runningBalance -= entry.credit; // Customer paid us
                         }
                         else if (entry.accountType == "PAYMENT A/C")
                         {
-                            runningBalance -= entry.debit; // Receipt is money received, reduce the balance
+                            runningBalance -= entry.credit; // Receipt is money received, reduce the balance
                         }
 
                         entryTable.AddCell(CreateCell(runningBalance.ToString("0.00"), fontRow, iTextSharp.text.Element.ALIGN_RIGHT));
 
                         document.Add(entryTable);
+
+                        pageEvent.CarriedForwardBalance = runningBalance;
                     }
 
                     // Closing Balance

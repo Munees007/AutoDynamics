@@ -36,7 +36,7 @@
 				</div>
 				<div class="col-md-6">
 					<p><strong>Email:</strong> @supplierData.Email</p>
-					
+
 					<p><strong>Created By:</strong> @supplierData.CreatedBy</p>
 					<p><strong>Created At:</strong> @supplierData.CreateAt</p>
 					<p><strong>Updated By:</strong> @supplierData.LastUpdatedBy</p>
@@ -50,9 +50,9 @@
 	@foreach (ButtonType button in buttons)
 	{
 		<button type="button"
-				class="btn btn-outline-primary @(currentComponent == button.componentNumber ? "active" : "")"
-				disabled="@(currentComponent == button.componentNumber)"
-				@onclick="() => SetCurrentComponent(button.componentNumber)">
+		class="btn btn-outline-primary @(currentComponent == button.componentNumber ? "active" : "")"
+		disabled="@(currentComponent == button.componentNumber)"
+		@onclick="() => SetCurrentComponent(button.componentNumber)">
 			@button.Text
 		</button>
 	}
@@ -90,7 +90,7 @@
 
 	List<ButtonType> buttons = new List<ButtonType>
 		{
-		
+
 		new ButtonType{Text="Purchases",componentNumber=0},
 		new ButtonType{Text="Credit",componentNumber=1},
 		new ButtonType{ Text = "Payment",componentNumber=2}
@@ -155,7 +155,7 @@
 			}),
 			};
 
-		
+
 
 		billsFront = @<div class="col-md-6 w-100">
 		<div class="card shadow-lg mt-4">
@@ -226,7 +226,7 @@
 							<th>Name</th>
 							<th>Mobile No</th>
 							<th>Branch</th>
-							
+
 							<th>Purchase Date</th>
 							<th>Total</th>
 							<th>Actions</th>
@@ -237,13 +237,13 @@
 					{
 						<tr>
 							<td style="cursor:pointer;" @onclick="()=> {}">@("BPRP" + (bill.purchase.BillNo.ToString().PadLeft(4, '0')))</td>
-							
+
 							<td>@bill.purchase.InvoiceNumber</td>
 							<td>@bill.purchase.SupplierID</td>
 							<td>@bill.purchase.Supplier.Name</td>
 							<td>@bill.purchase.Supplier.Contact</td>
 							<td>@bill.purchase.Branch</td>
-							
+
 							<td>@bill.purchase.PurchaseDate.ToString("yyyy-MM-dd")</td>
 							<td>₹@(Math.Round(bill.purchase.TotalAmount))</td>
 							<td>
@@ -447,7 +447,18 @@
 		}
 
 	}
-
+	int GetPriority(string accountType)
+	{
+		return accountType switch
+		{
+			"PURCHASE A/C" => 1,
+			"CASH A/C" => 2,
+			"BANK A/C" => 2,
+			"CARD A/C" => 2,
+			"PAYMENT A/C" => 3,
+			_ => 4
+		};
+	}
 	public List<CustomerStatement> createLedgers()
 	{
 		List<CustomerStatement> customerStatements = new();
@@ -474,9 +485,9 @@
 						date = bill.purchase.PurchaseDate,
 						debit = bill.purchase.TotalAmount,
 						credit = 0,
-						particulars = "To purchase for Bill No : " + bill.purchase.BillNo,
+						particulars = "To purchase for Bill No : " + bill.purchase.InvoiceNumber,
 						accountType = "PURCHASE A/C",
-						type = TransactionType.BILL.ToString()
+						type = TransactionType.PURCHASE.ToString()
 					});
 
 				// Add immediate payment if any
@@ -487,9 +498,9 @@
 							date = bill.purchase.PurchaseDate, // Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
 							debit = 0,
 							credit = bill.purchase.TotalAmount,
-							particulars = "By cash received for Bill No : " + bill.purchase.BillNo,
+							particulars = "By cash received for Bill No : " + bill.purchase.InvoiceNumber,
 							accountType = "CASH A/C",
-							type = TransactionType.RECEIPT.ToString()
+							type = TransactionType.PURCHASE.ToString()
 						});
 				}
 				// if (bill.purchase.type == PaymentType.CREDIT)
@@ -504,7 +515,7 @@
 				// 			type = TransactionType.RECEIPT.ToString()
 				// 		});
 				// }
-				
+
 				// if (bill.BillPayment.BankAmount > 0)
 				// {
 				// 	customerStatements.Add(new CustomerStatement
@@ -526,11 +537,11 @@
 				customerStatements.Add(new CustomerStatement
 					{
 						date = receipt.PaymentDate,
-						credit = 0,
-						debit = receipt.TotalAmountPaid,
+						credit = receipt.TotalAmountPaid,
+						debit = 0,
 						particulars = "By payment for payment No : " + receipt.PaymentNo,
 						accountType = "PAYMENT A/C",
-						type = TransactionType.RECEIPT.ToString()
+						type = TransactionType.PAYMENT.ToString()
 					});
 			}
 		}
@@ -543,11 +554,11 @@
 			customerStatements.Add(new CustomerStatement
 				{
 					date = bill.purchase.PurchaseDate,
-					credit = bill.purchase.TotalAmount,
-					debit = 0,
-					particulars = "To purchase for purchase No : " + bill.purchase.BillNo,
+					credit = 0,
+					debit =  bill.purchase.TotalAmount,
+					particulars = "To purchase for purchase No : " + bill.purchase.InvoiceNumber,
 					accountType = "PURCHASE A/C",
-					type = TransactionType.BILL.ToString()
+					type = TransactionType.PURCHASE.ToString()
 				});
 
 			// Add immediate payment if any
@@ -558,12 +569,12 @@
 						date = bill.purchase.PurchaseDate, // Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
 						debit = 0,
 						credit = bill.purchase.TotalAmount,
-						particulars = "By cash paid for purchase No : " + bill.purchase.BillNo,
+						particulars = "By cash paid for purchase No : " + bill.purchase.InvoiceNumber,
 						accountType = "CASH A/C",
-						type = TransactionType.RECEIPT.ToString()
+						type = TransactionType.PAYMENT.ToString()
 					});
 			}
-			
+
 			// if (bill.BillPayment.BankAmount > 0)
 			// {
 			// 	customerStatements.Add(new CustomerStatement
@@ -586,38 +597,59 @@
 			customerStatements.Add(new CustomerStatement
 				{
 					date = receipt.PaymentDate,
-					credit = 0,
-					debit = receipt.TotalAmountPaid,
+					credit = receipt.TotalAmountPaid,
+					debit = 0,
 					particulars = "By payment for payment No: " + receipt.PaymentNo,
 					accountType = "PAYMENT A/C",
-					type = TransactionType.RECEIPT.ToString()
+					type = TransactionType.PAYMENT.ToString()
 				});
 		}
 
+		foreach (var entry in customerStatements)
+		{
+			entry.date = entry.date.Date; // Strip time to keep only date
+		}
+
 		// Optional: sort again in case dates are equal or include time later
-		customerStatements.Sort((a, b) => a.date.CompareTo(b.date));
+		customerStatements.Sort((a, b) =>
+	{
+		// Sort by date only (ignoring time)
+		int dateCompare = a.date.Date.CompareTo(b.date.Date);
+		if (dateCompare != 0) return dateCompare;
+
+		// If dates are same, use priority (purchase first)
+		int priorityCompare = GetPriority(a.accountType).CompareTo(GetPriority(b.accountType));
+		if (priorityCompare != 0) return priorityCompare;
+
+		// Optional: fallback on actual datetime or particulars
+		return a.date.CompareTo(b.date);
+	});
+
+
 
 		return customerStatements;
 	}
 
 	public async Task<decimal> GetOpeningBalanceAsync(List<CustomerStatement> customerStatements, DateTime? statementStartDate)
 	{
-		// 	string query = @"
-		//        SELECT COALESCE(SUM(CrAmount - DrAmount), 0) AS OpeningBalance
-		//        FROM CashBankLedger
-		//        WHERE ForWho = @customerId AND Date < @startDate AND AccountID not in(14) Order By Date;";
 
-		// 	var parameters = new Dictionary<string, object>
-		// {
-		// 	{ "@customerId", customerId },
-		// 	{ "@startDate", statementStartDate.Value.Date.ToString("yyyy-MM-dd") }
-		// };
-
-		// 	var result = await DatabaseHandler.ExecuteQueryAsync(query, parameters);
-
-		// 	return result.Count > 0 ? Convert.ToDecimal(result[0]["OpeningBalance"]) : 0;
 		if (statementStartDate == null)
 			return 0;
+
+		string query = @"
+    SELECT IFNULL(SUM(DrAmount), 0) - IFNULL(SUM(CrAmount), 0) AS OpeningBalance
+    FROM CashBankLedger
+    WHERE AccountID = @accountID AND ForWho = @supplierID AND Particulars LIKE @narration
+";
+
+		Dictionary<string, dynamic> parameters = new Dictionary<string, dynamic>
+		{
+			{"@accountID",19},
+			{"@supplierID",supplierData.SupplierID},
+			{"@narration","%Opening Balance%"}
+		};
+
+		var resultList = await DatabaseHandler.ExecuteQueryAsync(query, parameters);
 
 		// Filter only entries before the statementStartDate
 		var priorEntries = customerStatements
@@ -625,6 +657,15 @@
 			.ToList();
 
 		decimal openingBalance = 0;
+
+		if (resultList.Count > 0 && resultList[0].ContainsKey("OpeningBalance"))
+		{
+			var value = resultList[0]["OpeningBalance"];
+			if (value != null && value != DBNull.Value)
+			{
+				openingBalance = Convert.ToDecimal(value);
+			}
+		}
 
 		foreach (var entry in priorEntries)
 		{
