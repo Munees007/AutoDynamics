@@ -9,10 +9,10 @@
 		<div class="flex-grow-1">
 			<h3 class="mb-3">Ledger Entry</h3>
 			<div class="d-flex gap-2 flex-wrap">
-				<button class="btn btn-primary" @onclick="addLedger">
+				<button class="btn btn-primary" disabled="@(isViewing || isUpdating)" @onclick="addLedger">
 					➕ Add Ledger
 				</button>
-				<button class="btn btn-outline-secondary" @onclick="() => { accountType.showDialog = true; StateHasChanged(); }">
+				<button class="btn btn-outline-secondary" disabled="@(isViewing || isUpdating)" @onclick="() => { accountType.showDialog = true; StateHasChanged(); }">
 					➕ Add Account
 				</button>
 			</div>
@@ -22,7 +22,7 @@
 		<div class="d-flex flex-column flex-md-row gap-3">
 			<div>
 				<label class="form-label fw-semibold">Ledger Type</label>
-				<select class="form-select" @bind="LedgerType">
+				<select class="form-select" disabled="@(isViewing || isUpdating)" @bind="LedgerType">
 					<option value="SE">Single Entry</option>
 					<option value="DE">Double Entry</option>
 				</select>
@@ -32,7 +32,7 @@
 			{
 				<div>
 					<label class="form-label fw-semibold">Transaction Type</label>
-					<select class="form-select" @bind="transactionType">
+					<select class="form-select" disabled="@(isViewing || isUpdating)" @bind="transactionType">
 						<option value="@TransactionType.EXPENSE">EXPENSE</option>
 						<option value="@TransactionType.OTHER">OTHER</option>
 					</select>
@@ -43,7 +43,7 @@
 			{
 				<div>
 					<label class="form-label fw-semibold">Payment Type</label>
-					<select class="form-select" @bind="paymentType">
+					<select class="form-select" disabled="@(isViewing || isUpdating)" @bind="paymentType">
 						<option value="@PaymentTypes.CASH">CASH</option>
 						<option value="@PaymentTypes.CARD">CARD</option>
 						<option value="@PaymentTypes.BANK">BANK</option>
@@ -82,10 +82,10 @@
 				{
 					<tr>
 						<td>
-							<input type="date" @bind="ledger.Date" class="form-control" />
+							<input type="date" disabled="@(isViewing || isUpdating)" @bind="ledger.Date" class="form-control" />
 						</td>
 						<td>
-							<select @bind="@ledger.AccountID" class="form-select">
+							<select @bind="@ledger.AccountID" disabled="@(isViewing || isUpdating)" class="form-select">
 								@foreach(var item in accountTypes)
 								{
 									<option value="@item.AcccountId">@item.AccountName</option>
@@ -95,7 +95,7 @@
 						@if(LedgerType == "DE")
 						{
 							<td>
-								<select @bind="ledger.TransactionType" class="form-select">
+								<select @bind="ledger.TransactionType" disabled="@(isViewing || isUpdating)" class="form-select">
 									<option value="@TransactionType.EXPENSE">EXPENSE</option>
 									<option value="@TransactionType.OTHER">OTHER</option>
 								</select>
@@ -103,23 +103,23 @@
 						}
 						<td>
 							<div class="d-flex gap-3">
-								<button type="button" class="btn btn-outline-secondary" @onclick="()=>{currentLedger = ledger;getCSTDialpg.showDialog = true;StateHasChanged();}">+ </button>
+								<button type="button" disabled="@isViewing" class="btn btn-outline-secondary" @onclick="()=>{currentLedger = ledger;getCSTDialpg.showDialog = true;StateHasChanged();}">+ </button>
 								<p>@ledger.ForWhoName</p>
 							</div>
 						</td>
 						<td>
-							<input type="text" @bind="ledger.Particulars" class="form-control" placeholder="Particulars" />
+							<input type="text" disabled="@isViewing" @bind="ledger.Particulars" class="form-control" placeholder="Particulars" />
 						</td>
 						<td>
-							<input type="number" @bind="ledger.DR_Amount" class="form-control" placeholder="Dr Amount" />
+							<input type="number" disabled="@isViewing" @bind="ledger.DR_Amount" class="form-control" placeholder="Dr Amount" />
 						</td>
 						<td>
-							<input type="number" @bind="ledger.CR_Amount" class="form-control" placeholder="Cr Amount" />
+							<input type="number"  disabled="@isViewing" @bind="ledger.CR_Amount" class="form-control" placeholder="Cr Amount" />
 						</td>
 						@if (LedgerType == "DE")
 						{
 							<td>
-								<select @bind="ledger.PaymentMode" class="form-select">
+								<select disabled="@(isViewing || isUpdating)" @bind="ledger.PaymentMode" class="form-select">
 									<option value="@PaymentTypes.CASH">CASH</option>
 									<option value="@PaymentTypes.CARD">CARD</option>
 									<option value="@PaymentTypes.BANK">BANK</option>
@@ -128,8 +128,21 @@
 							</td>
 						}
 						<td>
-							<button class="btn btn-sm btn-danger" @onclick="() => removeLedger(ledger)">🗑️ Remove</button>
+							<button disabled="@(isViewing || isUpdating)" class="btn btn-sm btn-danger" @onclick="() => removeLedger(ledger)">🗑️ Remove</button>
+							@if(isUpdating)
+							{
+								<div class="form-check form-switch mb-2">
+									<input class="form-check-input"
+									type="checkbox"
+									id="statusToggle_@ledger.LedgerID"
+									@bind="ledger.isActive" />
 
+									<label class="form-check-label fw-bold ms-2 @(ledger.isActive ? "text-success" : "text-danger")"
+									for="statusToggle_@ledger.LedgerID">
+										@(ledger.isActive ? "Active" : "Inactive")
+									</label>
+								</div>
+							}
 						</td>
 					</tr>
 				}
@@ -137,22 +150,29 @@
 		</table>
 	</div>
 
-	@if(LedgerType == "SE")
+	@if(LedgerType == "SE" && !isViewing)
 	{
-		<button class="btn btn-success mt-3 " @onclick="()=>{ledgers = createSingleEntry(false);}" disabled="@(ledgers.Count == 0)">
+		<button class="btn btn-success mt-3 "  @onclick="()=>{ledgers = createSingleEntry(false);}" disabled="@(ledgers.Count == 0 || isUpdating)">
 			✅ Check Single Entry
 		</button>
 	}
-	@if(LedgerType == "DE")
+	@if(LedgerType == "DE" &&!isViewing)
 	{
-		<button class="btn btn-success mt-3 " @onclick="()=>{ledgers = createSingleEntry(true);}" disabled="@(ledgers.Count == 0)">
+		<button class="btn btn-success mt-3 " @onclick="()=>{ledgers = createSingleEntry(true);}" disabled="@(ledgers.Count == 0 || isUpdating)">
 			✅ Check Double Entry
 		</button>
 	}
 
-	<button class="btn btn-success mt-3" style="margin-left:10px" @onclick="SaveLedgerEntries" disabled="@(ledgers.Count == 0 || !IsBalanced)">
+	<button class="btn btn-success mt-3" style="margin-left:10px" @onclick="SaveLedgerEntries" disabled="@(ledgers.Count == 0 || !IsBalanced || isViewing || isUpdating)">
 		✅ Post Entries
 	</button>
+	@if(isUpdating)
+	{
+		<button class="btn btn-success mt-3" style="margin-left:10px" @onclick="UpdateLedger" disabled="@(ledgers.Count == 0 || !IsBalanced || isViewing)">
+			✅ Post Entries
+		</button>
+	}
+
 </div>
 <div class="mt-3">
 	<div class="d-flex justify-content-end gap-3">
@@ -172,7 +192,10 @@
 <DialoBox dialogBox="accountType"></DialoBox>
 <Loader customText="@loaderText" show="isLoading"/>
 @code{
-	List<Ledger> ledgers = new List<Ledger>();
+
+	[Parameter] public List<Ledger> ledgers { get; set; } = new List<Ledger>();
+	[Parameter] public bool isViewing { get; set; } = false;
+	[Parameter] public bool isUpdating { get; set; } = false;
 	decimal TotalDr => ledgers.Sum(x => x.DR_Amount);
 	decimal TotalCr => ledgers.Sum(x => x.CR_Amount);
 	decimal Difference => Math.Abs(TotalDr - TotalCr);
@@ -205,6 +228,35 @@
 	List<CommonCSType> filteredCommonCSTs = new List<CommonCSType>();
 	private SearchSelect<CommonCSType> commonSCTList;
 	private bool ShowCSTSuggestion = false;
+
+	public async Task UpdateLedger()
+	{
+		try
+		{
+			string query = @"Update CashBankLedger SET isActive = @isActive,  Particulars = @Particulars,ForWho = @ForWho, DrAmount = @DrAmount, CrAmount = @CrAmount WHERE LedgerID = @LedgerID";
+
+			foreach(var ledger in ledgers)
+			{
+				var parameters = new Dictionary<string, object>
+			{
+				{ "@Particulars", ledger.Particulars },
+				{ "@ForWho", ledger.ForWho },
+				{ "@DrAmount", ledger.DR_Amount },
+				{ "@CrAmount", ledger.CR_Amount },
+				{ "@isActive", ledger.isActive },
+				{ "@LedgerID", ledger.LedgerID }
+			};
+				await DatabaseHandler.ExecuteNonQueryAsync(query, parameters);
+			}
+			ToastService.ShowToast("Ledger updated successfully", ToastType.sucess);
+		}
+		catch(Exception e)
+		{
+			Debug.WriteLine(e.Message);
+			ToastService.ShowToast(e.Message, ToastType.sucess);
+		}
+		
+	}
 
 	public void HandleSCT_Key(KeyboardEventArgs e)
 	{

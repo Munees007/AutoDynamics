@@ -1115,7 +1115,7 @@ namespace AutoDynamics.Services
             PdfPTable openTable = new PdfPTable(6) { WidthPercentage = 100 };
             openTable.SetWidths(new float[] { 15f, 10f, 35f, 10f, 10f, 10f });
 
-            PdfPCell cell = new PdfPCell(new Phrase("Cloasing Balance", font))
+            PdfPCell cell = new PdfPCell(new Phrase("Closing Balance", font))
             {
                 Colspan = 5,
                 Border = Rectangle.BOX,
