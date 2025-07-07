@@ -221,7 +221,7 @@
         set
         {
             filterOption = value;
-            HandleFilterTable();
+            ApplySearchAndFilter();
         }
     }
 
@@ -296,6 +296,43 @@
         filteredBypassStocks.ForEach(s => bypassStockTotal += s.AvailableQuantity);
         StateHasChanged();
     }
+    private void ApplySearchAndFilter()
+    {
+        filteredSivakasiStocks = sivakasiStocks
+        .Where(s => MatchesSearch(s) && MatchesFilter(s))
+        .ToList();
+
+        filteredBypassStocks = bypassStocks
+        .Where(s => MatchesSearch(s) && MatchesFilter(s))
+        .ToList();
+
+        sivakasiStockTotal = filteredSivakasiStocks.Sum(s => s.AvailableQuantity);
+        bypassStockTotal = filteredBypassStocks.Sum(s => s.AvailableQuantity);
+
+        StateHasChanged();
+    }
+
+    private bool MatchesSearch(StockType s)
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery))
+            return true;
+
+        var temp = searchQuery.ToLower();
+        return s.ProductID.Contains(temp, StringComparison.OrdinalIgnoreCase) ||
+           s.Product.Pattern.ToLower().Contains(temp) ||
+           s.Product.Size.ToLower().Contains(temp) ||
+           s.Product.Brand.ToLower().Contains(temp) ||
+           s.Product.BrandID.ToLower().Contains(temp);
+    }
+    private bool MatchesFilter(StockType s)
+    {
+        if (FilterOption == "all") return true;
+        if (FilterOption == "two") return twoWheelerCodes.Contains(s.Product.HSNCode);
+        if (FilterOption == "four") return fourWheelerCodes.Contains(s.Product.HSNCode);
+        if (FilterOption == "tube") return tubeCodes.Contains(s.Product.HSNCode);
+        return true;
+    }
+
     private void HandleSelectTable()
     {
         Debug.WriteLine(showTable);
@@ -503,28 +540,8 @@ VALUES (@ProductID, @Branch, @OldQuantity,@NewQuantity,@ActionType,@Action)";
 
     void FilterStock(ChangeEventArgs e)
     {
-        sivakasiStockTotal = 0;
-        bypassStockTotal = 0;
-        string temp = e.Value.ToString();
-
-        
-
-        filteredSivakasiStocks = sivakasiStocks.Where(s => s.ProductID.Contains(temp, StringComparison.OrdinalIgnoreCase) ||
-            s.Product.Pattern.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
-            s.Product.Size.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
-            s.Product.Brand.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
-            s.Product.BrandID.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase)).ToList();
-
-        filteredBypassStocks = bypassStocks.Where(s => s.ProductID.Contains(temp, StringComparison.OrdinalIgnoreCase) ||
-        s.Product.Pattern.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
-        s.Product.Size.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
-        s.Product.Brand.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase) ||
-        s.Product.BrandID.ToLower().Contains(temp, StringComparison.OrdinalIgnoreCase)).ToList();
-        filteredSivakasiStocks.ForEach(s => sivakasiStockTotal += s.AvailableQuantity);
-        filteredBypassStocks.ForEach(s => bypassStockTotal += s.AvailableQuantity);
-
-        HandleSelectTable();
-        StateHasChanged();
+        searchQuery = e.Value?.ToString() ?? "";
+        ApplySearchAndFilter();
     }
 
 

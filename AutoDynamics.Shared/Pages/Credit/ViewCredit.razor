@@ -243,7 +243,7 @@
                 })
             };
 
-         excelDialog = new CustomDialogBox
+        excelDialog = new CustomDialogBox
              {
                  Title = "Credit Record Excel",
                  body =@<div>
@@ -337,6 +337,7 @@
 
             records = groupedRecords;
         }
+        records = records.OrderBy((r) => r.Customer.Name).ToList();
         sivakasiRecords = records.Where(r => r.Branch.ToLower() == "sivakasi").ToList();
         bypassRecords = records.Where(r => r.Branch.ToLower() == "bypass").ToList();
         filteredSivakasiRecords = sivakasiRecords;

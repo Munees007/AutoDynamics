@@ -138,7 +138,10 @@
                 minBillNoPayment = Convert.ToInt32(result1[0]["MaxBillNo"]) + 1;
             }
 
-
+            string[] formats = {
+    "d.M.yyyy", "dd.MM.yyyy", "d.MM.yyyy", "dd.M.yyyy",
+    "yyyy-MM-dd", "MM/dd/yyyy", "d-M-yyyy", "dd-MM-yyyy"
+};
             foreach (var row in excelData)
             {
 
@@ -149,12 +152,12 @@
                             BillingYear = 2025,
                             BillNo = minBillNo,
                             Branch = "Sivakasi",
-                            PurchaseDate = DateTime.ParseExact(row[0], "dd.MM.yyyy", CultureInfo.InvariantCulture),
+                            PurchaseDate = DateTime.ParseExact(row[0], formats, CultureInfo.InvariantCulture,DateTimeStyles.None),
                             InvoiceNumber = row[3],
                             SupplierID = row[1],
                             TotalAmount = decimal.Parse(row[2]),
                             type = PaymentType.CREDIT,
-                            CreatedAt = DateTime.ParseExact(row[0], "dd.MM.yyyy", CultureInfo.InvariantCulture),
+                            CreatedAt = DateTime.ParseExact(row[0], formats, CultureInfo.InvariantCulture,DateTimeStyles.None),
                             taxType = TaxType.EXCLUSIVE_TAX
                         }
                     };
@@ -173,11 +176,12 @@
                         {
                             SupplierID = row[0]
                         },
-                        PaymentDate = DateTime.ParseExact(row[1], "dd.MM.yyyy", CultureInfo.InvariantCulture),
+                        PaymentDate = DateTime.ParseExact(row[1], formats, CultureInfo.InvariantCulture,DateTimeStyles.None),
                         TotalAmountPaid = decimal.Parse(row[2]),
                         paymentType = (PaymentTypes)Enum.Parse(typeof(PaymentTypes), row[3]),
                         CheckNumber = row[4],
                         Narration = row[5],
+                        
                         PaymentNo = minBillNoPayment
                     };
                 paymentRecipts.Add(temp);

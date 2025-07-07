@@ -1313,8 +1313,19 @@ namespace AutoDynamics.Services
                         {
                             runningBalance -= entry.credit; // Receipt is money received, reduce the balance
                         }
+                        else if(entry.accountType == "SUPPLIER A/C")
+                        {
+                            if(entry.credit > 0)
+                            {
+                                runningBalance -= entry.credit;
+                            }
+                            else if(entry.debit > 0)
+                            {
+                                runningBalance += entry.debit;
+                            }
+                        }
 
-                        entryTable.AddCell(CreateCell(runningBalance.ToString("0.00"), fontRow, iTextSharp.text.Element.ALIGN_RIGHT));
+                            entryTable.AddCell(CreateCell(runningBalance.ToString("0.00"), fontRow, iTextSharp.text.Element.ALIGN_RIGHT));
 
                         document.Add(entryTable);
 
