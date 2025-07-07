@@ -321,6 +321,8 @@
     private async Task HandleUpdateClick()
     {
 
+
+
         string UpdateQuery = @"UPDATE Stock Set AvailableQuantity = @AvailableQuantity WHERE ProductID = @ProductID AND Branch = @Branch";
         Dictionary<string,object> param = new Dictionary<string, object>
         {
@@ -330,6 +332,23 @@
         };
 
         await DatabaseHandler.ExecuteQueryAsync(UpdateQuery, param);
+
+        string updateStockLogQuery = @"
+INSERT INTO StockLog (ProductID, Branch, OldQuantity,NewQuantity,ActionType,Action)
+VALUES (@ProductID, @Branch, @OldQuantity,@NewQuantity,@ActionType,@Action)";
+
+
+        Dictionary<string, dynamic> parameters = new Dictionary<string, dynamic>
+        {
+            {"@ProductID", CurrentStock.ProductID},
+            {"@Branch", CurrentStock.Branch},
+            {"@OldQuantity", CurrentStock.oldestQuantity},
+            {"@NewQuantity", CurrentStock.AvailableQuantity},
+            {"@ActionType", "UPDATE"},
+            {"@Action", "MANUAL"},
+            
+        };
+		await DatabaseHandler.ExecuteNonQueryAsync(updateStockLogQuery, parameters);
         updateDialog.showDialog = false;
         ToastService.ShowToast("Sucessfully Updated", ToastType.sucess);
         // Add logic for what happens when the button is clicked.
@@ -463,6 +482,7 @@
                             TaxRate = taxRate,
                         },
                         AvailableQuantity = Int32.Parse(row["AvailableQuantity"].ToString() ?? "0"),
+                        oldestQuantity = Int32.Parse(row["AvailableQuantity"].ToString() ?? "0"),
                         Branch = row["Branch"].ToString() ?? ""
 
                     });

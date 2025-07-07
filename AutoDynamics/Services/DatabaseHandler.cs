@@ -1200,6 +1200,19 @@ namespace AutoDynamics.Services
 
                                 await itemCommand.ExecuteNonQueryAsync();
 
+                                int availableQuantity = 0;
+                                string checkStockQuery = @"SELECT AvailableQuantity FROM Stock WHERE ProductID = @ProductID AND Branch = @Branch";
+                                using (var checkCommand = new MySqlCommand(checkStockQuery, connection, (MySqlTransaction)transaction))
+                                {
+                                    checkCommand.Parameters.AddWithValue("@ProductID", item.ProductID);
+                                    checkCommand.Parameters.AddWithValue("@Branch", purchaseBill.Branch);
+                                    var result = await checkCommand.ExecuteScalarAsync();
+                                    if (result != null && result != DBNull.Value)
+                                    {
+                                        availableQuantity = Convert.ToInt32(result);
+                                    }
+                                }
+
                                 // Update stock after each item insertion
                                 string updateStockQuery = @"
                             INSERT INTO Stock (ProductID, Branch, AvailableQuantity, TaxRate)
@@ -1216,6 +1229,24 @@ namespace AutoDynamics.Services
 
                                     await stockCommand.ExecuteNonQueryAsync();
                                 }
+
+                                string updateStockLogQuery = @"
+INSERT INTO StockLog (ProductID, Branch, OldQuantity,NewQuantity,ActionType,Action)
+VALUES (@ProductID, @Branch, @OldQuantity,@NewQuantity,@ActionType,@Action)";
+
+
+                                using (var logCommand = new MySqlCommand(updateStockLogQuery, connection, (MySqlTransaction)transaction))
+                                {
+                                    logCommand.Parameters.AddWithValue("@ProductID", item.ProductID);
+                                    logCommand.Parameters.AddWithValue("@Branch", purchaseBill.Branch);
+                                    logCommand.Parameters.AddWithValue("@OldQuantity", availableQuantity);
+                                    logCommand.Parameters.AddWithValue("@NewQuantity", availableQuantity + item.Quantity);
+                                    logCommand.Parameters.AddWithValue("@ActionType", "UPDATE");
+                                    logCommand.Parameters.AddWithValue("@Action", "PURCHASE");
+                                    await logCommand.ExecuteNonQueryAsync();
+                                }
+
+
                             }
                         }
 
@@ -1237,6 +1268,7 @@ namespace AutoDynamics.Services
             }
         }
 
+        
 
         public async Task<int[]> InsertBillAsync(Bill bill, List<BillItem> billItems, BillPayment billPayment, bool isUpdating, List<Ledger> ledgers)
         {
@@ -1357,6 +1389,18 @@ namespace AutoDynamics.Services
                     {
                         if (billItem.ItemType == "PRODUCT")
                         {
+                            int availableQuantity = 0;
+                            string checkStockQuery = @"SELECT AvailableQuantity FROM Stock WHERE ProductID = @ProductID AND Branch = @Branch";
+                            using (var checkCommand = new MySqlCommand(checkStockQuery, connection, (MySqlTransaction)transaction))
+                            {
+                                checkCommand.Parameters.AddWithValue("@ProductID", billItem.ItemID);
+                                checkCommand.Parameters.AddWithValue("@Branch", billItem.Branch);
+                                var result = await checkCommand.ExecuteScalarAsync();
+                                if (result != null && result != DBNull.Value)
+                                {
+                                    availableQuantity = Convert.ToInt32(result);
+                                }
+                            }
 
                             string updateStockQuery = @"UPDATE Stock 
 SET AvailableQuantity = AvailableQuantity - @Quantity 
@@ -1370,6 +1414,22 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                                 command.Parameters.AddWithValue("@ProductID", billItem.ItemID);
                                 command.Parameters.AddWithValue("@Branch", billItem.Branch);
                                 await command.ExecuteNonQueryAsync();
+                            }
+
+                            string updateStockLogQuery = @"
+                INSERT INTO StockLog (ProductID, Branch, OldQuantity,NewQuantity,ActionType,Action)
+                VALUES (@ProductID, @Branch, @OldQuantity,@NewQuantity,@ActionType,@Action)";
+
+
+                            using (var logCommand = new MySqlCommand(updateStockLogQuery, connection, (MySqlTransaction)transaction))
+                            {
+                                logCommand.Parameters.AddWithValue("@ProductID", billItem.ItemID);
+                                logCommand.Parameters.AddWithValue("@Branch", billItem.Branch);
+                                logCommand.Parameters.AddWithValue("@OldQuantity", availableQuantity);
+                                logCommand.Parameters.AddWithValue("@NewQuantity", availableQuantity - billItem.Quantity);
+                                logCommand.Parameters.AddWithValue("@ActionType", "UPDATE");
+                                logCommand.Parameters.AddWithValue("@Action", "BILLING");
+                                await logCommand.ExecuteNonQueryAsync();
                             }
                         }
                     }
@@ -1614,6 +1674,19 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                         if (billItem.ItemType == "PRODUCT")
                         {
 
+                            int availableQuantity = 0;
+                            string checkStockQuery = @"SELECT AvailableQuantity FROM Stock WHERE ProductID = @ProductID AND Branch = @Branch";
+                            using (var checkCommand = new MySqlCommand(checkStockQuery, connection, (MySqlTransaction)transaction))
+                            {
+                                checkCommand.Parameters.AddWithValue("@ProductID", billItem.ItemID);
+                                checkCommand.Parameters.AddWithValue("@Branch", billItem.Branch);
+                                var result = await checkCommand.ExecuteScalarAsync();
+                                if (result != null && result != DBNull.Value)
+                                {
+                                    availableQuantity = Convert.ToInt32(result);
+                                }
+                            }
+
                             string updateStockQuery = @"UPDATE Stock 
 SET AvailableQuantity = AvailableQuantity - @Quantity 
 WHERE ProductID = @ProductID AND Branch = @Branch
@@ -1627,6 +1700,24 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                                 command.Parameters.AddWithValue("@Branch", billItem.Branch);
                                 await command.ExecuteNonQueryAsync();
                             }
+
+                            string updateStockLogQuery = @"
+                INSERT INTO StockLog (ProductID, Branch, OldQuantity,NewQuantity,ActionType,Action)
+                VALUES (@ProductID, @Branch, @OldQuantity,@NewQuantity,@ActionType,@Action)";
+
+
+                            using (var logCommand = new MySqlCommand(updateStockLogQuery, connection, (MySqlTransaction)transaction))
+                            {
+                                logCommand.Parameters.AddWithValue("@ProductID", billItem.ItemID);
+                                logCommand.Parameters.AddWithValue("@Branch", billItem.Branch);
+                                logCommand.Parameters.AddWithValue("@OldQuantity", availableQuantity);
+                                logCommand.Parameters.AddWithValue("@NewQuantity", availableQuantity - billItem.Quantity);
+                                logCommand.Parameters.AddWithValue("@ActionType", "UPDATE");
+                                logCommand.Parameters.AddWithValue("@Action", "BILLING");
+                                await logCommand.ExecuteNonQueryAsync();
+                            }
+
+
                         }
                     }
                     // 4. Insert into BillPayments using BillID

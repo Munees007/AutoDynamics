@@ -64,10 +64,10 @@
 
 
 
-	
-			<Loader show="isLoading" customText="Adding Stock"/>
-		
-	
+
+	<Loader show="isLoading" customText="Adding Stock"/>
+
+
 </div>
 
 @code
@@ -140,6 +140,23 @@
 			};
 
 			await DatabaseHandler.ExecuteNonQueryAsync(query, parameters);
+
+			string updateStockLogQuery = @"
+INSERT INTO StockLog (ProductID, Branch, OldQuantity,NewQuantity,ActionType,Action)
+VALUES (@ProductID, @Branch, @OldQuantity,@NewQuantity,@ActionType,@Action)";
+
+
+			Dictionary<string, dynamic> parameters1 = new Dictionary<string, dynamic>
+			{
+				{"@ProductID", stock.ProductID},
+				{"@Branch", selectedBranch},
+				{"@OldQuantity", 0},
+				{"@NewQuantity", stock.AvailableQuantity},
+				{"@ActionType", "INSERT"},
+				{"@Action", "MANUAL"},
+
+			};
+			await DatabaseHandler.ExecuteNonQueryAsync(updateStockLogQuery, parameters1);
 			searchBrand = "";
 			stock = new();
 			searchProduct = "";

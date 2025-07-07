@@ -34,6 +34,7 @@
                         <th>S.No</th>
                         <th>Old Quantity</th>
                         <th>New Quantity</th>
+                        <th>Type</th>
                         <th>Action</th>
                         <th>Date & Time (IST)</th>
                     </tr>
@@ -47,6 +48,7 @@
                             <td>@log.OldQuantity</td>
                             <td>@log.NewQuantity</td>
                             <td>@log.Action.ToString()</td>
+                            <td>@log.action</td>
                             <td>@istCreatedAt.ToString("dd-MM-yyyy hh:mm tt")</td>
                         </tr>
                     }
@@ -99,10 +101,10 @@ else
 							Branch = row["Branch"].ToString() ?? "",
 							
 						},
-                        
+                        action = row["Action"].ToString() ?? "",
                         OldQuantity = int.TryParse(row["OldQuantity"]?.ToString(), out var oldQty) ? oldQty : 0,
                         NewQuantity = int.TryParse(row["NewQuantity"]?.ToString(), out var newQty) ? newQty : 0,
-
+                        
 						Branch = row["Branch"].ToString() ?? "",
                         Action = Enum.TryParse<ActionType>(row["ActionType"]?.ToString(), out var action) ? action : ActionType.INSERT,
                         CreatedAt = DateTime.TryParse(row["ChangedAt"]?.ToString(), out var createdAt) ? createdAt : DateTime.Now,

@@ -102,7 +102,7 @@ else
                         <td class="text-end">@ledger.DR_Amount.ToString("N2")</td>
                         <td class="text-end">@ledger.CR_Amount.ToString("N2")</td>
                         <td class="text-end">@GetFormattedBalance(ledger.Balance)</td>
-                        <td>
+                        <td class="d-flex flex-column gap-2">
                             @if(ledger.TransactionType == TransactionType.EXPENSE || ledger.TransactionType == TransactionType.OTHER)
                             {
                                 <button class="btn btn-warning btn-sm" @onclick="()=>{ViewLedgerFun(ledger);}">VIEW</button>

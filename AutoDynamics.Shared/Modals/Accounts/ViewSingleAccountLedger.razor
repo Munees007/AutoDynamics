@@ -1,6 +1,6 @@
 ﻿@inject IDatabaseHandler DatabaseHandler
 @inject IToastService ToastService
-
+@inject ITabService TabService
 
 <h3 class="mb-3">@LedgerAccount.AccountName</h3>
 
@@ -46,6 +46,7 @@
                 <th>Dr (₹)</th>
                 <th>Cr (₹)</th>
                 <th>Balance</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -60,6 +61,13 @@
                     <td class="text-end">@ledger.DR_Amount.ToString("N2")</td>
                     <td class="text-end">@ledger.CR_Amount.ToString("N2")</td>
                     <td class="text-end">@GetFormattedBalance(ledger.Balance)</td>
+                    <td class="d-flex flex-column gap-2 h-100">
+                        @if (ledger.TransactionType == TransactionType.EXPENSE || ledger.TransactionType == TransactionType.OTHER)
+                        {
+                            <button class="btn btn-warning btn-sm" @onclick="()=>{ViewLedgerFun(ledger);}">VIEW</button>
+                            <button class="btn btn-warning btn-sm" @onclick="()=>{UpdateLedger(ledger);}">UPDATE</button>
+                        }
+                    </td>
                 </tr>
             }
         </tbody>
@@ -69,16 +77,109 @@
     [Parameter] public LedgerAcccounts LedgerAccount { get; set; } = new();
     List<Ledger> ledgers = new();
     List<Ledger> sortedLedgers = new();
+    List<LedgerAcccounts> AccountTypes = new();
     string selectedBranch = "Sivakasi";
     string selectedSortingOption = "date";
 
     DateTime? startDate, endDate;
+
+    async Task UpdateLedger(Ledger ledger)
+    {
+        List<Ledger> ledgers = await getLedgers(ledger.EntryID);
+        if (ledgers.Count > 0)
+        {
+            Dictionary<string, dynamic> parameter = new Dictionary<string, dynamic>
+            {
+                {"ledgers",ledgers},
+                {"isUpdating",true}
+            };
+            TabService.OpenWithParameter(ledger.AccountType?.AccountName ?? "Ledger", typeof(AddLedger), parameter);
+        }
+        else
+        {
+            ToastService.ShowToast("No ledger entries found for this account.", ToastType.warning);
+        }
+    }
+
+    async Task ViewLedgerFun(Ledger ledger)
+    {
+        List<Ledger> ledgers = await getLedgers(ledger.EntryID);
+        if (ledgers.Count > 0)
+        {
+            Dictionary<string, dynamic> parameter = new Dictionary<string, dynamic>
+            {
+                {"ledgers",ledgers},
+                {"isViewing",true}
+            };
+            TabService.OpenWithParameter(ledger.AccountType?.AccountName ?? "Ledger", typeof(AddLedger), parameter);
+        }
+        else
+        {
+            ToastService.ShowToast("No ledger entries found for this account.", ToastType.warning);
+        }
+    }
+
+    async Task<List<Ledger>> getLedgers(int entryID)
+    {
+        string query = $@"SELECT *
+                   FROM CashBankLedger WHERE EntryID = {entryID}";
+        var res = await DatabaseHandler.ExecuteQueryAsync(query);
+
+        List<Ledger> ledgers = new();
+        if (res.Count > 0)
+        {
+            foreach (var row in res)
+            {
+                bool active = row["isActive"].ToString() == "1" ? true : false;
+                if (!active) continue;
+                Ledger temp = new Ledger
+                    {
+                        LedgerID = Convert.ToInt32(row["LedgerID"]),
+                        Date = Convert.ToDateTime(row["Date"]),
+                        AccountID = Convert.ToInt32(row["AccountID"]),
+                        AccountType = AccountTypes.FirstOrDefault((b) => b.AcccountId == Convert.ToInt32(row["AccountID"] ?? "0")),
+                        Branch = row["Branch"]?.ToString() ?? "",
+                        TransactionType = Enum.TryParse<TransactionType>(row["TransactionType"].ToString(), out var tran) ? tran : TransactionType.OTHER,
+                        ReferenceID = row["ReferenceID"] != DBNull.Value ? Convert.ToInt32(row["ReferenceID"]) : 0,
+                        Particulars = row["Particulars"]?.ToString() ?? "",
+                        ForWho = row["ForWho"]?.ToString() ?? "",
+                        EntryID = row["EntryID"] != DBNull.Value ? Convert.ToInt32(row["EntryID"]) : 0,
+                        CR_Amount = Convert.ToDecimal(row["CrAmount"]),
+                        DR_Amount = Convert.ToDecimal(row["DrAmount"]),
+                        Balance = Convert.ToDecimal(row["Balance"]),
+                        isActive = active
+                    };
+                ledgers.Add(temp);
+            }
+        }
+        return ledgers;
+    }
 
 
     async Task ApplyFilters()
     {
         ledgers.Clear();
         sortedLedgers.Clear();
+        AccountTypes.Clear();
+        var fetch = @"SELECT * FROM LedgerAccounts";
+
+        var res1 = await DatabaseHandler.ExecuteQueryAsync(fetch);
+
+        if (res1.Count > 0)
+        {
+            foreach (var row in res1)
+            {
+                LedgerAccountsType at;
+                Enum.TryParse<LedgerAccountsType>(row["AccountType"].ToString(), out at);
+                AccountTypes.Add(new LedgerAcccounts
+                    {
+                        AcccountId = Int32.Parse(row["AccountID"].ToString() ?? "0"),
+                        AccountName = row["AccountName"].ToString(),
+                        AccountType = at,
+                        isActive = bool.Parse(row["IsActive"].ToString() ?? "true")
+                    });
+            }
+        }
         DateTime today = DateTime.Today;
         decimal openingBalance = 0;
 

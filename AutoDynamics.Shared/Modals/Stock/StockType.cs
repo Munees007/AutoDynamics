@@ -12,6 +12,7 @@ namespace AutoDynamics.Shared.Modals.Stock
         public string ProductID { get; set; } = "";
         public ProductType Product { get; set; } = new();
         public int AvailableQuantity { get; set; } = 0;
+        public int oldestQuantity { get; set; }
         public string Branch { get; set; } = "";
     }
 }

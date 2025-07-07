@@ -27,5 +27,9 @@ namespace AutoDynamics.Shared.Modals.Credit
         {
             return (new string[] {this.Customer.Name, this.Customer.Contact, this.CreditAmount.ToString("F2"), this.PaidAmount.ToString("F2"), this.RemainingBalance?.ToString("F2")!});
         }
+        public string[] GenerateForExcel()
+        {
+            return (new string[] { this.Customer.Name, this.Customer.Contact, this.CreditAmount.ToString("F2"), this.PaidAmount.ToString("F2"), this.RemainingBalance?.ToString("F2")! });
+        }
     }
 }

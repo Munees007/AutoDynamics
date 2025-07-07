@@ -1,4 +1,5 @@
 ﻿using AutoDynamics.Shared.Modals.Billing;
+using AutoDynamics.Shared.Modals.Credit;
 using AutoDynamics.Shared.Modals.PurchaseTypes;
 using Microsoft.AspNetCore.Components.Forms;
 using System;
@@ -14,5 +15,6 @@ namespace AutoDynamics.Shared.Services
         public byte[] GenerateExcel(BillDetails[] bills,string details);
         public byte[] GenerateExcelPurchase(PurchaseDetails[] purchaseBills, string details);
         public Task<List<List<string>>> readData(IBrowserFile file,int workSheetPosition,int startRow);
+        public Task<string> CreateCreditExcel(string branch, List<CreditRecord> sivakasiCredit = null, List<CreditRecord> bypassCredit = null);
     }
 }

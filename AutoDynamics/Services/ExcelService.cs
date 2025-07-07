@@ -6,6 +6,7 @@ using iTextSharp.text.pdf.qrcode;
 using Microsoft.AspNetCore.Components.Forms;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -289,7 +290,135 @@ namespace AutoDynamics.Services
 
             return result;
         }
+
+
+public async Task<string> CreateCreditExcel(string branch, List<CreditRecord> sivakasiCredit = null, List<CreditRecord> bypassCredit = null)
+    {
+        try
+        {
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Credit List");
+
+            int row = 1;
+
+            // ✅ Date Row
+            worksheet.Cell(row, 1).Value = $"Date: {DateTime.Now:dd/MM/yyyy}";
+            worksheet.Range(row, 1, row, 6).Merge().Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+            row++;
+
+            // ✅ AUTO DYNAMICS Header
+            worksheet.Cell(row, 1).Value = "AUTO DYNAMICS";
+            worksheet.Range(row, 1, row, 6).Merge();
+            worksheet.Cell(row, 1).Style.Font.SetBold().Font.FontSize = 18;
+            worksheet.Cell(row, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            row += 2;
+
+            // ✅ CREDIT LIST Title
+            worksheet.Cell(row, 1).Value = "CREDIT LIST";
+            worksheet.Range(row, 1, row, 6).Merge();
+            worksheet.Cell(row, 1).Style.Font.SetBold().Font.FontSize = 14;
+            worksheet.Cell(row, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            row += 2;
+
+            // ✅ Add branch data
+            void AddBranchData(string branchName, List<CreditRecord> credits)
+            {
+                // 🔹 Branch Title
+                worksheet.Cell(row, 1).Value = $"Branch: {branchName}";
+                worksheet.Range(row, 1, row, 6).Merge();
+                worksheet.Cell(row, 1).Style.Font.SetBold().Font.FontSize = 12;
+                worksheet.Cell(row, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                row++;
+
+                    // 🔹 Header
+                    string[] headers = { "Name", "Mobile", "Credit Amount", "Paid Amount", "Remaining Amount" };
+                    for (int i = 0; i < headers.Length; i++)
+                    {
+                        worksheet.Cell(row, i + 1).Value = headers[i];
+                        worksheet.Cell(row, i + 1).Style.Font.SetBold();
+                        worksheet.Cell(row, i + 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                        worksheet.Cell(row, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
+                        worksheet.Cell(row, i + 1).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                    }
+                    row++;
+
+                    // 🔹 Data
+                    foreach (var record in credits)
+                    {
+                        var values = record.GenerateForExcel(); // [Name, Mobile, Credit, Paid, Remaining]
+
+                        for (int j = 0; j < values.Length; j++)
+                        {
+                            var cell = worksheet.Cell(row, j + 1);
+
+                            // If it's one of the 3 amount columns (index 2,3,4 => j=2,3,4), format as number
+                            if (j >= 2)
+                            {
+                                if (decimal.TryParse(values[j], out decimal amount))
+                                {
+                                    cell.Value = amount;
+                                    cell.Style.NumberFormat.Format = "#,##0.00";
+                                }
+                                else
+                                {
+                                    cell.Value = values[j]; // fallback
+                                }
+                            }
+                            else
+                            {
+                                cell.Value = values[j];
+                            }
+
+                            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                        }
+
+                        row++;
+                    }
+                    row += 2;
+                }
+
+                if (branch == "Both")
+            {
+                AddBranchData("Sivakasi", sivakasiCredit ?? new List<CreditRecord>());
+                AddBranchData("Bypass", bypassCredit ?? new List<CreditRecord>());
+            }
+            else if (branch == "Sivakasi")
+            {
+                AddBranchData("Sivakasi", sivakasiCredit ?? new List<CreditRecord>());
+            }
+            else
+            {
+                AddBranchData("Bypass", bypassCredit ?? new List<CreditRecord>());
+            }
+
+            worksheet.Columns().AdjustToContents();
+
+            // ✅ Save Excel file
+            string filePath = Path.Combine(FileSystem.CacheDirectory, "CreditList.xlsx");
+            workbook.SaveAs(filePath);
+
+            // ✅ Open the file (Windows only)
+            if (DeviceInfo.Platform == DevicePlatform.WinUI)
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = filePath,
+                    UseShellExecute = true
+                };
+                Process.Start(psi);
+
+                return "Excel opened successfully.";
+            }
+
+            return "Excel created successfully.";
+        }
+        catch (Exception ex)
+        {
+            return "Error generating Excel: " + ex.Message;
+        }
     }
+
+}
 
     
 }
