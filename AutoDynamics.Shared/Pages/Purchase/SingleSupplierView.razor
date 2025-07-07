@@ -459,11 +459,30 @@
 			_ => 4
 		};
 	}
-	public List<CustomerStatement> createLedgers()
+	public async Task<List<CustomerStatement>> createLedgers()
 	{
 		List<CustomerStatement> customerStatements = new();
 		List<PurchaseDetails> neededBills = sivakasiBills;
 		List<PaymentReciptType> neededReceipts = sivakasiCreditRecipts;
+
+		string getOthers = $@"SELECT c.*,a.* FROM CashBankLedger c JOIN LedgerAccounts a ON c.AccountID = a.AccountID WHERE c.TransactionType in ('OTHER','EXPENSE') AND c.ForWho = '{supplierData.SupplierID}' AND c.Particulars NOT LIKE '%Opening Balance%' AND a.AccountName = 'SUPPLIER A/C'";
+		var res = await DatabaseHandler.ExecuteQueryAsync(getOthers);
+		if (res.Count > 0)
+		{
+			foreach (var row in res)
+			{
+
+				customerStatements.Add(new CustomerStatement
+					{
+						date = row["Date"] != null ? Convert.ToDateTime(row["Date"]) : DateTime.MinValue,
+						credit = row["CrAmount"] != null ? Convert.ToDecimal(row["CrAmount"]) : 0,
+						debit = row["DrAmount"] != null ? Convert.ToDecimal(row["DrAmount"]) : 0,
+						particulars = row["Particulars"]?.ToString() ?? "",
+						accountType = row["AccountName"]?.ToString() ?? "",
+						type = row["TransactionType"]?.ToString() ?? ""
+					});
+			}
+		}
 
 		neededBills.Sort((a, b) => a.purchase.PurchaseDate.CompareTo(b.purchase.PurchaseDate));
 		neededReceipts.Sort((a, b) => a.PaymentDate.CompareTo(b.PaymentDate));
@@ -702,29 +721,12 @@
 
 	async void DownloadStatement(DateTime? startDate, DateTime? endDate)
 	{
-		List<CustomerStatement> customerStatements = createLedgers(); ;
+		List<CustomerStatement> customerStatements = await createLedgers(); ;
 
 		decimal openingBalance = await GetOpeningBalanceAsync(customerStatements, startDate);
 		if (startDate != null && endDate != null)
 		{
-			string getOthers = $@"SELECT c.*,a.* FROM CashBankLedger c JOIN LedgerAccounts a ON c.AccountID = a.AccountID WHERE c.TransactionType in ('OTHER','EXPENSE') AND c.ForWho = '{supplierData.SupplierID}' AND c.Particulars NOT LIKE '%Opening Balance%' AND a.AccountName = 'SUPPLIER A/C'";
-			var res = await DatabaseHandler.ExecuteQueryAsync(getOthers);
-			if(res.Count > 0)
-			{
-				foreach(var row in res)
-				{
-					
-					customerStatements.Add(new CustomerStatement
-						{
-							date = row["Date"] != null ? Convert.ToDateTime(row["Date"]) : DateTime.MinValue,
-							credit = row["CrAmount"] != null ? Convert.ToDecimal(row["CrAmount"]) : 0,
-							debit = row["DrAmount"] != null ? Convert.ToDecimal(row["DrAmount"]) : 0,
-							particulars = row["Particulars"]?.ToString() ?? "",
-							accountType = row["AccountName"]?.ToString() ?? "",
-							type = row["TransactionType"]?.ToString() ?? ""
-						});
-				}
-			}
+			
 
 			customerStatements = customerStatements
 				.Where(x => x.date >= startDate && x.date <= endDate)
