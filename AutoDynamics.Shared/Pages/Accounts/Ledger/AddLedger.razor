@@ -9,10 +9,10 @@
 		<div class="flex-grow-1">
 			<h3 class="mb-3">Ledger Entry</h3>
 			<div class="d-flex gap-2 flex-wrap">
-				<button class="btn btn-primary" disabled="@(isViewing || isUpdating)" @onclick="addLedger">
+				<button class="btn btn-primary" disabled="@(isViewing)" @onclick="addLedger">
 					➕ Add Ledger
 				</button>
-				<button class="btn btn-outline-secondary" disabled="@(isViewing || isUpdating)" @onclick="() => { accountType.showDialog = true; StateHasChanged(); }">
+				<button class="btn btn-outline-secondary" disabled="@(isViewing)" @onclick="() => { accountType.showDialog = true; StateHasChanged(); }">
 					➕ Add Account
 				</button>
 			</div>
@@ -82,7 +82,7 @@
 				{
 					<tr>
 						<td>
-							<input type="date" disabled="@(isViewing || isUpdating)" @bind="ledger.Date" class="form-control" />
+							<input type="date" disabled="@(isViewing)" @bind="ledger.Date" class="form-control" />
 						</td>
 						<td>
 							<select @bind="@ledger.AccountID" disabled="@(isViewing || isUpdating)" class="form-select">
@@ -120,6 +120,7 @@
 						{
 							<td>
 								<select disabled="@(isViewing || isUpdating)" @bind="ledger.PaymentMode" class="form-select">
+									<option value="@PaymentTypes.NONE">NONE</option>
 									<option value="@PaymentTypes.CASH">CASH</option>
 									<option value="@PaymentTypes.CARD">CARD</option>
 									<option value="@PaymentTypes.BANK">BANK</option>
@@ -233,21 +234,9 @@
 	{
 		try
 		{
-			string query = @"Update CashBankLedger SET isActive = @isActive,  Particulars = @Particulars,ForWho = @ForWho, DrAmount = @DrAmount, CrAmount = @CrAmount WHERE LedgerID = @LedgerID";
-
-			foreach(var ledger in ledgers)
-			{
-				var parameters = new Dictionary<string, object>
-			{
-				{ "@Particulars", ledger.Particulars },
-				{ "@ForWho", ledger.ForWho },
-				{ "@DrAmount", ledger.DR_Amount },
-				{ "@CrAmount", ledger.CR_Amount },
-				{ "@isActive", ledger.isActive },
-				{ "@LedgerID", ledger.LedgerID }
-			};
-				await DatabaseHandler.ExecuteNonQueryAsync(query, parameters);
-			}
+			
+			await DatabaseHandler.InsertOrUpdateMultipleLedger(ledgers);
+			
 			ToastService.ShowToast("Ledger updated successfully", ToastType.sucess);
 		}
 		catch(Exception e)
@@ -255,7 +244,7 @@
 			Debug.WriteLine(e.Message);
 			ToastService.ShowToast(e.Message, ToastType.sucess);
 		}
-		
+
 	}
 
 	public void HandleSCT_Key(KeyboardEventArgs e)
@@ -370,6 +359,7 @@
 			ledger.TransactionType = transactionType;
 			ledger.PaymentMode = paymentType;
 			newLedgers.Add(ledger);
+			if (isDouble && paymentType == PaymentTypes.NONE) continue;
 
 			if (ledger.DR_Amount > 0 || ledger.CR_Amount > 0)
 			{
@@ -610,7 +600,8 @@
 	{
 		ledgers.Add(new Ledger
 		{
-			Branch = branch
+			Branch = branch,
+			PaymentMode = PaymentTypes.NONE
 		});
 
 

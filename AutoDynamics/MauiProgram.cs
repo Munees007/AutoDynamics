@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using AutoDynamics.Shared.Services;
 using AutoDynamics.Services;
-
+using Syncfusion.Blazor;
 namespace AutoDynamics;
 
 public static class MauiProgram
@@ -32,10 +32,13 @@ public static class MauiProgram
         builder.Services.AddSingleton<IApiService,ApiService>();
         builder.Services.AddSingleton<IExcelService,ExcelService>();
 
+        
+
         builder.Services.AddScoped<IMyLocalStorageService, MyLocalStorageService>();
         builder.Services.AddScoped<IAlertService, AlertService>();
         
         builder.Services.AddMauiBlazorWebView();
+        builder.Services.AddSyncfusionBlazor();
 
 #if DEBUG
         builder.Services.AddBlazorWebViewDeveloperTools();

@@ -11,6 +11,7 @@ namespace AutoDynamics.Shared.Modals
         CASH,
         BANK,
         CARD,
-        UPI
+        UPI,
+        NONE
     }
 }

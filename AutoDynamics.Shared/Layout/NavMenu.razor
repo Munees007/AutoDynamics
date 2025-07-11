@@ -181,7 +181,16 @@
 
         }
     }},
-    { 6, new MenuType("Read Excel", "/read-excel",typeof(GetExcel)) {
+    { 6, new MenuType("Reports", "#") {
+        SubMenus = new List<MenuType> {
+
+            new MenuType("Services", "/reports/service-reports", typeof(ServiceReoports)),
+            // new MenuType("Credit Record", "/credit/details", typeof(ViewCredit)),
+            // new MenuType("Supplier Credit", "/supplier/credit", typeof(SupplierCreditRecordView)),
+
+        }
+    }},
+    { 7, new MenuType("Read Excel", "/read-excel",typeof(GetExcel)) {
     }},
 };
 

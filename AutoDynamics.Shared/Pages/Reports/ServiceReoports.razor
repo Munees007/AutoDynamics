@@ -1,0 +1,245 @@
+@page "/reports/service-reports"
+@inject IDatabaseHandler DatabaseHandler
+
+<h1>Service Report</h1>
+
+<div class="filter-section mb-4 d-flex gap-3 flex-wrap align-items-end">
+    <div>
+        <label>Select Service:</label><br />
+        <select @bind="selectedService" class="form-control">
+            <option value="">Select Service</option>
+            <option value="All">All Services</option>
+            @foreach (var service in serviceModals)
+            {
+                <option value="@service.Service">@service.Service</option>
+            }
+        </select>
+    </div>
+
+    <div>
+        <label>From Date:</label><br />
+        <InputDate @bind-Value="fromDate" class="form-control" />
+    </div>
+
+    <div>
+        <label>To Date:</label><br />
+        <InputDate @bind-Value="toDate" class="form-control" />
+    </div>
+
+    <div>
+        <button @onclick="GenerateReport" class="btn btn-primary">Generate Report</button>
+    </div>
+</div>
+
+
+
+<div style="width: 100%; height: 400px; padding: 10px;">
+    <SfChart @ref="@chartRef" Title="Weekly Service">
+        <ChartPrimaryXAxis ValueType="Syncfusion.Blazor.Charts.ValueType.Category" Title="Week"></ChartPrimaryXAxis>
+        <ChartPrimaryYAxis Title="Total Services" />
+        <ChartTooltipSettings Enable="true" Format="${point.x} : ${point.y}" EnableMarker="true"></ChartTooltipSettings>
+        <ChartSeriesCollection>
+            <ChartSeries DataSource="@ChartDatas" XName="Week" Width="0.6" YName="Value" Type="ChartSeriesType.Column">
+                <ChartMarker>
+                    <ChartDataLabel Visible="true" Position="Syncfusion.Blazor.Charts.LabelPosition.Middle" />
+                </ChartMarker>
+            </ChartSeries>
+        </ChartSeriesCollection>
+    </SfChart>
+</div>
+
+
+
+@if (bestServices.Any())
+{
+    <h4 class="mt-4">Top Services</h4>
+    <table class="table table-striped">
+        <thead>
+            <tr><th>Service</th><th>Total Quantity</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var svc in bestServices)
+            {
+                <tr><td>@svc.Service</td><td>@svc.Total</td></tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (!string.IsNullOrEmpty(selectedService) && selectedService != "All")
+{
+    var topCustomers = customerGroups.FirstOrDefault(x => x.Service == selectedService)?.Customers;
+
+    if (topCustomers != null && topCustomers.Any())
+    {
+        <h4>Top Customers for "@selectedService"</h4>
+        <ul>
+            @foreach (var cust in topCustomers)
+            {
+                <li>@cust</li>
+            }
+        </ul>
+    }
+}
+
+
+
+@code {
+    private List<ServiceModal> serviceModals = new();
+    private string selectedService = string.Empty;
+    private DateTime fromDate = new(DateTime.Now.Year, DateTime.Now.Month, 1);
+    private DateTime toDate = DateTime.Now;
+
+
+
+    private SfChart? chartRef;
+
+
+    public class ServiceModal
+    {
+        public string Service { get; set; } = "";
+        public string ServiceID { get; set; } = "";
+        public string HSNCode { get; set; } = "";
+    }
+
+    public class ServiceReportData
+    {
+        public string label { get; set; } = "";
+        public int Quantity { get; set; }
+        public DateTime createdAt { get; set; }
+        public string CustomerName { get; set; } = "";
+    }
+
+    public class ChartData
+    {
+        public string Week { get; set; }
+        public double Value { get; set; }
+    }
+
+    public class TopService
+    {
+        public string Service { get; set; } = "";
+        public int Total { get; set; }
+    }
+
+    public class CustomerGroup
+    {
+        public string Service { get; set; } = "";
+        public List<string> Customers { get; set; } = new();
+    }
+    private List<ChartData> ChartDatas = new();
+    private List<ServiceReportData> serviceReportData = new();
+    private List<TopService> bestServices = new();
+    private List<CustomerGroup> customerGroups = new();
+    private List<string>? commonCustomers =>
+        customerGroups.FirstOrDefault(x => x.Service == selectedService)?.Customers;
+    private string? selectedServiceName => selectedService;
+    protected override async Task OnInitializedAsync()
+    {
+        string getQuery = "SELECT * FROM Services";
+        var result = await DatabaseHandler.ExecuteQueryAsync(getQuery);
+        foreach (var row in result)
+        {
+            serviceModals.Add(new ServiceModal
+                {
+                    Service = row["Service"].ToString() ?? "",
+                    ServiceID = row["ServiceID"].ToString() ?? "",
+                    HSNCode = row["HSNCode"].ToString() ?? "",
+                });
+        }
+    }
+
+    protected async void GenerateReport()
+    {
+        ChartDatas.Clear();
+        serviceReportData.Clear();
+        bestServices.Clear();
+        customerGroups.Clear();
+
+        string whereCondition = "ItemType = 'SERVICE' AND Date(b.CreatedAt) BETWEEN @from AND @to";
+        if (!string.IsNullOrEmpty(selectedService) && selectedService != "All")
+        {
+            whereCondition += " AND bi.ItemName = @service";
+        }
+
+        string getData = $@"
+            SELECT bi.Quantity, b.CreatedAt, b.BillID, bi.ItemName, b.CustomerID,c.Name
+            FROM BillItems bi
+            JOIN Bills b ON b.BillID = bi.BillID JOIN Customers c ON c.CustomerID = b.CustomerID
+            WHERE {whereCondition}";
+
+        var parameters = new Dictionary<string, object>
+        {
+            { "@from", fromDate.ToString("yyyy-MM-dd") },
+            { "@to", toDate.ToString("yyyy-MM-dd") }
+        };
+
+        if (!string.IsNullOrEmpty(selectedService) && selectedService != "All")
+        {
+            parameters.Add("@service", selectedService);
+        }
+
+        var res = await DatabaseHandler.ExecuteQueryAsync(getData, parameters);
+
+        foreach (var row in res)
+        {
+            serviceReportData.Add(new ServiceReportData
+                {
+                    label = row["ItemName"].ToString() ?? "",
+                    Quantity = Convert.ToInt32(row["Quantity"]),
+                    createdAt = Convert.ToDateTime(row["CreatedAt"]),
+                    CustomerName = row["Name"].ToString() ?? ""
+                });
+        }
+
+        // Weekly Group
+        var groupedByWeek = serviceReportData
+            .GroupBy(item =>
+            {
+                int day = item.createdAt.Day;
+                return day <= 7 ? "Week 1" :
+                       day <= 14 ? "Week 2" :
+                       day <= 21 ? "Week 3" : "Week 4";
+            })
+            .Select(g => new { Week = g.Key, TotalQuantity = g.Sum(x => x.Quantity) })
+            .OrderBy(g => g.Week)
+            .ToList();
+
+
+        foreach (var item in groupedByWeek)
+        {
+            ChartDatas.Add(new ChartData
+                {
+                    Week = item.Week,
+                    Value = item.TotalQuantity
+                });
+        }
+
+       
+       
+        // Top Services
+        bestServices = serviceReportData
+            .GroupBy(x => x.label)
+            .Select(g => new TopService { Service = g.Key, Total = g.Sum(x => x.Quantity) })
+            .OrderByDescending(x => x.Total)
+            .Take(5)
+            .ToList();
+
+        // Customers per service
+        customerGroups = serviceReportData
+    .GroupBy(x => x.label)
+    .Select(g => new CustomerGroup
+        {
+            Service = g.Key,
+            Customers = g.GroupBy(x => x.CustomerName)
+                         .OrderByDescending(cg => cg.Count())
+                         .Take(5) // Show top 5 frequent customers
+                         .Select(cg => $"{cg.Key} ({cg.Count()} times)")
+                         .ToList()
+        })
+    .ToList();
+
+
+        StateHasChanged();
+    }
+}

@@ -2,6 +2,15 @@
     display: none;
 }
 
+.e-tooltip-wrap {
+    z-index: 9999 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    position: fixed !important;
+}
+
+
+
 @supports (-webkit-touch-callout: none) {
     .status-bar-safe-area {
         display: flex;

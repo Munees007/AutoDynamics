@@ -1295,7 +1295,7 @@ namespace AutoDynamics.Services
                         entryTable.SetWidths(new float[] { 15f, 10f, 35f, 10f, 10f, 10f });
 
                         entryTable.AddCell(CreateCell(entry.date.ToString("dd-MM-yyyy"), fontRow));
-                        entryTable.AddCell(CreateCell(entry.type, fontRow));
+                        entryTable.AddCell(CreateCell(entry.accountType, fontRow));
                         entryTable.AddCell(CreateCell(entry.particulars, fontRow));
                         entryTable.AddCell(CreateCell(entry.debit > 0 ? entry.debit.ToString("0.00") : "", fontRow, iTextSharp.text.Element.ALIGN_RIGHT));
                         entryTable.AddCell(CreateCell(entry.credit > 0 ? entry.credit.ToString("0.00") : "", fontRow, iTextSharp.text.Element.ALIGN_RIGHT));

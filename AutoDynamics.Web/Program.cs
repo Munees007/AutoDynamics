@@ -5,6 +5,7 @@ using Blazored.LocalStorage;
 using AutoDynamics.Web.Helper;
 using Microsoft.JSInterop;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Syncfusion.Blazor;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +15,7 @@ builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.AddSyncfusionBlazor();
 builder.Services.AddScoped(sp => new HttpClient());
 
 // Add device-specific services used by the AutoDynamics.Shared project
