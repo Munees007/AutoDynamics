@@ -14,5 +14,10 @@ namespace AutoDynamics.Shared.Modals.Stock
         public int AvailableQuantity { get; set; } = 0;
         public int oldestQuantity { get; set; }
         public string Branch { get; set; } = "";
+
+        public string[] GenerateForExcel()
+        {
+            return new string[] { this.ProductID, this.Product.Brand, this.Product.Size, this.Product.Pattern, this.Product.TubeOrTubeless, this.AvailableQuantity.ToString() };
+        }
     }
 }

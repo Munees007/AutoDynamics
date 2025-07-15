@@ -197,15 +197,15 @@
     {
         if (excelOption == "Both")
         {
-            await ExcelService.CreateCreditExcel( pdfOption, filteredSivakasiRecords, filteredBypassRecords);
+            await ExcelService.CreateCreditExcel( excelOption, filteredSivakasiRecords, filteredBypassRecords);
         }
         else if (excelOption == "Sivakasi")
         {
-            await ExcelService.CreateCreditExcel(pdfOption, sivakasiCredit: filteredSivakasiRecords);
+            await ExcelService.CreateCreditExcel(excelOption, sivakasiCredit: filteredSivakasiRecords);
         }
         else
         {
-            await ExcelService.CreateCreditExcel(pdfOption, bypassCredit: filteredBypassRecords);
+            await ExcelService.CreateCreditExcel(excelOption, bypassCredit: filteredBypassRecords);
         }
     }
     protected override async Task OnInitializedAsync()

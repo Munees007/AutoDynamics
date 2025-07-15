@@ -11,22 +11,37 @@
 @inject IToastService ToastService
 @inject IFormFactor FormFactor
 @inject ITabService TabService
+@inject IExcelService ExcelService
 <div>
     <h3 class="text-center mb-4">Stock Details</h3>
     <DialoBox dialogBox="addDialog"></DialoBox>
+    <DialoBox dialogBox="excelDialog"></DialoBox>
 
-    <div class="row mb-3">
-        <div class="col-md-10">
-            <input type="text" @oninput="(e)=>{FilterStock(e);}" class="form-control" placeholder="Search by Product Id, Name" />
+    <div class="row mb-3 align-items-center">
+        <div class="col-md-8">
+            <input type="text"
+                   @oninput="(e) => { FilterStock(e); }"
+                   class="form-control"
+                   placeholder="Search by Product Id, Name" />
         </div>
-        @if (isAdmin)
-        {
-            <div class="col-md-2 d-flex align-items-center">
-                <button class="btn h-100 btn-success btn-sm w-100" @onclick="() => {addDialog.showDialog = true; StateHasChanged();}">
+
+        <div class="col-md-2 mt-2 mt-md-0">
+            @if (isAdmin)
+            {
+                <button class="btn btn-success w-100"
+                        @onclick="() => { addDialog.showDialog = true; StateHasChanged(); }">
                     Add
                 </button>
-            </div>}
+            }
+        </div>
+
+        <div class="col-md-2 mt-2 mt-md-0">
+            <button class="btn btn-dark w-100" @onclick="()=>{excelDialog.showDialog = true;StateHasChanged();}">
+                Download Excel
+            </button>
+        </div>
     </div>
+
 
     <div class="row mt-3 mb-3">
         <div class="col-md-12">
@@ -210,7 +225,8 @@
     int bypassStockTotal = 0;
 
 
-
+    CustomDialogBox excelDialog = new CustomDialogBox();
+	string excelOption = "Both";
 
     StockType CurrentStock = new();
 
@@ -222,6 +238,21 @@
         {
             filterOption = value;
             ApplySearchAndFilter();
+        }
+    }
+    private async Task downloadExcek()
+    {
+        if (excelOption == "Both")
+        {
+            await ExcelService.CreateStockExcel(excelOption, filteredSivakasiStocks, filteredBypassStocks);
+        }
+        else if (excelOption == "Sivakasi")
+        {
+            await ExcelService.CreateStockExcel(excelOption, sivakasiCredit: filteredSivakasiStocks);
+        }
+        else
+        {
+            await ExcelService.CreateStockExcel(excelOption, bypassCredit: filteredBypassStocks);
         }
     }
 
@@ -393,6 +424,39 @@ VALUES (@ProductID, @Branch, @OldQuantity,@NewQuantity,@ActionType,@Action)";
     protected override async Task OnInitializedAsync()
     {
         isAdmin = await MyLocalStorageService.GetItemAsync("IsAdmin") == "true" ? true : false;
+        excelDialog = new CustomDialogBox
+            {
+                Title = "Stock Excel",
+                body =@<div>
+        <div class="input-group col-10">
+            <label class="input-group-text" for="branchSelect">Select Branch</label>
+            <select class="form-select" id="branchSelect" @bind="excelOption">
+                <option value="Both">Both</option>
+                <option value="Sivakasi">Sivakasi</option>
+                <option value="Bypass">Bypass</option>
+            </select>
+        </div>
+    </div>
+    ,
+            footers = new List<FooterBtn>
+            {
+                new FooterBtn
+                {
+                    Button = @<button class="btn btn-danger" @onclick="()=>{excelDialog.showDialog = false; StateHasChanged();}">CANCEL</button>
+                },
+                new FooterBtn
+                {
+                          Button = @<button class="btn btn-primary" @onclick="downloadExcek">OK</button>
+	        	},
+                },
+                OnCloase = EventCallback.Factory.Create(this, async () =>
+            {
+                excelDialog.showDialog = false;
+
+
+                StateHasChanged();
+            })
+            };
         updateDialog = new CustomDialogBox
 	    {
 	    	Title = "Update Stock",

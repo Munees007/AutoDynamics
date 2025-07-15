@@ -235,9 +235,9 @@
 	{
 		try
 		{
-			
+
 			await DatabaseHandler.InsertOrUpdateMultipleLedger(ledgers);
-			
+
 			ToastService.ShowToast("Ledger updated successfully", ToastType.sucess);
 		}
 		catch(Exception e)
@@ -396,7 +396,34 @@
 			isLoading = true;
 			loaderText = "Saving Ledger...";
 
+
+			// foreach(var ledger in ledgers)
+			// {
+			// 	if(ledger.TransactionType == TransactionType.PAYMENT && ledger.ForWho != null)
+			// 	{
+			// 		PaymentReciptType temp = new PaymentReciptType
+			// 				{
+			// 					BillingYear = DateTime.Now.Year,
+			// 					Branch = branch,
+			// 					supplier = new Supplier
+			// 					{
+			// 						SupplierID = ledger.ForWho
+			// 					},
+			// 					PaymentDate = ledger.Date,
+			// 					TotalAmountPaid = ledger.DR_Amount + ledger.CR_Amount,
+			// 					paymentType = ledger.PaymentMode,
+			// 					CheckNumber = "",
+			// 					Narration = ledger.Particulars,
+			// 					PaymentId = isUpdating ? ledger.ReferenceID : 0,
+			// 				};
+			// 		int billNO = await DatabaseHandler.InsertPayment(temp,isUpdating,new List<Ledger>());
+			// 		ledger.ReferenceID = billNO;
+			// 	}
+			// }
+
 			
+
+
 
 			await DatabaseHandler.InsertOrUpdateMultipleLedger(ledgers);
 			isLoading = false;
