@@ -282,12 +282,12 @@ else
 
         filteredSivakasiBills = sivakasiBills
     .Where(s => s.purchase.PurchaseDate.ToString("dd-MM-yyyy").Contains(searchQuery, StringComparison.OrdinalIgnoreCase)
-             || s.purchase.InvoiceNumber.Contains(searchQuery, StringComparison.OrdinalIgnoreCase))
+             || s.purchase.InvoiceNumber.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) || s.purchase.Supplier.Name.Contains(searchQuery,StringComparison.OrdinalIgnoreCase) )
     .ToList();
 
         filteredBypassBills = bypassBills
         .Where(s => s.purchase.PurchaseDate.ToString("dd-MM-yyyy").Contains(searchQuery, StringComparison.OrdinalIgnoreCase)
-                 || s.purchase.InvoiceNumber.Contains(searchQuery, StringComparison.OrdinalIgnoreCase))
+             || s.purchase.InvoiceNumber.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) || s.purchase.Supplier.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase))
         .ToList();
 
         StateHasChanged();

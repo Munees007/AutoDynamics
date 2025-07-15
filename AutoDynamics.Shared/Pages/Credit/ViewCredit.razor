@@ -13,6 +13,7 @@
     <div class="d-flex justify-content-between align-items-center">
         <h2 class="text-center mb-4">Credit Record</h2> <!-- Title Added -->
         <div class="d-flex gap-2">
+            <button class="btn btn-success" @onclick="async ()=>{await FetchData();}">Refresh</button>
             <button class="btn btn-dark" @onclick="()=>{pdfDialog.showDialog = true;StateHasChanged();}">Download PDF</button>
             <button class="btn btn-dark" @onclick="()=>{excelDialog.showDialog = true;StateHasChanged();}">Download EXCEL</button>
         </div>

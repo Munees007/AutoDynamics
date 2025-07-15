@@ -722,7 +722,7 @@
             isProcessing = true;
             loaderText = "Fetching Data...";
         }
-        string customerQuery = @"SELECT * FROM Customers";
+        string customerQuery = @"SELECT * FROM Customers WHERE isActive = 1";
         string vehicleQuery = @"SELECT * FROM Vehicle";
         string serviceQuery = @"SELECT * FROM Services";
         string productsQuery = @"SELECT s.*, p.* FROM Stock s JOIN Product p ON p.ProductID = s.ProductID";

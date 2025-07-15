@@ -48,8 +48,20 @@
                             <td>
                                 <button class="btn btn-primary btn-sm" @onclick="() => ViewCustomer(customer    )">View</button>
                                 <button class="btn btn-dark btn-sm" @onclick="() => UpdateCustomer(customer)">Update</button>
-                                @if (isAdmin) {<button class="btn btn-danger btn-sm" @onclick="() => DeleteCustomer(customer.CustomerId)">Delete</button>
+                                @if (isAdmin)
+                                {
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox"
+                                        id="switch-@customer.CustomerId"
+                                        checked="@customer.isActive"
+                                        @onchange="(e) => ToggleActiveStatusAsync(customer, e.Value)">
+                                        <label class="form-check-label" for="switch-@customer.CustomerId">
+                                            @(customer.isActive ? "Active" : "Inactive")
+                                        </label>
+                                    </div>
                                 }
+
+
                             </td>
                         </tr>
                     }
@@ -73,6 +85,34 @@
         await fetchData();
         filteredCustomers = customers;
         isLoading = false;
+    }
+
+    public async Task ToggleActiveStatusAsync(UserModal customer, object value)
+    {
+        try
+        {
+            bool isActive = Convert.ToBoolean(value);
+            customer.isActive = isActive;
+            string query = "UPDATE Customers SET isActive = @isActive WHERE CustomerID = @customerId";
+            var parameters = new Dictionary<string, object>
+        {
+            { "@isActive", isActive },
+            { "@customerId", customer.CustomerId }
+        };
+
+            await DatabaseHandler.ExecuteNonQueryAsync(query, parameters);
+
+            
+                ToastService.ShowToast("Customer status updated successfully.", ToastType.sucess);
+            
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowToast("An error occurred while updating.", ToastType.error);
+            Console.WriteLine(ex.Message);
+        }
+
+        StateHasChanged();
     }
 
     public void FilterData(ChangeEventArgs e)
@@ -129,7 +169,8 @@
                         IsWhatsAppAllowed = row["IsWhatsAppAllowed"].ToString() == "True" ? true : false,
                         CreatedBy = row["CreatedBy"].ToString() ?? "",
                         CreateAt = row["CreatedAt"].ToString() ?? "",
-                        LastUpdatedAt = row["LastUpdatedAt"].ToString() ?? ""
+                        LastUpdatedAt = row["LastUpdatedAt"].ToString() ?? "",
+                        isActive = Convert.ToBoolean(row["isActive"])
                     });
             }
         }

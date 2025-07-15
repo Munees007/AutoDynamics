@@ -192,8 +192,8 @@ else
     public void SearchBills(ChangeEventArgs e)
     {
         searchQuery = e.Value.ToString();
-        filteredSivakasiBills = sivakasiBills.Where((b) => CreateBillNo(b).Contains(searchQuery)).ToList();
-        filteredBypassBills = bypassBills.Where((b) => CreateBillNo(b).Contains(searchQuery)).ToList();
+        filteredSivakasiBills = sivakasiBills.Where((b) => CreateBillNo(b).Contains(searchQuery) || b.Bill.Customer.Name.Contains(searchQuery,StringComparison.OrdinalIgnoreCase)).ToList();
+        filteredBypassBills = bypassBills.Where((b) => CreateBillNo(b).Contains(searchQuery) || b.Bill.Customer.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
     }
 
     public string CreateBillNo(BillDetails bill)

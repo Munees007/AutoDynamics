@@ -2,6 +2,8 @@
 {
     public class UserModal
     {
+
+        public bool isActive { set; get; } = true;
         public string CustomerId { get; set; } = "";
         public string Contact { get; set; } = "";
         public string Name { get; set; } = "";

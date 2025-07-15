@@ -32,7 +32,7 @@
 			{
 				<div>
 					<label class="form-label fw-semibold">Transaction Type</label>
-					<select class="form-select" disabled="@(isViewing || isUpdating)" @bind="transactionType">
+					<select class="form-select" disabled="@(isViewing)" @bind="transactionType">
 						<option value="@TransactionType.EXPENSE">EXPENSE</option>
 						<option value="@TransactionType.OTHER">OTHER</option>
 					</select>
@@ -43,7 +43,7 @@
 			{
 				<div>
 					<label class="form-label fw-semibold">Payment Type</label>
-					<select class="form-select" disabled="@(isViewing || isUpdating)" @bind="paymentType">
+					<select class="form-select" disabled="@(isViewing)" @bind="paymentType">
 						<option value="@PaymentTypes.CASH">CASH</option>
 						<option value="@PaymentTypes.CARD">CARD</option>
 						<option value="@PaymentTypes.BANK">BANK</option>
@@ -85,7 +85,7 @@
 							<input type="date" disabled="@(isViewing)" @bind="ledger.Date" class="form-control" />
 						</td>
 						<td>
-							<select @bind="@ledger.AccountID" disabled="@(isViewing || isUpdating)" class="form-select">
+							<select @bind="@ledger.AccountID" disabled="@(isViewing)" class="form-select">
 								@foreach(var item in accountTypes)
 								{
 									<option value="@item.AcccountId">@item.AccountName</option>
@@ -95,7 +95,8 @@
 						@if(LedgerType == "DE")
 						{
 							<td>
-								<select @bind="ledger.TransactionType" disabled="@(isViewing || isUpdating)" class="form-select">
+								<select @bind="ledger.TransactionType" disabled="@(isViewing)" class="form-select">
+									<option value="@TransactionType.PAYMENT">PAYMENT</option>
 									<option value="@TransactionType.EXPENSE">EXPENSE</option>
 									<option value="@TransactionType.OTHER">OTHER</option>
 								</select>
@@ -159,7 +160,7 @@
 	}
 	@if(LedgerType == "DE" &&!isViewing)
 	{
-		<button class="btn btn-success mt-3 " @onclick="()=>{ledgers = createSingleEntry(true);}" disabled="@(ledgers.Count == 0 || isUpdating)">
+		<button class="btn btn-success mt-3 " @onclick="()=>{ledgers = createSingleEntry(true);}" disabled="@(ledgers.Count == 0 )">
 			✅ Check Double Entry
 		</button>
 	}
@@ -412,7 +413,7 @@
 
 	protected override void OnInitialized()
 	{
-
+		LedgerType = isUpdating ? "DE" : "SE";
 		accountType = new CustomDialogBox
 		{
 			Title = "Add Account Type",
