@@ -20,16 +20,16 @@
     <div class="row mb-3 align-items-center">
         <div class="col-md-8">
             <input type="text"
-                   @oninput="(e) => { FilterStock(e); }"
-                   class="form-control"
-                   placeholder="Search by Product Id, Name" />
+            @oninput="(e) => { FilterStock(e); }"
+            class="form-control"
+            placeholder="Search by Product Id, Name" />
         </div>
 
         <div class="col-md-2 mt-2 mt-md-0">
             @if (isAdmin)
             {
                 <button class="btn btn-success w-100"
-                        @onclick="() => { addDialog.showDialog = true; StateHasChanged(); }">
+                @onclick="() => { addDialog.showDialog = true; StateHasChanged(); }">
                     Add
                 </button>
             }
@@ -226,7 +226,7 @@
 
 
     CustomDialogBox excelDialog = new CustomDialogBox();
-	string excelOption = "Both";
+    string excelOption = "Both";
 
     StockType CurrentStock = new();
 
@@ -242,17 +242,18 @@
     }
     private async Task downloadExcek()
     {
+        
         if (excelOption == "Both")
         {
-            await ExcelService.CreateStockExcel(excelOption, filteredSivakasiStocks, filteredBypassStocks);
+            await ExcelService.CreateStockExcel(excelOption,twoWheelerCodes,fourWheelerCodes,tubeCodes, filteredSivakasiStocks, filteredBypassStocks);
         }
         else if (excelOption == "Sivakasi")
         {
-            await ExcelService.CreateStockExcel(excelOption, sivakasiCredit: filteredSivakasiStocks);
+            await ExcelService.CreateStockExcel(excelOption,twoWheelerCodes,fourWheelerCodes,tubeCodes, sivakasiCredit: filteredSivakasiStocks);
         }
         else
         {
-            await ExcelService.CreateStockExcel(excelOption, bypassCredit: filteredBypassStocks);
+            await ExcelService.CreateStockExcel(excelOption, twoWheelerCodes, fourWheelerCodes, tubeCodes, bypassCredit: filteredBypassStocks);
         }
     }
 

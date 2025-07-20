@@ -24,7 +24,9 @@
         </div>
 
         <div class="col-md-8">
-            <label for="Customer" class="form-label fw-bold">Customer</label>
+            
+            <label for="Customer" class="form-label fw-bold">Customer: @(creditReciptTypes.customer.CustomerId != null ? creditReciptTypes.customer.Name : "")</label>
+            
             <div class="input-group">
                 <input @onkeydown="HandleCustomerKey" disabled="@IsUpdating" autocomplete="off" type="text" id="Customer"
                 @bind="CustomerSearch" @oninput="OnCustomerSearch"
@@ -193,6 +195,7 @@
             await NecessaryData();
             if (IsUpdating)
             {
+                
                 filteredCreditBills = creditReciptTypes.creditBills;
                 creditBills = creditReciptTypes.creditBills;
                 CustomerSearch = creditReciptTypes.customer.CustomerId;

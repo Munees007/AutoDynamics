@@ -417,113 +417,128 @@ public async Task<string> CreateCreditExcel(string branch, List<CreditRecord> si
             return "Error generating Excel: " + ex.Message;
         }
     }
-        public async Task<string> CreateStockExcel(string branch, List<StockType> sivakasiCredit = null, List<StockType> bypassCredit = null)
+        public async Task<string> CreateStockExcel(
+    string branch,
+    string[] twoWheelerHSNCode,
+    string[] fourWheelerHSNCode,
+    string[] tubesHSNCod,
+    List<StockType> sivakasiCredit = null,
+    List<StockType> bypassCredit = null)
         {
             try
             {
                 using var workbook = new XLWorkbook();
-                var worksheet = workbook.Worksheets.Add("Stock data");
-
-                int row = 1;
-
-                // ✅ Date Row
-                worksheet.Cell(row, 1).Value = $"Date: {DateTime.Now:dd/MM/yyyy}";
-                worksheet.Range(row, 1, row, 6).Merge().Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-                row++;
-
-                // ✅ AUTO DYNAMICS Header
-                worksheet.Cell(row, 1).Value = "AUTO DYNAMICS";
-                worksheet.Range(row, 1, row, 6).Merge();
-                worksheet.Cell(row, 1).Style.Font.SetBold().Font.FontSize = 18;
-                worksheet.Cell(row, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-                row += 2;
-
-                // ✅ CREDIT LIST Title
-                worksheet.Cell(row, 1).Value = "STOCK DATA";
-                worksheet.Range(row, 1, row, 6).Merge();
-                worksheet.Cell(row, 1).Style.Font.SetBold().Font.FontSize = 14;
-                worksheet.Cell(row, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-                row += 2;
-
-                // ✅ Add branch data
-                void AddBranchData(string branchName, List<StockType> credits)
-                {
-                    // 🔹 Branch Title
-                    worksheet.Cell(row, 1).Value = $"Branch: {branchName}";
-                    worksheet.Range(row, 1, row, 6).Merge();
-                    worksheet.Cell(row, 1).Style.Font.SetBold().Font.FontSize = 12;
-                    worksheet.Cell(row, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-                    row++;
-
-                    // 🔹 Header
-                    string[] headers = { "Product ID", "Brand", "Size", "Pattern", "Tube or Tubeless","Available Quantity" };
-                    for (int i = 0; i < headers.Length; i++)
-                    {
-                        worksheet.Cell(row, i + 1).Value = headers[i];
-                        worksheet.Cell(row, i + 1).Style.Font.SetBold();
-                        worksheet.Cell(row, i + 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-                        worksheet.Cell(row, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
-                        worksheet.Cell(row, i + 1).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-                        worksheet.Cell(row, i + 1).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-                    }
-                    row++;
-
-                    // 🔹 Data
-                    foreach (var record in credits)
-                    {
-                        var values = record.GenerateForExcel(); // [Name, Mobile, Credit, Paid, Remaining]
-
-                        for (int j = 0; j < values.Length; j++)
-                        {
-                            var cell = worksheet.Cell(row, j + 1);
-
-                            // If it's one of the 3 amount columns (index 2,3,4 => j=2,3,4), format as number
-                            if (j >= 2)
-                            {
-                                if (decimal.TryParse(values[j], out decimal amount))
-                                {
-                                    cell.Value = amount;
-                                    cell.Style.NumberFormat.Format = "#,##0.00";
-                                }
-                                else
-                                {
-                                    cell.Value = values[j]; // fallback
-                                }
-                            }
-                            else
-                            {
-                                cell.Value = values[j];
-                            }
-
-                            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-                        }
-
-                        row++;
-                    }
-                    row += 2;
-                }
+                var allCredits = new List<(string Branch, StockType Item)>();
 
                 if (branch == "Both")
                 {
-                    AddBranchData("Sivakasi", sivakasiCredit ?? new List<StockType>());
-                    AddBranchData("Bypass", bypassCredit ?? new List<StockType>());
+                    allCredits.AddRange((sivakasiCredit ?? new()).Select(x => ("Sivakasi", x)));
+                    allCredits.AddRange((bypassCredit ?? new()).Select(x => ("Bypass", x)));
                 }
                 else if (branch == "Sivakasi")
                 {
-                    AddBranchData("Sivakasi", sivakasiCredit ?? new List<StockType>());
+                    allCredits.AddRange((sivakasiCredit ?? new()).Select(x => ("Sivakasi", x)));
                 }
                 else
                 {
-                    AddBranchData("Bypass", bypassCredit ?? new List<StockType>());
+                    allCredits.AddRange((bypassCredit ?? new()).Select(x => ("Bypass", x)));
                 }
 
-                worksheet.Columns().AdjustToContents();
+                // Group by Brand
+                var groupedByBrand = allCredits
+                    .Where(x => !string.IsNullOrEmpty(x.Item.Product.Brand))
+                    .GroupBy(x => x.Item.Product.Brand);
 
-                // ✅ Save Excel file
-                string filePath = Path.Combine(FileSystem.CacheDirectory, "CreditList.xlsx");
+                foreach (var brandGroup in groupedByBrand)
+                {
+                    string brandName = brandGroup.Key;
+                    var worksheet = workbook.Worksheets.Add(brandName.Length > 31 ? brandName.Substring(0, 31) : brandName);
+
+                    int row = 1;
+
+                    worksheet.Cell(row, 1).Value = $"Brand: {brandName}";
+                    worksheet.Range(row, 1, row, 6).Merge().Style.Font.SetBold().Font.FontSize = 14;
+                    worksheet.Cell(row, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                    row += 2;
+
+                    // 🔹 Write category-wise section
+                    void WriteCategory(string title, Func<string, bool> hsnMatch)
+                    {
+                        var categoryGroup = brandGroup
+                            .Where(x => hsnMatch(x.Item.Product.HSNCode))
+                            .GroupBy(x => x.Branch);
+
+                        if (!categoryGroup.Any()) return;
+
+                        worksheet.Cell(row, 1).Value = title.ToUpper();
+                        worksheet.Range(row, 1, row, 6).Merge().Style.Font.SetBold().Font.FontSize = 12;
+                        worksheet.Cell(row, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+                        row++;
+
+                        foreach (var branchGroup in categoryGroup)
+                        {
+                            worksheet.Cell(row, 1).Value = $"Branch: {branchGroup.Key}";
+                            worksheet.Range(row, 1, row, 6).Merge().Style.Font.SetBold();
+                            worksheet.Cell(row, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+                            row++;
+
+                            string[] headers = { "Product ID", "Brand", "Size", "Pattern", "Tube/Tubeless", "Available Qty" };
+                            for (int i = 0; i < headers.Length; i++)
+                            {
+                                var cell = worksheet.Cell(row, i + 1);
+                                cell.Value = headers[i];
+                                cell.Style.Font.SetBold();
+                                cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                                cell.Style.Fill.BackgroundColor = XLColor.LightGray;
+                                cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                            }
+                            row++;
+
+                            foreach (var (branchName, item) in branchGroup)
+                            {
+                                var values = item.GenerateForExcel();
+
+                                // Skip if Available Qty (index 5) is zero or not valid
+                                if (values.Length < 6 || !decimal.TryParse(values[5], out var qty) || qty == 0)
+                                    continue;
+
+                                for (int i = 0; i < values.Length; i++)
+                                {
+                                    var cell = worksheet.Cell(row, i + 1);
+
+                                    if (i >= 2 && decimal.TryParse(values[i], out var number))
+                                    {
+                                        cell.Value = number;
+                                        cell.Style.NumberFormat.Format = "#,##0.00";
+                                    }
+                                    else
+                                    {
+                                        cell.Value = values[i];
+                                    }
+
+                                    cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                                }
+
+                                row++;
+                            }
+
+
+                            row++; // gap after branch
+                        }
+
+                        row += 2; // gap after category
+                    }
+
+                    // ✅ Call for each category
+                    WriteCategory("Two Wheeler", hsn => twoWheelerHSNCode.Contains(hsn));
+                    WriteCategory("Four Wheeler", hsn => fourWheelerHSNCode.Contains(hsn));
+                    WriteCategory("Tubes", hsn => tubesHSNCod.Contains(hsn));
+                }
+
+                // Final steps
+                string filePath = Path.Combine(FileSystem.CacheDirectory, "StockData.xlsx");
                 workbook.SaveAs(filePath);
 
-                // ✅ Open the file (Windows only)
                 if (DeviceInfo.Platform == DevicePlatform.WinUI)
                 {
                     var psi = new ProcessStartInfo
@@ -532,7 +547,6 @@ public async Task<string> CreateCreditExcel(string branch, List<CreditRecord> si
                         UseShellExecute = true
                     };
                     Process.Start(psi);
-
                     return "Excel opened successfully.";
                 }
 
@@ -543,7 +557,8 @@ public async Task<string> CreateCreditExcel(string branch, List<CreditRecord> si
                 return "Error generating Excel: " + ex.Message;
             }
         }
+
     }
 
-    
+
 }

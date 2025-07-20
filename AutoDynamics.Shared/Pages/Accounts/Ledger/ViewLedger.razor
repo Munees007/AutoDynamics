@@ -21,6 +21,7 @@
         <option value="CASH A/C">CASH A/C</option>
         <option value="BANK A/C">BANK A/C</option>
         <option value="CARD A/C">CARD A/C</option>
+        <option value="CREDIT A/C">CREDIT A/C</option>
         <option value="ac">A/C</option>
     </select>
 </div>
@@ -111,8 +112,28 @@ else
                         </td>
                     </tr>
                 }
+                <tr>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>Closing Balance</td>
+                    <td class="text-end"></td>
+                    <td class="text-end"></td>
+                    <td class="text-end">@GetFormattedBalance(closingBalance)</td>
+                    <td class="d-flex flex-column gap-2">
+
+                    </td>
+                </tr>
             </tbody>
         </table>
+        <div class="d-flex justify-content-end mb-3">
+            <div class="card text-end p-3 shadow-sm border border-primary" style="min-width: 250px;">
+                <h5 class="card-title mb-3">Total</h5>
+                <p class="mb-1"><strong>Incomes:</strong> @ledgers.Sum(a => a.DR_Amount)</p>
+                <p class="mb-0"><strong>Expenses:</strong> @ledgers.Sum(a => a.CR_Amount)</p>
+            </div>
+        </div>
     </div>
 }
 
@@ -130,6 +151,7 @@ else
     string selectedSortingOption = "date";
     DateTime? startDate, endDate;
     bool isLoading = false;
+    decimal closingBalance = 0.0m;
 
 
     async Task UpdateLedger(Ledger ledger)
@@ -152,20 +174,20 @@ else
 
     async Task ViewLedgerFun(Ledger ledger)
     {
-		List<Ledger> ledgers = await getLedgers(ledger.EntryID);
-		if (ledgers.Count > 0)
-		{
-			Dictionary<string, dynamic> parameter = new Dictionary<string, dynamic>
+        List<Ledger> ledgers = await getLedgers(ledger.EntryID);
+        if (ledgers.Count > 0)
+        {
+            Dictionary<string, dynamic> parameter = new Dictionary<string, dynamic>
 			{
                 {"ledgers",ledgers},
 				{"isViewing",true}
 			};
-			TabService.OpenWithParameter(ledger.AccountType?.AccountName ?? "Ledger", typeof(AddLedger), parameter);
-		}
-		else
-		{
-			ToastService.ShowToast("No ledger entries found for this account.",ToastType.warning);
-		}
+            TabService.OpenWithParameter(ledger.AccountType?.AccountName ?? "Ledger", typeof(AddLedger), parameter);
+        }
+        else
+        {
+            ToastService.ShowToast("No ledger entries found for this account.",ToastType.warning);
+        }
     }
 
     async Task<List<Ledger>> getLedgers(int entryID)
@@ -238,7 +260,12 @@ else
         {
             openingWhereClause += $" AND AccountID = {getAccountID(filterType)}";
         }
-
+        else if(filterType == "CREDIT A/C")
+        {
+            int supplierCreditAccountID = getAccountID("SUPPLIER A/C");
+            int customerCreditAccountID = getAccountID("CUSTOMER CREDIT A/C");
+            openingWhereClause += $"AND AccountID in ({supplierCreditAccountID},{customerCreditAccountID})";
+        }
         // Query for opening balance
         var openingBalanceQuery = $@"SELECT SUM(DrAmount - CrAmount) as OpeningBalance FROM CashBankLedger {openingWhereClause}";
         var result = await DatabaseHandler.ExecuteQueryAsync(openingBalanceQuery);
@@ -365,6 +392,7 @@ else
             runningBalance += (ledger.DR_Amount - ledger.CR_Amount);
             ledger.Balance = runningBalance;
         }
+        closingBalance = runningBalance;
 
         isLoading = false;
         StateHasChanged();

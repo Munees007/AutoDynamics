@@ -15,7 +15,7 @@
 
 
         <div class="col-md-8">
-            <label for="Customer" class="form-label fw-bold">Supplier</label>
+            <label for="Customer" class="form-label fw-bold">Supplier: @(supplierCredits.supplier.SupplierID != null ? supplierCredits.supplier.Name : "")</label>
             <div class="input-group">
                 <input @onkeydown="HandleSupplierKey" autocomplete="off" type="text" id="Customer"
                 @bind="SupplierSearch" @oninput="OnSupplierSearch"

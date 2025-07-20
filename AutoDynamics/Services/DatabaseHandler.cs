@@ -1982,28 +1982,28 @@ WHERE p.ProductID = @ProductID";
             switch (filterType)
             {
                 case BillDateFilterType.Today:
-                    whereClause = $"WHERE DATE(r.CreatedAt) = '{today:yyyy-MM-dd}'";
+                    whereClause = $"WHERE DATE(r.PaymentDate) = '{today:yyyy-MM-dd}'";
                     break;
                 case BillDateFilterType.Yesterday:
-                    whereClause = $"WHERE DATE(r.CreatedAt) = '{today.AddDays(-1):yyyy-MM-dd}'";
+                    whereClause = $"WHERE DATE(r.PaymentDate) = '{today.AddDays(-1):yyyy-MM-dd}'";
                     break;
                 case BillDateFilterType.ThisMonth:
-                    whereClause = $"WHERE MONTH(r.CreatedAt) = {today.Month} AND YEAR(r.CreatedAt) = {today.Year}";
+                    whereClause = $"WHERE MONTH(r.PaymentDate) = {today.Month} AND YEAR(r.PaymentDate) = {today.Year}";
                     break;
                 case BillDateFilterType.ThisYear:
-                    whereClause = $"WHERE YEAR(r.CreatedAt) = {today.Year}";
+                    whereClause = $"WHERE YEAR(r.PaymentDate) = {today.Year}";
                     break;
                 case BillDateFilterType.CustomMonthYear:
                     if (customMonthYear.HasValue)
-                        whereClause = $"WHERE MONTH(r.CreatedAt) = {customMonthYear.Value.Month} AND YEAR(r.CreatedAt) = {customMonthYear.Value.Year}";
+                        whereClause = $"WHERE MONTH(r.PaymentDate) = {customMonthYear.Value.Month} AND YEAR(r.PaymentDate) = {customMonthYear.Value.Year}";
                     break;
                 case BillDateFilterType.CustomDate:
                     if (startDate.HasValue)
-                        whereClause = $"WHERE DATE(r.CreatedAt) = '{startDate.Value:yyyy-MM-dd}'";
+                        whereClause = $"WHERE DATE(r.PaymentDate) = '{startDate.Value:yyyy-MM-dd}'";
                     break;
                 case BillDateFilterType.CustomRange:
                     if (startDate.HasValue && endDate.HasValue)
-                        whereClause = $"WHERE DATE(r.CreatedAt) BETWEEN '{startDate.Value:yyyy-MM-dd HH:mm:ss}' AND '{endDate.Value:yyyy-MM-dd HH:mm:ss}'";
+                        whereClause = $"WHERE DATE(r.PaymentDate) BETWEEN '{startDate.Value:yyyy-MM-dd HH:mm:ss}' AND '{endDate.Value:yyyy-MM-dd HH:mm:ss}'";
                     break;
                 case BillDateFilterType.All:
                 default:
@@ -2099,28 +2099,28 @@ WHERE p.ProductID = @ProductID";
             switch (filterType)
             {
                 case BillDateFilterType.Today:
-                    whereClause = $"WHERE DATE(r.CreatedAt) = '{today:yyyy-MM-dd}'";
+                    whereClause = $"WHERE DATE(r.PaymentDate) = '{today:yyyy-MM-dd}'";
                     break;
                 case BillDateFilterType.Yesterday:
-                    whereClause = $"WHERE DATE(r.CreatedAt) = '{today.AddDays(-1):yyyy-MM-dd}'";
+                    whereClause = $"WHERE DATE(r.PaymentDate) = '{today.AddDays(-1):yyyy-MM-dd}'";
                     break;
                 case BillDateFilterType.ThisMonth:
-                    whereClause = $"WHERE MONTH(r.CreatedAt) = {today.Month} AND YEAR(r.CreatedAt) = {today.Year}";
+                    whereClause = $"WHERE MONTH(r.PaymentDate) = {today.Month} AND YEAR(r.PaymentDate) = {today.Year}";
                     break;
                 case BillDateFilterType.ThisYear:
-                    whereClause = $"WHERE YEAR(r.CreatedAt) = {today.Year}";
+                    whereClause = $"WHERE YEAR(r.PaymentDate) = {today.Year}";
                     break;
                 case BillDateFilterType.CustomMonthYear:
                     if (customMonthYear.HasValue)
-                        whereClause = $"WHERE MONTH(r.CreatedAt) = {customMonthYear.Value.Month} AND YEAR(r.CreatedAt) = {customMonthYear.Value.Year}";
+                        whereClause = $"WHERE MONTH(r.PaymentDate) = {customMonthYear.Value.Month} AND YEAR(r.PaymentDate) = {customMonthYear.Value.Year}";
                     break;
                 case BillDateFilterType.CustomDate:
                     if (startDate.HasValue)
-                        whereClause = $"WHERE DATE(r.CreatedAt) = '{startDate.Value:yyyy-MM-dd}'";
+                        whereClause = $"WHERE DATE(r.PaymentDate) = '{startDate.Value:yyyy-MM-dd}'";
                     break;
                 case BillDateFilterType.CustomRange:
                     if (startDate.HasValue && endDate.HasValue)
-                        whereClause = $"WHERE DATE(r.CreatedAt) BETWEEN '{startDate.Value:yyyy-MM-dd HH:mm:ss}' AND '{endDate.Value:yyyy-MM-dd HH:mm:ss}'";
+                        whereClause = $"WHERE DATE(r.PaymentDate) BETWEEN '{startDate.Value:yyyy-MM-dd HH:mm:ss}' AND '{endDate.Value:yyyy-MM-dd HH:mm:ss}'";
                     break;
                 case BillDateFilterType.All:
                 default:
