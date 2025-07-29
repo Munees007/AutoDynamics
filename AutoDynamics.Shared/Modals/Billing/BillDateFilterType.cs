@@ -16,5 +16,6 @@ namespace AutoDynamics.Shared.Modals.Billing
         CustomDate,
         CustomRange,
         CustomMonthYear,
+        ParticularBill
     }
 }

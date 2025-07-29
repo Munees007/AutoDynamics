@@ -16,7 +16,7 @@
 	<div class="card shadow-lg">
 		<div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">
 			<h4 class="mb-0">Customer Details</h4>
-			<button class="btn btn-sm btn-dark" @onclick="()=>{statementDialog.showDialog = true;StateHasChanged();}">💾 Download Statement</button>
+			<button disabled=true class="btn btn-sm btn-dark" @onclick="()=>{statementDialog.showDialog = true;StateHasChanged();}">💾 Download Statement</button>
 		</div>
 		<div class="card-body">
 			<div class="row">
@@ -197,103 +197,7 @@
 			</div>;
 
 		billsFront = @<div class="col-md-6 w-100">
-                <div class="card shadow-lg mt-4">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">Sivakasi Branch</h5>
-                    </div>
-                    <div class="card-body">
-                        @if (sivakasiBills.Any())
-                        {
-                            <table class="table table-bordered table-hover">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th>Bill No</th>
-                                        <th>Customer ID</th>
-                                        <th>Name</th>
-                                        <th>Mobile No</th>
-                                        <th>Branch</th>
-                                        <th>Vehicle No</th>
-                                        <th>Bill Date</th>
-                                        <th>Total</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var bill in sivakasiBills)
-                                    {
-                                        <tr>
-                                            <td style="cursor:pointer;" @onclick="()=> ViewBill(bill)">@("SFR" + (bill.Bill.BillNo.ToString().PadLeft(4, '0')))</td>
-                                            <td>@bill.Bill.CustomerID</td>
-                                            <td>@bill.customer.Name</td>
-                                            <td>@bill.customer.Contact</td>
-                                            <td>@bill.Bill.Branch</td>
-                                            <td>@bill.Bill.VehicleNo</td>
-                                            <td>@bill.Bill.BillDate.ToString("yyyy-MM-dd")</td>
-                                            <td>₹@(Math.Round(bill.Bill.TotalAmount))</td>
-                                            <td>
-                                                <button class="btn btn-sm btn-success" @onclick="() => DownloadBill(bill)">Download</button>
-                                            </td>
-
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        }
-                        else
-                        {
-                            <p class="text-muted text-center">No records for Sivakasi.</p>
-                        }
-                    </div>
-                </div>
-
-		<div class="card shadow-lg mt-4">
-			<div class="card-header bg-primary text-white">
-				<h5 class="mb-0">ByPass Branch</h5>
-			</div>
-			<div class="card-body">
-				@if (bypassBills.Any())
-			{
-				<table class="table table-bordered table-hover">
-					<thead class="table-dark">
-						<tr>
-							<th>Bill No</th>
-							<th>Customer ID</th>
-							<th>Name</th>
-							<th>Mobile No</th>
-							<th>Branch</th>
-							<th>Vehicle No</th>
-							<th>Bill Date</th>
-							<th>Total</th>
-							<th>Actions</th>
-						</tr>
-					</thead>
-					<tbody>
-						@foreach (var bill in bypassBills)
-					{
-						<tr>
-							<td style="cursor:pointer;" @onclick="()=> ViewBill(bill)">@("BPR" + (bill.Bill.BillNo.ToString().PadLeft(4, '0')))</td>
-							<td>@bill.Bill.CustomerID</td>
-							<td>@bill.customer.Name</td>
-							<td>@bill.customer.Contact</td>
-							<td>@bill.Bill.Branch</td>
-							<td>@bill.Bill.VehicleNo</td>
-							<td>@bill.Bill.BillDate.ToString("yyyy-MM-dd")</td>
-							<td>₹@(Math.Round(bill.Bill.TotalAmount))</td>
-							<td>
-								<button class="btn btn-sm btn-success" @onclick="() => DownloadBill(bill)">Download</button>
-							</td>
-
-						</tr>
-					}
-					</tbody>
-				</table>
-			}
-			else
-			{
-				<p class="text-muted text-center">No records for ByPass.</p>
-			}
-			</div>
-		</div>
+                <ListBills isCustomerView=true customerFromView="customerData"/>
             </div>;
 
 		recordsFront = @<div class="container mt-4">
@@ -349,91 +253,7 @@
 	;
 
 		ReceiptFront =@<div class="col-md-6 w-100">
-		<div class="card shadow-lg mt-4">
-			<div class="card-header bg-primary text-white">
-				<h5 class="mb-0">Sivakasi Branch</h5>
-			</div>
-			<div class="card-body">
-				@if (sivakasiCreditRecipts.Any())
-			{
-				<table class="table table-bordered table-hover">
-					<thead class="table-dark">
-						<tr>
-							<th>Receipt No</th>
-							<th>Receipt Date</th>
-							<th>Customer ID</th>
-							<th>Name</th>
-							<th>Total Amount Paid</th>
-
-						</tr>
-					</thead>
-					<tbody>
-						@foreach (var bill in sivakasiCreditRecipts)
-					{
-						<tr>
-							<td style="cursor:pointer;">@("RC_SFR" + (bill.ReceiptNO.ToString().PadLeft(4, '0')))</td>
-							<td>@bill.ReciptDate.ToString("dd-MMM-yyyy")</td>
-							<td>@bill.customer.CustomerId</td>
-							<td>@bill.customer.Name</td>
-
-							<td>₹@bill.TotalAmountPaid</td>
-
-
-
-						</tr>
-					}
-					</tbody>
-				</table>
-			}
-			else
-			{
-				<p class="text-muted text-center">No receipts for Sivakasi.</p>
-			}
-			</div>
-		</div>
-
-		<div class="card shadow-lg mt-4">
-			<div class="card-header bg-primary text-white">
-				<h5 class="mb-0">ByPass Branch</h5>
-			</div>
-			<div class="card-body">
-				@if (bypassCreditRecipts.Any())
-			{
-				<table class="table table-bordered table-hover">
-					<thead class="table-dark">
-						<tr>
-							<th>Receipt No</th>
-							<th>Receipt Date</th>
-							<th>Customer ID</th>
-							<th>Name</th>
-							<th>Total Amount Paid</th>
-
-						</tr>
-					</thead>
-					<tbody>
-						@foreach (var bill in bypassCreditRecipts)
-					{
-						<tr>
-							<td style="cursor:pointer;">@("RC_BPR" + (bill.ReceiptNO.ToString().PadLeft(4, '0')))</td>
-							<td>@bill.ReciptDate.ToString("dd-MMM-yyyy")</td>
-							<td>@bill.customer.CustomerId</td>
-							<td>@bill.customer.Name</td>
-
-							<td>₹@bill.TotalAmountPaid</td>
-
-
-
-						</tr>
-					}
-					</tbody>
-				</table>
-			}
-			else
-			{
-				<p class="text-muted text-center">No receipt for ByPass.</p>
-			}
-			</div>
-		</div>
+		<ListReceipts isCustomerView=true customerForView="customerData"/>
 	</div>
 	;
 
@@ -724,8 +544,6 @@
 				.ToList();
 		}
 		
-
-		
 		if (customerStatements.Count > 0)
 		{
 			
@@ -744,12 +562,9 @@
 		isLoading = true;
 		vehicles.Clear();
 		creditRecords.Clear();
-		bills.Clear();
+		
 		creditRecipts.Clear();
-		bills = await DatabaseHandler.GetCustomerBillsAsync(customerData.CustomerId);
-
-		sivakasiBills = bills.Where((b => b.Bill.Branch == "Sivakasi")).ToList();
-		bypassBills = bills.Where((b => b.Bill.Branch == "ByPass")).ToList();
+		
 		string query = $@"
     SELECT *
     FROM Vehicle
@@ -801,9 +616,7 @@
 					});
 			}
 		}
-		creditRecipts = await DatabaseHandler.GetCreditReceipts(true, customerData.CustomerId);
-		sivakasiCreditRecipts = creditRecipts.Where((cr) => cr.Branch == "Sivakasi").ToList();
-		bypassCreditRecipts = creditRecipts.Where((cr) => cr.Branch == "ByPass").ToList();
+		
 		Debug.WriteLine(vehicles.Count);
 		Debug.WriteLine(bills.Count);
 		Debug.WriteLine(creditRecords.Count);

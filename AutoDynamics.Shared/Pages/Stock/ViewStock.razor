@@ -1,4 +1,4 @@
-@page "/stock"
+﻿@page "/stock"
 @using System.Diagnostics
 @inject IDatabaseHandler DatabaseHandler
 @inject IAlertService AlertService
@@ -350,11 +350,29 @@
             return true;
 
         var temp = searchQuery.ToLower();
-        return s.ProductID.Contains(temp, StringComparison.OrdinalIgnoreCase) ||
-           s.Product.Pattern.ToLower().Contains(temp) ||
-           s.Product.Size.ToLower().Contains(temp) ||
-           s.Product.Brand.ToLower().Contains(temp) ||
-           s.Product.BrandID.ToLower().Contains(temp);
+
+        string brand = s.Product.Brand.ToLower();
+        string size = s.Product.Size.ToLower();
+        string pattern = s.Product.Pattern.ToLower();
+        string brandId = s.Product.BrandID.ToLower();
+        string productId = s.ProductID.ToLower();
+
+        // Take first 3 characters safely
+        string brandPrefix = brand.Length >= 3 ? brand.Substring(0, 3) : brand;
+        string patternPrefix = pattern.Length >= 3 ? pattern.Substring(0, 3) : pattern;
+
+        return productId.Contains(temp, StringComparison.OrdinalIgnoreCase)
+            || pattern.Contains(temp)
+            || size.Contains(temp)
+            || brand.Contains(temp)
+            || brandId.Contains(temp)
+            // 🔽 Add combo search options
+            || (brandPrefix + size).Contains(temp)
+            || (brandPrefix + pattern).Contains(temp)
+            || (patternPrefix + size).Contains(temp)
+            || (patternPrefix + brand).Contains(temp)
+            || (size + brandPrefix).Contains(temp)
+            || (brand + size).Contains(temp);  // Optional: full brand + size
     }
     private bool MatchesFilter(StockType s)
     {

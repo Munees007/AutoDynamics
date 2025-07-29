@@ -21,7 +21,7 @@ namespace AutoDynamics.Shared.Services
         Task<int[]> InsertBillAsync(Bill bill, List<BillItem> billItems, BillPayment billPayment, bool isUpdating, List<Ledger> ledgers);
         Task<int> InsertPurchaseBillAsync(Purchase purchaseBill, List<PurchaseItems> purchaseItems, bool isUpdating,List<Ledger> ledgers);
         Task<List<BillDetails>> GetAllBillsAsync();
-        Task<List<BillDetails>> GetFilteredBillsAsync(BillDateFilterType filterType, DateTime? startDate = null, DateTime? endDate = null, DateTime? customMonthYear = null);
+        Task<List<BillDetails>> GetFilteredBillsAsync(BillDateFilterType filterType, string bills = "", string customerID = "", bool isCusomerOnly=false, DateTime? startDate = null, DateTime? endDate = null, DateTime? customMonthYear = null);
         Task<List<BillDetails>> GetCustomerBillsAsync(string id);
         Task<string> GenerateID(string startsWith, int size, string tableName, string columnName);
 
@@ -33,11 +33,11 @@ namespace AutoDynamics.Shared.Services
 
         Task<int> InsertReceipt(CreditReciptType creditRecipt, bool isUpdating, List<Ledger> ledgers);
         Task<List<CreditReciptType>> GetCreditReceipts(bool isCustomerOnly, string? CustomerID);
-        Task<List<CreditReciptType>> GetFilteredReceiptsync(BillDateFilterType filterType, DateTime? startDate = null, DateTime? endDate = null, DateTime? customMonthYear = null);
+        Task<List<CreditReciptType>> GetFilteredReceiptsync(BillDateFilterType filterType, string customerID = "", bool isCustomerView = false, DateTime? startDate = null, DateTime? endDate = null, DateTime? customMonthYear = null);
 
         Task<int> InsertPayment(PaymentReciptType creditRecipt, bool isUpdating, List<Ledger> ledgers);
         Task<List<PaymentReciptType>> GetPaymentReceipts(bool isCustomerOnly, string? SupplierID);
-        Task<List<PaymentReciptType>> GetFilteredPaymentsync(BillDateFilterType filterType, DateTime? startDate = null, DateTime? endDate = null, DateTime? customMonthYear = null);
+        Task<List<PaymentReciptType>> GetFilteredPaymentsync(BillDateFilterType filterType, string supplierID = "", bool isSupplierView = false, DateTime? startDate = null, DateTime? endDate = null, DateTime? customMonthYear = null);
         Task<List<int>> InsertOrUpdateMultipleLedger(List<Ledger> ledgers);
 
     }

@@ -880,14 +880,14 @@ namespace AutoDynamics.Services
                             }
 
                             string updateCreditRecord = @"UPDATE SupplierCreditRecord 
-                                                  SET PaidAmount = PaidAmount + @PaidAmount, 
-                                                      Status = @Status 
+                                                  SET PaidAmount = PaidAmount + @PaidAmount
+                                                      
                                                   WHERE SupplierCreditID = @SupplierCreditID";
 
                             using (var command = new MySqlCommand(updateCreditRecord, connection, (MySqlTransaction)transaction))
                             {
                                 command.Parameters.AddWithValue("@PaidAmount", item.amountPayed);
-                                command.Parameters.AddWithValue("@Status", item.CreditStatus.ToString());
+                                
                                 command.Parameters.AddWithValue("@SupplierCreditID", item.paymentId);
                                 await command.ExecuteNonQueryAsync();
                             }
@@ -1752,9 +1752,9 @@ WHERE ProductID = @ProductID AND Branch = @Branch
         }
 
 
-    
 
-        public async Task<List<BillDetails>> GetFilteredBillsAsync(BillDateFilterType filterType, DateTime? startDate = null, DateTime? endDate = null,DateTime? customMonthYear = null)
+
+        public async Task<List<BillDetails>> GetFilteredBillsAsync(BillDateFilterType filterType,string bills = "",string customerID = "",bool isCusomerOnly=false, DateTime? startDate = null, DateTime? endDate = null,DateTime? customMonthYear = null)
         {
             var billDetailsList = new List<BillDetails>();
             using var connection = new MySqlConnection(_connectionString);
@@ -1766,6 +1766,9 @@ WHERE ProductID = @ProductID AND Branch = @Branch
 
             switch (filterType)
             {
+                case BillDateFilterType.ParticularBill:
+                    whereClause = $"WHERE BillNo in ({bills})";
+                    break;
                 case BillDateFilterType.Today:
                     whereClause = $"WHERE DATE(b.BillDate) = '{today:yyyy-MM-dd}'";
                     break;
@@ -1795,6 +1798,21 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                     // No filter
                     break;
             }
+
+
+            if (isCusomerOnly)
+            {
+                if (string.IsNullOrWhiteSpace(whereClause))
+                {
+                    whereClause = $"WHERE b.CustomerID = '{customerID}'";
+                }
+                else
+                {
+                    whereClause += $" AND b.CustomerID = '{customerID}'";
+                }
+            }
+
+
 
             string billQuery = $@"
     SELECT b.*, c.*, v.*
@@ -1969,7 +1987,7 @@ WHERE p.ProductID = @ProductID";
             return billDetailsList;
         }
 
-        public async Task<List<CreditReciptType>> GetFilteredReceiptsync(BillDateFilterType filterType, DateTime? startDate = null, DateTime? endDate = null, DateTime? customMonthYear = null)
+        public async Task<List<CreditReciptType>> GetFilteredReceiptsync(BillDateFilterType filterType, string customerID = "", bool isCustomerView = false, DateTime? startDate = null, DateTime? endDate = null, DateTime? customMonthYear = null)
         {
             var receiptDetailsList = new List<CreditReciptType>();
             using var connection = new MySqlConnection(_connectionString);
@@ -2009,6 +2027,18 @@ WHERE p.ProductID = @ProductID";
                 default:
                     // No filter
                     break;
+            }
+
+            if(isCustomerView)
+            {
+                if(string.IsNullOrWhiteSpace(whereClause))
+                {
+                    whereClause += $"WHERE r.CustomerID = '{customerID}'";
+                }
+                else
+                {
+                    whereClause += $" AND r.CustomerID = '{customerID}'";
+                }
             }
 
             string receiptQuery = $@"
@@ -2086,7 +2116,7 @@ WHERE p.ProductID = @ProductID";
             return receiptDetailsList;
         }
 
-        public async Task<List<PaymentReciptType>> GetFilteredPaymentsync(BillDateFilterType filterType, DateTime? startDate = null, DateTime? endDate = null, DateTime? customMonthYear = null)
+        public async Task<List<PaymentReciptType>> GetFilteredPaymentsync(BillDateFilterType filterType,string supplierID="",bool isSupplierView = false, DateTime? startDate = null, DateTime? endDate = null, DateTime? customMonthYear = null)
         {
             var receiptDetailsList = new List<PaymentReciptType>();
             using var connection = new MySqlConnection(_connectionString);
@@ -2126,6 +2156,18 @@ WHERE p.ProductID = @ProductID";
                 default:
                     // No filter
                     break;
+            }
+
+            if(isSupplierView)
+            {
+                if(string.IsNullOrWhiteSpace(whereClause))
+                {
+                    whereClause += $"WHERE r.SupplierID = '{supplierID}'";
+                }
+                else
+                {
+                    whereClause += $" AND r.SupplierID = '{supplierID}'";
+                }
             }
 
             string receiptQuery = $@"

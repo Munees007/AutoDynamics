@@ -1,0 +1,104 @@
+@page "/reduce_payments"
+@inject IDatabaseHandler DatabaseHandler
+@inject IToastService ToastService
+<div>
+    <input placeholder="Supplier ID" @bind="supplierID" type="text" />
+    <button @onclick="ReducePaymentsAsync">Reduce Payments</button>
+</div>
+
+@code {
+    string supplierID;
+
+    public async Task ReducePaymentsAsync()
+    {
+        try
+        {
+            // Step 1: Get eligible credit records with RemainingBalance > 0
+            string creditQuery = @"
+            SELECT sp.SupplierCreditID, sp.PaidAmount, sp.RemainingBalance
+            FROM SupplierCreditRecord sp
+            JOIN PurchaseBills p ON sp.PurchaseBillID = p.PurchaseBillID
+            WHERE sp.SupplierID = @supplierId
+              AND sp.PaymentDate < '2025-07-01'
+              AND sp.RemainingBalance > 0
+            ORDER BY p.BillNo ASC";
+
+            var parameters = new Dictionary<string, dynamic> {
+                { "@supplierId", supplierID }
+            };
+
+            var creditList = await DatabaseHandler.ExecuteQueryAsync(creditQuery, parameters);
+
+            // Step 2: Get all payments ordered by PaymentDate
+            string paymentQuery = @"
+            SELECT TotalAmount AS PaymentAmount, PaymentDate
+            FROM Payments
+            WHERE SupplierID = @supplierId
+            ORDER BY PaymentDate ASC";
+
+            var paymentList = await DatabaseHandler.ExecuteQueryAsync(paymentQuery, parameters);
+
+            if (creditList.Count == 0 || paymentList.Count == 0)
+            {
+                Console.WriteLine("No eligible credits or payments found.");
+                return;
+            }
+
+            // Step 3: Apply payments to credit records
+            int creditIndex = 0;
+            foreach (var payment in paymentList)
+            {
+                decimal paymentAmount = Convert.ToDecimal(payment["PaymentAmount"]);
+
+                while (paymentAmount > 0 && creditIndex < creditList.Count)
+                {
+                    var credit = creditList[creditIndex];
+                    int creditId = Convert.ToInt32(credit["SupplierCreditID"]);
+                    decimal remainingBalance = Convert.ToDecimal(credit["RemainingBalance"]);
+                    decimal paidAmount = Convert.ToDecimal(credit["PaidAmount"]);
+
+                    if (remainingBalance <= 0)
+                    {
+                        creditIndex++;
+                        continue;
+                    }
+
+                    decimal deduction = Math.Min(paymentAmount, remainingBalance);
+                    decimal newPaidAmount = paidAmount + deduction;
+                    decimal newRemaining = remainingBalance - deduction;
+
+                    // Update credit record
+                    string updateQuery = @"
+                        UPDATE SupplierCreditRecord
+                        SET PaidAmount = @newPaidAmount,
+                            RemainingBalance = @newRemaining
+                        WHERE SupplierCreditID = @creditId";
+
+                    var updateParams = new Dictionary<string, dynamic> {
+                        { "@newPaidAmount", newPaidAmount },
+                        { "@newRemaining", newRemaining },
+                        { "@creditId", creditId }
+                    };
+
+                    await DatabaseHandler.ExecuteNonQueryAsync(updateQuery, updateParams);
+
+                    paymentAmount -= deduction;
+
+                    // Move to next credit only if this one is fully paid
+                    if (newRemaining == 0)
+                        creditIndex++;
+                    else
+                        credit["RemainingBalance"] = newRemaining; // update for local loop
+                }
+            }
+
+            Console.WriteLine("Payments reduced successfully.");
+			ToastService.ShowToast("Payments reduced successfully.", ToastType.sucess);
+        }
+        catch (Exception ex)
+        {
+			ToastService.ShowToast("Error reducing payments: " + ex.Message, ToastType.error);
+            Console.WriteLine("Error: " + ex.Message);
+        }
+    }
+}

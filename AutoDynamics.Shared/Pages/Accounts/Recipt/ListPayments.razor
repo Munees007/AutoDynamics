@@ -14,7 +14,7 @@
 <h3 class="text-center mb-4">Payment Lists</h3>
 @* <DialoBox dialogBox="excelDialog"></DialoBox> *@
 <div class="mb-3">
-    <input type="text" @bind="searchQuery" @oninput="SearchBills" class="form-control" placeholder="Search by Bill No" />
+    <input type="text" @bind="searchQuery" @oninput="SearchBills" class="form-control" placeholder="Search by Receipt No" />
 </div>
 
 <div class="mb-3">
@@ -35,11 +35,11 @@
 </div>
 <div class="w-100 d-flex justify-content-between align-items-md-center">
     <button class="btn btn-primary mb-3" @onclick="ApplyFilters">Apply Filters</button>
-    <button class="btn btn-success mb-3" @onclick="()=>{excelDialog.showDialog = true;StateHasChanged();}">Download Excel</button>
+    
 </div>
 @if (receiptDetails == null || !receiptDetails.Any())
 {
-    <div class="alert alert-warning text-center">No billing records found.</div>
+    <div class="alert alert-warning text-center">No Payment records found.</div>
 }
 else
 {
@@ -116,7 +116,7 @@ else
                                 <thead class="table-dark">
                                     <tr>
                                         <th>Payment No</th>
-                                        
+
                                         <th>Customer ID</th>
                                         <th>Name</th>
                                         <th>Mobile No</th>
@@ -132,7 +132,7 @@ else
                                     {
                                         <tr>
                                             <td style="cursor:pointer;">@("RC_BPR" + (bill.PaymentNo.ToString().PadLeft(4, '0')))</td>
-                                            
+
                                             <td>@bill.supplier.SupplierID</td>
                                             <td>@bill.supplier.Name</td>
                                             <td>@bill.supplier.Contact</td>
@@ -185,6 +185,8 @@ else
     DateTime? startDate;
     DateTime? endDate;
 
+    [Parameter] public Supplier supplierForView { set; get; }
+    [Parameter] public bool isSupplierView { set; get; } = false;
     string excelBranch = "Sivakasi";
     int excelMonth = 1;
     int excelYear = 2025;
@@ -406,25 +408,25 @@ else
 
             if (selectedSortOption == "date")
             {
-                filtered = await DatabaseHandler.GetFilteredPaymentsync(BillDateFilterType.Today);
+                filtered = await DatabaseHandler.GetFilteredPaymentsync(BillDateFilterType.Today,supplierID:supplierForView.SupplierID,isSupplierView:isSupplierView);
             }
 
             if (selectedSortOption == "yesterday")
             {
-                filtered = await DatabaseHandler.GetFilteredPaymentsync(BillDateFilterType.Yesterday);
+                filtered = await DatabaseHandler.GetFilteredPaymentsync(BillDateFilterType.Yesterday, supplierID: supplierForView.SupplierID, isSupplierView: isSupplierView);
             }
 
             if (selectedSortOption == "month")
             {
 
 
-                filtered = await DatabaseHandler.GetFilteredPaymentsync(BillDateFilterType.ThisMonth);
+                filtered = await DatabaseHandler.GetFilteredPaymentsync(BillDateFilterType.ThisMonth, supplierID: supplierForView.SupplierID, isSupplierView: isSupplierView);
             }
             if (selectedSortOption == "year")
             {
 
 
-                filtered = await DatabaseHandler.GetFilteredPaymentsync(BillDateFilterType.ThisYear);
+                filtered = await DatabaseHandler.GetFilteredPaymentsync(BillDateFilterType.ThisYear, supplierID: supplierForView.SupplierID, isSupplierView: isSupplierView);
             }
 
 
@@ -435,7 +437,7 @@ else
                 startDate = startDate.Value.Date;
                 endDate = endDate.Value.Date.AddHours(23).AddMinutes(59).AddSeconds(59);
 
-                filtered = await DatabaseHandler.GetFilteredPaymentsync(BillDateFilterType.CustomRange, startDate: startDate, endDate: endDate);
+                filtered = await DatabaseHandler.GetFilteredPaymentsync(BillDateFilterType.CustomRange, supplierID: supplierForView.SupplierID, isSupplierView: isSupplierView, startDate: startDate, endDate: endDate);
             }
             ToastService.ShowToast("Receipts Fetched Successfully", ToastType.sucess);
             return filtered.OrderBy(b => b.PaymentDate).ToList();

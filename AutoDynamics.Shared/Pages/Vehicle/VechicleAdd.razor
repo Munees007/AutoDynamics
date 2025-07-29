@@ -1,4 +1,4 @@
-@page "/Vehicle/add"
+﻿@page "/Vehicle/add"
 @using System.Diagnostics
 @inject IDatabaseHandler DatabaseHandler
 @inject IMyLocalStorageService MyLocalStorageService
@@ -6,7 +6,10 @@
 @inject IToastService ToastService
 <EditForm Model="@vehicle">
     <DataAnnotationsValidator/>
-    <h2 class="text-center mt-3">Create Vehicle</h2>
+    <div class="d-flex justify-content-between justify-content-center">
+        <h2 class="text-center mt-3">Create Vehicle</h2>
+        <button class="btn btn-outline-primary" @onclick="FetchNecessaryData">🔄️</button>
+    </div>
     <div class="mb-3">
         <label for="Customer" class="form-label">Customer:</label>
         <input @onkeydown="HandleKey" autocomplete="off" type="text" id="Customer" @bind="search" @oninput="OnInput" class="form-control" placeholder="Search by ID, Name, or Contact" required maxlength="12">

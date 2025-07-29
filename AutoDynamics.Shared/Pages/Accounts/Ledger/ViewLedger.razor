@@ -21,7 +21,7 @@
         <option value="CASH A/C">CASH A/C</option>
         <option value="BANK A/C">BANK A/C</option>
         <option value="CARD A/C">CARD A/C</option>
-        <option value="CREDIT A/C">CREDIT A/C</option>
+        <option value="cr">CREDIT A/C</option>
         <option value="ac">A/C</option>
     </select>
 </div>
@@ -256,16 +256,18 @@ else
         // Build a WHERE clause for opening balance (same filter by AccountID if needed)
         string openingWhereClause = $"WHERE Date < '{openingDateBoundary:yyyy-MM-dd HH:mm:ss}' AND isActive = 1 AND Branch = '{selectedBranch}'";
 
-        if (filterType != "all" && filterType != "ac")
-        {
-            openingWhereClause += $" AND AccountID = {getAccountID(filterType)}";
-        }
-        else if(filterType == "CREDIT A/C")
+        if (filterType == "cr")
         {
             int supplierCreditAccountID = getAccountID("SUPPLIER A/C");
             int customerCreditAccountID = getAccountID("CUSTOMER CREDIT A/C");
-            openingWhereClause += $"AND AccountID in ({supplierCreditAccountID},{customerCreditAccountID})";
+            Debug.WriteLine($"Supplier Credit Account ID: {supplierCreditAccountID}, Customer Credit Account ID: {customerCreditAccountID}");
+            openingWhereClause += $"AND AccountID in ({supplierCreditAccountID},{customerCreditAccountID}) AND LOWER(Particulars) like '%by%credit%'";
         }
+        else if (filterType != "all" && filterType != "ac")
+        {
+            openingWhereClause += $" AND AccountID = {getAccountID(filterType)}";
+        }
+
         // Query for opening balance
         var openingBalanceQuery = $@"SELECT SUM(DrAmount - CrAmount) as OpeningBalance FROM CashBankLedger {openingWhereClause}";
         var result = await DatabaseHandler.ExecuteQueryAsync(openingBalanceQuery);
@@ -296,7 +298,20 @@ else
             default:
                 break;
         }
-        if(filterType != "all" && filterType != "ac")
+        if(filterType == "cr")
+        {
+            int supplierCreditAccountID = getAccountID("SUPPLIER A/C");
+            int customerCreditAccountID = getAccountID("CUSTOMER CREDIT A/C");
+            if(whereClause == "")
+            {
+                whereClause += $"WHERE AccountID in ({supplierCreditAccountID},{customerCreditAccountID}) AND Branch = '{selectedBranch}' AND LOWER(Particulars) like '%by%credit%'";
+            }
+            else
+            {
+                whereClause += $"AND AccountID in ({supplierCreditAccountID},{customerCreditAccountID}) AND Branch = '{selectedBranch}' AND LOWER(Particulars) like '%by%credit%'";
+            }
+        }
+        else if(filterType != "all" && filterType != "ac")
         {
             if(whereClause == "")
             {

@@ -129,7 +129,7 @@
                                     </ItemTemplate>
                                 </SearchSelect>
                             </td>
-                            <td><p>@(item.ProductID != null ? item.Product.HSNCode : "")</p></td>
+                            <td><p>@((isViewing || isUpdating) ? (item.Product.HSNCode != string.Empty ? item.Product.HSNCode : "") :( item.ProductID != null ? item.Product.HSNCode : ""))</p></td>
                             <td><input disabled="@isViewing" autocomplete="off" type="number" class="form-control" @bind="item.Quantity" min="1"></td>
                             <td style="min-width:120px"><input disabled="@isViewing" autocomplete="off" type="number" class="form-control" @bind="item.UnitPrice" min="0" step="0.01"></td>
 
@@ -225,7 +225,7 @@
             </div>
 
             <div class="col-md-4 d-flex align-items-end justify-content-end">
-                <button class="btn btn-primary mb-2" @onclick="HandleSubmit">Submit Purchase</button>
+                <button class="btn btn-primary mb-2" @onclick="HandleSubmit" disabled="@(isViewing)">Submit Purchase</button>
             </div>
         </div>
 

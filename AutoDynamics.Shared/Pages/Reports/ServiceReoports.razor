@@ -55,12 +55,12 @@
     <h4 class="mt-4">Top Services</h4>
     <table class="table table-striped">
         <thead>
-            <tr><th>Service</th><th>Total Quantity</th></tr>
+            <tr><th>Service</th><th>Total Quantity</th><th>Total Taxable Value</th></tr>
         </thead>
         <tbody>
             @foreach (var svc in bestServices)
             {
-                <tr><td>@svc.Service</td><td>@svc.Total</td></tr>
+                <tr><td>@svc.Service</td><td>@svc.Total</td><td>@svc.TaxableValue</td></tr>
             }
         </tbody>
     </table>
@@ -108,6 +108,7 @@
         public int Quantity { get; set; }
         public DateTime createdAt { get; set; }
         public string CustomerName { get; set; } = "";
+        public decimal TaxableValue { get; set; } = 0.0m;
     }
 
     public class ChartData
@@ -120,6 +121,7 @@
     {
         public string Service { get; set; } = "";
         public int Total { get; set; }
+        public decimal TaxableValue { get; set; } = 0.0m;
     }
 
     public class CustomerGroup
@@ -163,7 +165,7 @@
         }
 
         string getData = $@"
-            SELECT bi.Quantity, b.CreatedAt, b.BillID, bi.ItemName, b.CustomerID,c.Name
+            SELECT bi.Quantity, b.CreatedAt, b.BillID, bi.ItemName,bi.TaxableValue, b.CustomerID,c.Name
             FROM BillItems bi
             JOIN Bills b ON b.BillID = bi.BillID JOIN Customers c ON c.CustomerID = b.CustomerID
             WHERE {whereCondition}";
@@ -188,9 +190,11 @@
                     label = row["ItemName"].ToString() ?? "",
                     Quantity = Convert.ToInt32(row["Quantity"]),
                     createdAt = Convert.ToDateTime(row["CreatedAt"]),
-                    CustomerName = row["Name"].ToString() ?? ""
+                    CustomerName = row["Name"].ToString() ?? "",
+                    TaxableValue = Convert.ToDecimal(row["TaxableValue"])
                 });
         }
+        Debug.WriteLine($"Service Count: {serviceReportData.Count}");
 
         // Weekly Group
         var groupedByWeek = serviceReportData
@@ -220,7 +224,7 @@
         // Top Services
         bestServices = serviceReportData
             .GroupBy(x => x.label)
-            .Select(g => new TopService { Service = g.Key, Total = g.Sum(x => x.Quantity) })
+            .Select(g => new TopService { Service = g.Key, Total = g.Sum(x => x.Quantity),TaxableValue = g.Sum(x=> x.TaxableValue) })
             .OrderByDescending(x => x.Total)
             .Take(5)
             .ToList();

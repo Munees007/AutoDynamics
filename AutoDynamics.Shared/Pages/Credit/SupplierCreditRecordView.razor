@@ -108,8 +108,6 @@
                                 {
                                     <tr style="cursor:pointer" @onclick="()=> CreditSelect(record.Supplier)">
                                         <td>@(sno++)</td>
-
-
                                         <td>@record.Supplier.Name</td>
                                         <td>@record.Supplier.Contact</td>
                                         <td>@record.CreditAmount</td>
@@ -180,9 +178,9 @@
     {
         Dictionary<string, dynamic> parameters = new Dictionary<string, dynamic>
         {
-            {"data",data}
+            {"supplierData",data}
         };
-        // TabService.OpenWithParameter($"Credit : {data.Name}", typeof(Supplier), parameters);
+        TabService.OpenWithParameter($"Credit : {data.Name}", typeof(SingleSupplierView), parameters);
 
     }
 

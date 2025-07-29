@@ -16,7 +16,7 @@
 	<div class="card shadow-lg">
 		<div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">
 			<h4 class="mb-0">Supplier Details</h4>
-			<button class="btn btn-sm btn-dark" @onclick="()=>{statementDialog.showDialog = true;StateHasChanged();}">💾 Download Statement</button>
+			<button disabled=true class="btn btn-sm btn-dark" @onclick="()=>{statementDialog.showDialog = true;StateHasChanged();}">💾 Download Statement</button>
 		</div>
 		<div class="card-body">
 			<div class="row">
@@ -158,109 +158,7 @@
 
 
 		billsFront = @<div class="col-md-6 w-100">
-		<div class="card shadow-lg mt-4">
-			<div class="card-header bg-primary text-white">
-				<h5 class="mb-0">Sivakasi Branch</h5>
-			</div>
-			<div class="card-body">
-				@if (sivakasiBills.Any())
-			{
-				<table class="table table-bordered table-hover">
-					<thead class="table-dark">
-						<tr>
-							<th>Purchase No</th>
-							<th>Invoice No</th>
-							<th>Supplier ID</th>
-							<th>Name</th>
-							<th>Mobile No</th>
-							<th>Branch</th>
-
-							<th>Purchase Date</th>
-							<th>Total</th>
-							<th>Actions</th>
-						</tr>
-					</thead>
-					<tbody>
-						@foreach (var bill in sivakasiBills)
-					{
-						<tr>
-							<td style="cursor:pointer;" @onclick="()=> {}">@("SFRP" + (bill.purchase.BillNo.ToString().PadLeft(4, '0')))</td>
-
-							<td>@bill.purchase.InvoiceNumber</td>
-							<td>@bill.purchase.SupplierID</td>
-							<td>@bill.purchase.Supplier.Name</td>
-							<td>@bill.purchase.Supplier.Contact</td>
-							<td>@bill.purchase.Branch</td>
-
-							<td>@bill.purchase.PurchaseDate.ToString("yyyy-MM-dd")</td>
-							<td>₹@(Math.Round(bill.purchase.TotalAmount))</td>
-							<td>
-								<button class="btn btn-sm btn-success" @onclick="() => {}">Download</button>
-							</td>
-
-						</tr>
-					}
-					</tbody>
-				</table>
-			}
-			else
-			{
-				<p class="text-muted text-center">No records for Sivakasi.</p>
-			}
-			</div>
-		</div>
-
-		<div class="card shadow-lg mt-4">
-			<div class="card-header bg-primary text-white">
-				<h5 class="mb-0">ByPass Branch</h5>
-			</div>
-			<div class="card-body">
-				@if (bypassBills.Any())
-			{
-				<table class="table table-bordered table-hover">
-					<thead class="table-dark">
-						<tr>
-							<th>Purchase No</th>
-							<th>Invoice No</th>
-							<th>Supplier ID</th>
-							<th>Name</th>
-							<th>Mobile No</th>
-							<th>Branch</th>
-
-							<th>Purchase Date</th>
-							<th>Total</th>
-							<th>Actions</th>
-						</tr>
-					</thead>
-					<tbody>
-						@foreach (var bill in bypassBills)
-					{
-						<tr>
-							<td style="cursor:pointer;" @onclick="()=> {}">@("BPRP" + (bill.purchase.BillNo.ToString().PadLeft(4, '0')))</td>
-
-							<td>@bill.purchase.InvoiceNumber</td>
-							<td>@bill.purchase.SupplierID</td>
-							<td>@bill.purchase.Supplier.Name</td>
-							<td>@bill.purchase.Supplier.Contact</td>
-							<td>@bill.purchase.Branch</td>
-
-							<td>@bill.purchase.PurchaseDate.ToString("yyyy-MM-dd")</td>
-							<td>₹@(Math.Round(bill.purchase.TotalAmount))</td>
-							<td>
-								<button class="btn btn-sm btn-success" @onclick="() => {}">Download</button>
-							</td>
-
-						</tr>
-					}
-					</tbody>
-				</table>
-			}
-			else
-			{
-				<p class="text-muted text-center">No records for ByPass.</p>
-			}
-			</div>
-		</div>
+		<ListPuchases isSupplierView=true supplierForView="supplierData"/>
 	</div>;
 
 		recordsFront = @<div class="container mt-4">
@@ -318,91 +216,7 @@
 	;
 
 		ReceiptFront =@<div class="col-md-6 w-100">
-		<div class="card shadow-lg mt-4">
-			<div class="card-header bg-primary text-white">
-				<h5 class="mb-0">Sivakasi Branch</h5>
-			</div>
-			<div class="card-body">
-				@if (sivakasiCreditRecipts.Any())
-			{
-				<table class="table table-bordered table-hover">
-					<thead class="table-dark">
-						<tr>
-							<th>Payment ID</th>
-							<th>Payment Date</th>
-							<th>Supplier ID</th>
-							<th>Name</th>
-							<th>Total Amount Paid</th>
-
-						</tr>
-					</thead>
-					<tbody>
-						@foreach (var bill in sivakasiCreditRecipts)
-					{
-						<tr>
-							<td style="cursor:pointer;">@("PY_SFR" + (bill.PaymentNo.ToString().PadLeft(4, '0')))</td>
-							<td>@bill.PaymentDate.ToString("dd-MMM-yyyy")</td>
-							<td>@bill.supplier.SupplierID</td>
-							<td>@bill.supplier.Name</td>
-
-							<td>₹@bill.TotalAmountPaid</td>
-
-
-
-						</tr>
-					}
-					</tbody>
-				</table>
-			}
-			else
-			{
-				<p class="text-muted text-center">No Payments for Sivakasi.</p>
-			}
-			</div>
-		</div>
-
-		<div class="card shadow-lg mt-4">
-			<div class="card-header bg-primary text-white">
-				<h5 class="mb-0">ByPass Branch</h5>
-			</div>
-			<div class="card-body">
-				@if (bypassCreditRecipts.Any())
-			{
-				<table class="table table-bordered table-hover">
-					<thead class="table-dark">
-						<tr>
-							<th>Payment ID</th>
-							<th>Payment Date</th>
-							<th>Supplier ID</th>
-							<th>Name</th>
-							<th>Total Amount Paid</th>
-
-						</tr>
-					</thead>
-					<tbody>
-						@foreach (var bill in bypassCreditRecipts)
-					{
-						<tr>
-							<td style="cursor:pointer;">@("PY_BPR" + (bill.PaymentNo.ToString().PadLeft(4, '0')))</td>
-							<td>@bill.PaymentDate.ToString("dd-MMM-yyyy")</td>
-							<td>@bill.supplier.SupplierID</td>
-							<td>@bill.supplier.Name</td>
-
-							<td>₹@bill.TotalAmountPaid</td>
-
-
-
-						</tr>
-					}
-					</tbody>
-				</table>
-			}
-			else
-			{
-				<p class="text-muted text-center">No Payment for ByPass.</p>
-			}
-			</div>
-		</div>
+		<ListPayments isSupplierView=true supplierForView="supplierData"/>
 	</div>
 	;
 
@@ -859,10 +673,7 @@ WHERE
 		creditRecords.Clear();
 		bills.Clear();
 		creditRecipts.Clear();
-		bills = await FetchData(supplierData);
-
-		sivakasiBills = bills.Where((b => b.purchase.Branch == "Sivakasi")).ToList();
-		bypassBills = bills.Where((b => b.purchase.Branch == "ByPass")).ToList();
+		
 
 		string creditQuery = $"SELECT c.*,b.* FROM SupplierCreditRecord c JOIN PurchaseBills b ON b.PurchaseBillID = c.PurchaseBillID WHERE c.SupplierID = '{supplierData.SupplierID}'";
 		var res1 = await DatabaseHandler.ExecuteQueryAsync(creditQuery);
@@ -887,9 +698,7 @@ WHERE
 					});
 			}
 		}
-		creditRecipts = await DatabaseHandler.GetPaymentReceipts(true, supplierData.SupplierID);
-		sivakasiCreditRecipts = creditRecipts.Where((cr) => cr.Branch == "Sivakasi").ToList();
-		bypassCreditRecipts = creditRecipts.Where((cr) => cr.Branch == "ByPass").ToList();
+		
 		Debug.WriteLine(vehicles.Count);
 		Debug.WriteLine(bills.Count);
 		Debug.WriteLine(creditRecords.Count);

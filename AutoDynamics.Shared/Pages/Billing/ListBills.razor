@@ -11,7 +11,7 @@
 @inject IFormFactor FormFactor
 @inject IDownloadExcel DownloadExcel
 @inject ITabService TabService
-<h3 class="text-center mb-4">Billing Details</h3>
+<h3 class="text-center mb-4">Billing Details@(isCustomerView ? $": {customerFromView.Name}" : "")</h3>
 <DialoBox dialogBox="excelDialog"></DialoBox>
 <div class="mb-3">
     <input type="text" @bind="searchQuery" @oninput="SearchBills" class="form-control" placeholder="Search by Bill No" />
@@ -24,6 +24,7 @@
         <option value="date">Today</option>
         <option value="month">Month to Date</option>
         <option value="year">Year to Date</option>
+        <option value="bill">Particular Bills</option>
         <option value="range">Custom</option>
     </select>
 
@@ -31,6 +32,10 @@
     {
         <input type="date" @bind="startDate" class="form-control mt-2" />
         <input type="date" @bind="endDate" class="form-control mt-2" />
+    }
+    @if(selectedSortOption=="bill")
+    {
+        <input type="text" placeholder="Ex:100,200,120..." @bind="particularBills" class="form-control mt-2" />
     }
 </div>
 <div class="w-100 d-flex justify-content-between align-items-md-center">
@@ -172,6 +177,9 @@ else
     List<BillDetails> filteredSivakasiBills = new();
     List<BillDetails> filteredBypassBills = new();
 
+    [Parameter] public bool isCustomerView { set; get; } = false;
+    [Parameter] public UserModal customerFromView { set; get; }
+
     bool isAdmin = false,isLoading = false;
     string branch = "";
     bool showSivakasi = false;
@@ -180,6 +188,7 @@ else
     string selectedSortOption = "date";
     DateTime? startDate;
     DateTime? endDate;
+    string particularBills = "";
 
     string excelBranch = "Sivakasi";
     int excelMonth = 1;
@@ -192,8 +201,8 @@ else
     public void SearchBills(ChangeEventArgs e)
     {
         searchQuery = e.Value.ToString();
-        filteredSivakasiBills = sivakasiBills.Where((b) => CreateBillNo(b).Contains(searchQuery) || b.Bill.Customer.Name.Contains(searchQuery,StringComparison.OrdinalIgnoreCase)).ToList();
-        filteredBypassBills = bypassBills.Where((b) => CreateBillNo(b).Contains(searchQuery) || b.Bill.Customer.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
+        filteredSivakasiBills = sivakasiBills.Where((b) => CreateBillNo(b).Contains(searchQuery) || b.customer.Name.Contains(searchQuery,StringComparison.OrdinalIgnoreCase)).ToList();
+        filteredBypassBills = bypassBills.Where((b) => CreateBillNo(b).Contains(searchQuery) || b.customer.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
     }
 
     public string CreateBillNo(BillDetails bill)
@@ -378,28 +387,31 @@ else
             List<BillDetails> filtered = new();
 
 
-
+            if(selectedSortOption == "bill")
+            {
+                filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.ParticularBill,bills:particularBills,customerID:customerFromView.CustomerId,isCusomerOnly:isCustomerView);
+            }
             if (selectedSortOption == "date")
             {
-                filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.Today);
+                filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.Today, customerID: customerFromView.CustomerId, isCusomerOnly: isCustomerView);
             }
 
             if (selectedSortOption == "yesterday")
             {
-                filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.Yesterday);
+                filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.Yesterday, customerID: customerFromView.CustomerId, isCusomerOnly: isCustomerView);
             }
 
             if (selectedSortOption == "month")
             {
 
 
-                filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.ThisMonth);
+                filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.ThisMonth, customerID: customerFromView.CustomerId, isCusomerOnly: isCustomerView);
             }
             if (selectedSortOption == "year")
             {
 
 
-                filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.ThisYear);
+                filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.ThisYear, customerID: customerFromView.CustomerId, isCusomerOnly: isCustomerView);
             }
 
 
@@ -410,7 +422,7 @@ else
                 startDate = startDate.Value.Date;
                 endDate = endDate.Value.Date.AddHours(23).AddMinutes(59).AddSeconds(59);
 
-                filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.CustomRange, startDate:startDate, endDate:endDate);
+                filtered = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.CustomRange, customerID: customerFromView.CustomerId, isCusomerOnly: isCustomerView, startDate: startDate, endDate: endDate);
             }
             ToastService.ShowToast("Bills Fetched Successfully", ToastType.sucess);
             return filtered.OrderBy(b => b.Bill.BillDate).ToList();
