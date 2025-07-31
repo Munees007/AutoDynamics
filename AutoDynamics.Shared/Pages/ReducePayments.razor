@@ -1,0 +1,197 @@
+﻿@page "/reduce_payments"
+@inject IDatabaseHandler DatabaseHandler
+@inject IToastService ToastService
+
+<div>
+    <input placeholder="Supplier ID" @bind="supplierID" type="text" />
+    <button @onclick="SimulateReduction">Preview Reduction</button>
+</div>
+
+@if (previewResults?.Count > 0)
+{
+    <h4 class="mt-3">Reduction Preview</h4>
+
+    <table class="table table-striped table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>Credit ID</th>
+                <th>Bill No</th>
+                <th>Initial Paid</th>
+                <th>Initial Remaining</th>
+                <th>Deducted</th>
+                <th>New Paid</th>
+                <th>New Remaining</th>
+            </tr>
+        </thead>
+        <tbody>
+            @{
+                string currentPaymentKey = "";
+                foreach (var group in previewResults.GroupBy(p => new { p.PaymentDate, p.PaymentAmount }))
+                {
+                    <tr class="table-primary">
+                        <td colspan="7">
+                            <strong>Payment:</strong> ₹@group.Key.PaymentAmount
+                            &nbsp; | &nbsp;
+                            <strong>Date:</strong> @group.Key.PaymentDate
+                        </td>
+                    </tr>
+
+                    foreach (var result in group)
+                    {
+                        <tr>
+                            <td>@result.CreditID</td>
+                            <td>@result.BillNo</td>
+                            <td>@result.InitialPaid</td>
+                            <td>@result.InitialRemaining</td>
+                            <td>@result.Deducted</td>
+                            <td>@result.NewPaid</td>
+                            <td>@result.NewRemaining</td>
+                        </tr>
+                    }
+                }
+            }
+        </tbody>
+    </table>
+
+    <p><strong>Total Payment Applied:</strong> ₹@totalApplied</p>
+    <button class="btn btn-success" @onclick="ApplyReduction">Apply Reduction</button>
+}
+
+
+@code {
+    string supplierID;
+    decimal totalApplied = 0;
+
+    class ReductionPreview
+    {
+        public string PaymentDate { get; set; }
+        public decimal PaymentAmount { get; set; }
+        public int CreditID { get; set; }
+        public string BillNo { get; set; }
+        public decimal InitialPaid { get; set; }
+        public decimal InitialRemaining { get; set; }
+        public decimal Deducted { get; set; }
+        public decimal NewPaid => InitialPaid + Deducted;
+        public decimal NewRemaining => InitialRemaining - Deducted;
+    }
+
+
+    List<ReductionPreview> previewResults;
+
+    List<Dictionary<string, object>> cachedCredits;
+    List<Dictionary<string, object>> cachedPayments;
+
+    async Task SimulateReduction()
+    {
+        try
+        {
+            previewResults = new();
+            totalApplied = 0;
+
+            string creditQuery = @"
+    SELECT sp.SupplierCreditID, sp.PaidAmount, sp.RemainingBalance, p.BillNo
+    FROM SupplierCreditRecord sp
+    JOIN PurchaseBills p ON sp.PurchaseBillID = p.PurchaseBillID
+    WHERE sp.SupplierID = @supplierId
+      AND sp.RemainingBalance > 0
+    ORDER BY p.BillNo ASC";
+
+
+            var parameters = new Dictionary<string, dynamic> {
+                { "@supplierId", supplierID }
+            };
+
+            cachedCredits = await DatabaseHandler.ExecuteQueryAsync(creditQuery, parameters);
+
+            string paymentQuery = @"
+                SELECT TotalAmountPaid AS PaymentAmount, PaymentDate
+                FROM Payments
+                WHERE SupplierID = @supplierId AND PaymentDate < '2025-07-01'
+                ORDER BY PaymentDate ASC";
+
+            cachedPayments = await DatabaseHandler.ExecuteQueryAsync(paymentQuery, parameters);
+
+            if (cachedCredits.Count == 0 || cachedPayments.Count == 0)
+            {
+                ToastService.ShowToast("No eligible credits or payments found.", ToastType.info);
+                return;
+            }
+
+            int creditIndex = 0;
+            foreach (var payment in cachedPayments)
+            {
+                decimal paymentAmount = Convert.ToDecimal(payment["PaymentAmount"]);
+
+                while (paymentAmount > 0 && creditIndex < cachedCredits.Count)
+                {
+                    var credit = cachedCredits[creditIndex];
+                    int creditId = Convert.ToInt32(credit["SupplierCreditID"]);
+                    decimal remainingBalance = Convert.ToDecimal(credit["RemainingBalance"]);
+                    decimal paidAmount = Convert.ToDecimal(credit["PaidAmount"]);
+
+                    if (remainingBalance <= 0)
+                    {
+                        creditIndex++;
+                        continue;
+                    }
+
+                    decimal deduction = Math.Min(paymentAmount, remainingBalance);
+
+                    previewResults.Add(new ReductionPreview
+                        {
+                            CreditID = creditId,
+                            BillNo = Convert.ToString(credit["BillNo"]),
+                            InitialPaid = paidAmount,
+                            InitialRemaining = remainingBalance,
+                            Deducted = deduction,
+                            PaymentAmount = Convert.ToDecimal(payment["PaymentAmount"]),
+                            PaymentDate = Convert.ToDateTime(payment["PaymentDate"]).ToString("yyyy-MM-dd")
+                        });
+
+
+                    totalApplied += deduction;
+                    paymentAmount -= deduction;
+
+                    if (remainingBalance - deduction == 0)
+                        creditIndex++;
+                    else
+                        credit["RemainingBalance"] = remainingBalance - deduction; // update locally
+                }
+            }
+
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowToast("Error in simulation: " + ex.Message, ToastType.error);
+        }
+    }
+
+    async Task ApplyReduction()
+    {
+        try
+        {
+            foreach (var item in previewResults)
+            {
+                string updateQuery = @"
+    UPDATE SupplierCreditRecord
+    SET PaidAmount = PaidAmount + @deducted
+    WHERE SupplierCreditID = @creditId";
+
+                var updateParams = new Dictionary<string, dynamic>
+{
+    { "@deducted", item.Deducted },
+    { "@creditId", item.CreditID }
+};
+
+
+                await DatabaseHandler.ExecuteNonQueryAsync(updateQuery, updateParams);
+            }
+
+            ToastService.ShowToast("Payments reduced successfully.", ToastType.sucess);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowToast("Error applying reduction: " + ex.Message, ToastType.error);
+        }
+    }
+}

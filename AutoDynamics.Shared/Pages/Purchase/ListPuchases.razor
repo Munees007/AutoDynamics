@@ -178,7 +178,7 @@ else
     DateTime? startDate;
     DateTime? endDate;
 
-    [Parameter] public Supplier supplierForView { set; get; }
+    [Parameter] public Supplier supplierForView { set; get; } = new();
     [Parameter] public bool isSupplierView { set; get; } = false;
     string excelBranch = "Sivakasi";
     int excelMonth = 1;

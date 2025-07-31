@@ -183,7 +183,7 @@ else
     DateTime? startDate;
     DateTime? endDate;
 
-    [Parameter] public UserModal customerForView { set; get; }
+    [Parameter] public UserModal customerForView { set; get; } = new();
     [Parameter] public bool isCustomerView { set; get; } = false;
     string excelBranch = "Sivakasi";
     int excelMonth = 1;

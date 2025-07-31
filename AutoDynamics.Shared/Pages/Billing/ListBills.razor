@@ -178,7 +178,7 @@ else
     List<BillDetails> filteredBypassBills = new();
 
     [Parameter] public bool isCustomerView { set; get; } = false;
-    [Parameter] public UserModal customerFromView { set; get; }
+    [Parameter] public UserModal customerFromView { set; get; } = new();
 
     bool isAdmin = false,isLoading = false;
     string branch = "";

@@ -1,0 +1,63 @@
+@page "/sql-console"
+@inject IDatabaseHandler DatabaseHandler
+@inject IToastService ToastService
+
+<h3>SQL Console</h3>
+
+<textarea class="form-control" rows="5" @bind="sqlQuery"></textarea>
+<br />
+<button class="btn btn-primary" @onclick="RunQuery">Run Query</button>
+
+@if (resultTable != null)
+{
+    <h5>Result</h5>
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                @foreach (var column in columns)
+                {
+                    <th>@column</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in resultTable)
+            {
+                <tr>
+                    @foreach (var column in columns)
+                    {
+                        <td>@row[column]</td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    string sqlQuery;
+    List<Dictionary<string, object>> resultTable;
+    List<string> columns = new();
+
+    async Task RunQuery()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(sqlQuery))
+            {
+                ToastService.ShowToast("Enter a SQL query to run.", ToastType.warning);
+                return;
+            }
+
+            resultTable = await DatabaseHandler.ExecuteQueryAsync(sqlQuery, new Dictionary<string, dynamic>());
+            columns = resultTable.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
+
+            if (resultTable.Count == 0)
+                ToastService.ShowToast("Query executed. No results returned.", ToastType.info);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowToast("Error: " + ex.Message, ToastType.error);
+        }
+    }
+}
