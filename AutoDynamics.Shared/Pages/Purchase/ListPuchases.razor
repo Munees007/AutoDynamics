@@ -10,7 +10,7 @@
 @inject IToastService ToastService
 
 <h3 class="text-center mb-4">Purchase Details</h3>
-@* <button class="btn btn-outline-info mb-3" @onclick="InsertSupplierCreditRecord">Create CreditButton</button> *@
+<button class="btn btn-outline-info mb-3" @onclick="InsertSupplierCreditRecord">Create CreditButton</button>
 <DialoBox dialogBox="excelDialog"></DialoBox>
 <div class="mb-3">
     <input type="text" @bind="searchQuery" @oninput="SearchBills" class="form-control" placeholder="Search by Bill No" />
