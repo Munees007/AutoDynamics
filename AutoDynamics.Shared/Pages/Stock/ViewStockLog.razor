@@ -42,7 +42,8 @@
                 <tbody>
                     @foreach (var log in StockLogs)
                     {
-                        var istCreatedAt = TimeZoneInfo.ConvertTimeFromUtc(log.CreatedAt.ToUniversalTime(), istTimeZone);
+                        var istCreatedAt = TimeZoneInfo.ConvertTimeFromUtc(log.CreatedAt, istTimeZone);
+
                         <tr>
                             <td>@(serialNo++)</td>
                             <td>@log.OldQuantity</td>

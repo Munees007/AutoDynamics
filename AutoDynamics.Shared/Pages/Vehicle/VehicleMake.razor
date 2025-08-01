@@ -20,6 +20,9 @@
 <h2 class="mt-4">Vehicle Makes Available</h2>
 
 
+<div class="d-flex col-12">
+    <input type="text" class="form-control" @bind="searchQuery" @oninput="FilterMake" placeholder="Search Vehicle Make" />
+</div>
 <div class="container mt-4">
     <div class="table-responsive">
         <table class="table table-striped table-bordered">
@@ -39,7 +42,7 @@
                 }
                 else
                 {
-                    @foreach (var vehicleMakeData in vehicleMakes)
+                    @foreach (var vehicleMakeData in filteredVehicleMakes)
                     {
                         <tr>
                             <td>@vehicleMakeData.VehicleMakeID</td>
@@ -60,12 +63,22 @@
 {
     private VehicleMakeType vehicleMake { set; get; } = new VehicleMakeType();
     private List<VehicleMakeType> vehicleMakes { set; get; } = new List<VehicleMakeType>();
+    private List<VehicleMakeType> filteredVehicleMakes { get; set; } = new List<VehicleMakeType>();
     private bool isUpdating = false;
     private bool isProcessing = false;
     private string loaderText = "";
+    string searchQuery = "";
     protected override async Task OnInitializedAsync()
     {
         await FetchServices();
+    }
+    public void FilterMake(ChangeEventArgs e)
+    {
+        searchQuery = e.Value.ToString() ?? "";
+
+        filteredVehicleMakes = vehicleMakes
+            .Where(m => m.Vehicle_Make.Contains(searchQuery, StringComparison.OrdinalIgnoreCase))
+            .ToList();
     }
     public void UpdateService(VehicleMakeType currentVehicleMake)
     {
@@ -83,6 +96,7 @@
         loaderText = "Fetching Vehicle Makes";
         setProcessing(true);
         vehicleMakes.Clear();
+        filteredVehicleMakes.Clear();
         string query = @"SELECT * FROM VehicleMakes";
 
         var result = await DatabaseHandler.ExecuteQueryAsync(query);
@@ -99,6 +113,7 @@
                 );
             }
         }
+        filteredVehicleMakes = vehicleMakes;
         setProcessing(false);
         loaderText = "";
     }

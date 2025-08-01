@@ -5,6 +5,7 @@
 
 <h3>This page is used to manage Vehicle Models</h3>
 
+
 <EditForm Model="@vehicleModel" OnValidSubmit="HandleSubmit">
     <h2 class="text-center mt-3">Create Vehicle Model</h2>
 
@@ -35,6 +36,9 @@
 
 <h2 class="mt-4">Vehicle Models Available</h2>
 
+<div class="d-flex col-12">
+    <input type="text" class="form-control" @bind="searchQuery" @oninput="FilterModel" placeholder="Search Vehicle Model" />
+</div>
 <div class="container mt-4">
     <div class="table-responsive">
         <table class="table table-striped table-bordered">
@@ -47,7 +51,7 @@
                 </tr>
             </thead>
             <tbody>
-                @if (vehicleModels.Count == 0)
+                @if (filteredVehicleModels.Count == 0)
                 {
                     <tr>
                         <td colspan="10" class="text-center text-muted">No models found.</td>
@@ -55,7 +59,7 @@
                 }
                 else
                 {
-                    @foreach (var model in vehicleModels)
+                    @foreach (var model in filteredVehicleModels)
                     {
                         <tr>
                             <td>@model.VehicleModelID</td>
@@ -78,9 +82,12 @@
     private VehicleModelType vehicleModel { get; set; } = new VehicleModelType();
     private List<VehicleModelType> vehicleModels { get; set; } = new List<VehicleModelType>();
     private List<VehicleMakeType> vehicleMakes { get; set; } = new List<VehicleMakeType>();
+    private List<VehicleModelType> filteredVehicleModels { get; set; } = new List<VehicleModelType>();
+
     private bool isUpdating = false;
     private bool isProcessing = false;
     private string loaderText = "";
+    string searchQuery = "";
     protected override async Task OnInitializedAsync()
     {
         loaderText = "Fetching Vehicle Makes & Models";
@@ -92,6 +99,27 @@
         StateHasChanged();
     }
 
+    public void FilterModel(ChangeEventArgs e)
+    {
+        searchQuery = e.Value.ToString() ?? "";
+
+        filteredVehicleModels = vehicleModels
+    .Where(model =>
+    {
+        // Find matching make
+        var make = vehicleMakes.FirstOrDefault(m => m.VehicleMakeID == model.VehicleMakeID);
+        if (make == null) return false;
+
+        // Take first 3 letters of make
+        var makePrefix = make.Vehicle_Make.Length >= 3 ? make.Vehicle_Make.Substring(0, 3) : make.Vehicle_Make;
+
+        // Check if search query contains the make prefix AND model contains the search
+        return searchQuery.Contains(makePrefix, StringComparison.OrdinalIgnoreCase) &&
+               model.VehicelModel.Contains(searchQuery, StringComparison.OrdinalIgnoreCase);
+    })
+    .ToList();
+
+    }
     public void UpdateService(VehicleModelType currentVehicleModel)
     {
         isUpdating = true;
@@ -111,6 +139,7 @@
         string query = @"SELECT * FROM VehicleMakes";
         var result = await DatabaseHandler.ExecuteQueryAsync(query);
         vehicleMakes.Clear();
+
         if (result.Count > 0)
         {
             foreach (var row in result)
@@ -131,6 +160,7 @@
     {
         setProcessing(true);
         vehicleModels.Clear();
+        filteredVehicleModels.Clear();
         string query = @"SELECT * FROM VehicleModels";
 
         var result = await DatabaseHandler.ExecuteQueryAsync(query);
@@ -148,6 +178,7 @@
                 );
             }
         }
+        filteredVehicleModels = vehicleModels;
         setProcessing(false);
     }
 
