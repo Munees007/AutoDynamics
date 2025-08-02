@@ -1059,11 +1059,12 @@ namespace AutoDynamics.Services
                                         if (recordCount > 0)
                                         {
                                             // ✅ Update if exists
-                                            string updateCreditQuery = @"UPDATE SupplierCreditRecord SET CreditAmount = @CreditAmount WHERE PurchaseBillID = @PurchaseBillID";
+                                            string updateCreditQuery = @"UPDATE SupplierCreditRecord SET CreditAmount = @CreditAmount,SupplierID = @SupplierID WHERE PurchaseBillID = @PurchaseBillID";
                                             using (var updateCommand = new MySqlCommand(updateCreditQuery, connection, (MySqlTransaction)transaction))
                                             {
                                                 updateCommand.Parameters.AddWithValue("@PurchaseBillID", purchaseBillId);
                                                 updateCommand.Parameters.AddWithValue("@CreditAmount", purchaseBill.TotalAmount);
+                                                updateCommand.Parameters.AddWithValue("@SupplierID", purchaseBill.SupplierID);
                                                 await updateCommand.ExecuteNonQueryAsync();
                                             }
                                         }
