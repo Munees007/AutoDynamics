@@ -2,10 +2,17 @@
 
 namespace AutoDynamics.Shared.Modals.Product
 {
+    public enum TyreFor
+    {
+        TWO_WHEELER,
+        FOUR_WHEELER,
+        TUBE
+    }
     public class ProductType
     {
         public string ProductID { set;get; } = "";
         public string HSNCode { get; set; } = "";
+        public TyreFor tyreFor { get; set; } = TyreFor.FOUR_WHEELER;
         public string  Brand {set;get;} = "";
         public string BrandID { set; get; } = "";
         public string  Size {set;get;} = "";

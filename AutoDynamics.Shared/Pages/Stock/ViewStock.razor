@@ -245,21 +245,21 @@
         
         if (excelOption == "Both")
         {
-            await ExcelService.CreateStockExcel(excelOption,twoWheelerCodes,fourWheelerCodes,tubeCodes, filteredSivakasiStocks, filteredBypassStocks);
+            await ExcelService.CreateStockExcel(excelOption, twoWheelerCodes.ToArray(), fourWheelerCodes.ToArray(), tubeCodes.ToArray(), filteredSivakasiStocks, filteredBypassStocks);
         }
         else if (excelOption == "Sivakasi")
         {
-            await ExcelService.CreateStockExcel(excelOption,twoWheelerCodes,fourWheelerCodes,tubeCodes, sivakasiCredit: filteredSivakasiStocks);
+            await ExcelService.CreateStockExcel(excelOption, twoWheelerCodes.ToArray(), fourWheelerCodes.ToArray(), tubeCodes.ToArray(), sivakasiCredit: filteredSivakasiStocks);
         }
         else
         {
-            await ExcelService.CreateStockExcel(excelOption, twoWheelerCodes, fourWheelerCodes, tubeCodes, bypassCredit: filteredBypassStocks);
+            await ExcelService.CreateStockExcel(excelOption, twoWheelerCodes.ToArray(), fourWheelerCodes.ToArray(), tubeCodes.ToArray(), bypassCredit: filteredBypassStocks);
         }
     }
 
-    string[] twoWheelerCodes = { "40114010", "40114020" };
-    string[] fourWheelerCodes = { "40111010", "40112090", "40112010" };
-    string[] tubeCodes = { "40139020"};
+    List<string> twoWheelerCodes = new List<string>();
+    List<string> fourWheelerCodes = new List<string>();
+    List<string> tubeCodes = new List<string>();
 
     int availabeStockPreviously = 0;
 
@@ -600,6 +600,7 @@ VALUES (@ProductID, @Branch, @OldQuantity,@NewQuantity,@ActionType,@Action)";
                             AvailableQuantity = Int32.Parse(row["AvailableQuantity"].ToString() ?? "0"),
                             Branch = row["Branch"].ToString() ?? "",
                             TaxRate = taxRate,
+                            tyreFor = Enum.TryParse<TyreFor>(row["TyreFor"].ToString() ?? "", out var tyreFor) ? tyreFor : TyreFor.FOUR_WHEELER
                         },
                         AvailableQuantity = Int32.Parse(row["AvailableQuantity"].ToString() ?? "0"),
                         oldestQuantity = Int32.Parse(row["AvailableQuantity"].ToString() ?? "0"),
@@ -608,6 +609,11 @@ VALUES (@ProductID, @Branch, @OldQuantity,@NewQuantity,@ActionType,@Action)";
                     });
             }
             Debug.WriteLine(stockDetails.Count);
+
+			// Populate HSN codes for filtering
+			twoWheelerCodes = stockDetails.Where(s => s.Product.tyreFor == TyreFor.TWO_WHEELER).Select(s => s.Product.HSNCode).Distinct().ToList();
+			fourWheelerCodes = stockDetails.Where(s => s.Product.tyreFor == TyreFor.FOUR_WHEELER).Select(s => s.Product.HSNCode).Distinct().ToList();
+			tubeCodes = stockDetails.Where(s => s.Product.tyreFor == TyreFor.TUBE).Select(s => s.Product.HSNCode).Distinct().ToList();
 
             sivakasiStocks = stockDetails.Where(b => string.Equals(b.Branch, "Sivakasi", StringComparison.OrdinalIgnoreCase)).ToList();
             bypassStocks = stockDetails.Where(b => string.Equals(b.Branch, "ByPass", StringComparison.OrdinalIgnoreCase)).ToList();

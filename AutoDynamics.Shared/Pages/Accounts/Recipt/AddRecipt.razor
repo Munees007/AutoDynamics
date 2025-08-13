@@ -10,7 +10,7 @@
     <div class="row g-4 mb-4">
         <div class="col-md-4">
             <label for="paymentDate" class="form-label fw-bold">Date</label>
-            <input type="date" disabled="@IsUpdating" id="paymentDate" class="form-control" @bind="@creditReciptTypes.ReciptDate" />
+            <input type="date"  id="paymentDate" class="form-control" @bind="@creditReciptTypes.ReciptDate" />
         </div>
 
         <div class="col-md-10 input-group">
@@ -28,7 +28,7 @@
             <label for="Customer" class="form-label fw-bold">Customer: @(creditReciptTypes.customer.CustomerId != null ? creditReciptTypes.customer.Name : "")</label>
             
             <div class="input-group">
-                <input @onkeydown="HandleCustomerKey" disabled="@IsUpdating" autocomplete="off" type="text" id="Customer"
+                <input @onkeydown="HandleCustomerKey"  autocomplete="off" type="text" id="Customer"
                 @bind="CustomerSearch" @oninput="OnCustomerSearch"
                 class="form-control" placeholder="Search by ID, Name, or Contact" required>
 

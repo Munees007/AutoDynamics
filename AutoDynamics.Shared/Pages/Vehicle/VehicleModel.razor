@@ -5,33 +5,20 @@
 
 <h3>This page is used to manage Vehicle Models</h3>
 
+<DialoBox dialogBox="vehicleModalCustomBox" ></DialoBox>
 
-<EditForm Model="@vehicleModel" OnValidSubmit="HandleSubmit">
-    <h2 class="text-center mt-3">Create Vehicle Model</h2>
-
-    <!-- Dropdown for Vehicle Make -->
-    <div class="mb-3">
-        <label for="VehicleMakeID" class="form-label">Vehicle Make:</label>
-        <select id="VehicleMakeID" @bind="vehicleModel.VehicleMakeID" class="form-control" required>
-            <option value="">-- Select Vehicle Make --</option>
-            @foreach (var make in vehicleMakes)
-            {
-                <option value="@make.VehicleMakeID">@make.Vehicle_Make</option>
-            }
-        </select>
-    </div>
-
-    <!-- Input for Vehicle Model -->
-    <div class="mb-3">
-        <label for="VehicleModel" class="form-label">Vehicle Model:</label>
-        <input autocomplete="new-password" type="text" id="VehicleModel" @bind="vehicleModel.VehicelModel" class="form-control" maxlength="255" required>
-    </div>
-
-    <button type="submit" class="btn btn-primary w-100">@(isUpdating ? "Updating" : "Submit")</button>
-</EditForm>
 
 
 <Loader show="isProcessing" customText="@loaderText"></Loader>
+
+<div class="row justify-content-end">
+    <div class="col-auto">
+        <button class="btn btn-primary"
+                @onclick="()=>{ vehicleModalCustomBox.showDialog = true; StateHasChanged(); }">
+            Add
+        </button>
+    </div>
+</div>
 
 
 <h2 class="mt-4">Vehicle Models Available</h2>
@@ -67,7 +54,7 @@
                             <td>@model.VehicelModel</td>
                             <td>
                                 <button class="btn btn-warning btn-sm" @onclick="() => UpdateService(model)">Update</button>
-                                <button class="btn btn-danger btn-sm" @onclick="() => DeleteService(model.VehicleModelID)">Delete</button>
+                                @* <button class="btn btn-danger btn-sm" @onclick="() => DeleteService(model.VehicleModelID)">Delete</button> *@
                             </td>
                         </tr>
                     }
@@ -88,10 +75,49 @@
     private bool isProcessing = false;
     private string loaderText = "";
     string searchQuery = "";
+
+    CustomDialogBox vehicleModalCustomBox;
     protected override async Task OnInitializedAsync()
     {
         loaderText = "Fetching Vehicle Makes & Models";
         isProcessing = true;
+        vehicleModalCustomBox = new CustomDialogBox
+        {
+            body = @<EditForm Model="@vehicleModel" OnValidSubmit="HandleSubmit">
+    
+
+    <!-- Dropdown for Vehicle Make -->
+    <div class="mb-3">
+        <label for="VehicleMakeID" class="form-label">Vehicle Make:</label>
+        <select id="VehicleMakeID" @bind="vehicleModel.VehicleMakeID" class="form-control" required>
+            <option value="">-- Select Vehicle Make --</option>
+            @foreach (var make in vehicleMakes)
+            {
+                <option value="@make.VehicleMakeID">@make.Vehicle_Make</option>
+            }
+        </select>
+    </div>
+
+    <!-- Input for Vehicle Model -->
+    <div class="mb-3">
+        <label for="VehicleModel" class="form-label">Vehicle Model:</label>
+        <input autocomplete="new-password" type="text" id="VehicleModel" @bind="vehicleModel.VehicelModel" class="form-control" maxlength="255" required>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100">@(isUpdating ? "Updating" : "Submit")</button>
+</EditForm>,
+			OnCloase = EventCallback.Factory.Create(this, async () =>
+			{
+				vehicleModel.VehicleModelID = "";
+				vehicleModel.VehicleMakeID = "";
+				vehicleModel.VehicelModel = "";
+				isUpdating = false;
+				vehicleModalCustomBox.showDialog = false;
+				StateHasChanged();
+			}),
+            footers = [],
+			Title = isUpdating ? "Updating Vehicle Model" : "Create Vehicle Model",
+        };
         await FetchMakes();
         await FetchModels();
         loaderText = "";
@@ -124,6 +150,7 @@
     {
         isUpdating = true;
         vehicleModel = currentVehicleModel;
+		vehicleModalCustomBox.showDialog = true;
         StateHasChanged();
     }
 
@@ -230,6 +257,7 @@
         vehicleModel.VehicleMakeID = "";
         vehicleModel.VehicelModel = "";
         await FetchModels();
+		vehicleModalCustomBox.showDialog = false;
         StateHasChanged();
     }
 

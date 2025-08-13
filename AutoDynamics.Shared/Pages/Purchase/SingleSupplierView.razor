@@ -282,6 +282,9 @@
 
 		string getOthers = $@"SELECT c.*,a.* FROM CashBankLedger c JOIN LedgerAccounts a ON c.AccountID = a.AccountID WHERE c.TransactionType in ('OTHER','EXPENSE') AND c.ForWho = '{supplierData.SupplierID}' AND c.Particulars NOT LIKE '%Opening Balance%' AND a.AccountName = 'SUPPLIER A/C'";
 		var res = await DatabaseHandler.ExecuteQueryAsync(getOthers);
+		Debug.WriteLine("Bill Count " + neededBills.Count);
+		Debug.WriteLine("Payment Count " + neededReceipts.Count);
+		Debug.WriteLine("Other Count " + res.Count);
 		if (res.Count > 0)
 		{
 			foreach (var row in res)
@@ -690,7 +693,7 @@ WHERE
 		creditRecipts.Clear();
 		
 
-		string creditQuery = $"SELECT c.*,b.* FROM SupplierCreditRecord c JOIN PurchaseBills b ON b.PurchaseBillID = c.PurchaseBillID WHERE c.SupplierID = '{supplierData.SupplierID}'";
+		string creditQuery = $"SELECT c.*,b.* FROM SupplierCreditRecord c JOIN PurchaseBills b ON b.PurchaseBillID = c.PurchaseBillID WHERE c.SupplierID = '{supplierData.SupplierID}' AND c.Status not in ('Paid')";
 		var res1 = await DatabaseHandler.ExecuteQueryAsync(creditQuery);
 		if (res1.Count > 0)
 		{

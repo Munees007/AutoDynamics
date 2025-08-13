@@ -490,7 +490,7 @@ namespace AutoDynamics.Services
                             }
                             
                             string insertQuery = @"UPDATE Receipts SET TotalAmountPaid = @TotalAmountPaid
-                                        ,CheckNumber = @CheckNumber,Narration = @Narration,PaymentMode = @PaymentMode
+                                        ,CheckNumber = @CheckNumber,Narration = @Narration,PaymentMode = @PaymentMode,CustomerID = @CustomerID
                                             WHERE ReceiptID = @ReceiptID; 
                                            ";
 
@@ -503,7 +503,7 @@ namespace AutoDynamics.Services
                                 command.Parameters.AddWithValue("@Narration", creditRecipt.narration);
                                 command.Parameters.AddWithValue("@ReceiptID", creditRecipt.ReceiptId);
                                 command.Parameters.AddWithValue("@PaymentMode", creditRecipt.paymentType.ToString());
-
+                                command.Parameters.AddWithValue("@CustomerID", creditRecipt.customer.CustomerId);
                                 await command.ExecuteNonQueryAsync();
 
                             }
@@ -534,13 +534,14 @@ namespace AutoDynamics.Services
                             foreach (var entry in existingReceipts)
                             {
                                 string reverseCredit = @"UPDATE CreditRecord 
-                                                 SET PaidAmount = PaidAmount - @PaidAmount 
+                                                 SET PaidAmount = PaidAmount - @PaidAmount,CustomerID = @CustomerID 
                                                  WHERE CreditID = @CreditID";
 
                                 using (var command = new MySqlCommand(reverseCredit, connection, (MySqlTransaction)transaction))
                                 {
                                     command.Parameters.AddWithValue("@PaidAmount", entry.AmountPaid);
                                     command.Parameters.AddWithValue("@CreditID", entry.CreditID);
+                                    command.Parameters.AddWithValue("@CustomerID", creditRecipt.customer.CustomerId);
                                     await command.ExecuteNonQueryAsync();
                                 }
                             }
@@ -563,12 +564,13 @@ namespace AutoDynamics.Services
                             int mainLedgerId = ledgerIds[0];
                             foreach (int id in ledgerIds)
                             {
-                                string updateLedgerRefQuery = @"UPDATE CashBankLedger SET ReferenceID = @ReferenceID, EntryID = @EntryID WHERE LedgerID = @LedgerID";
+                                string updateLedgerRefQuery = @"UPDATE CashBankLedger SET ReferenceID = @ReferenceID, EntryID = @EntryID,ForWho = @ForWho WHERE LedgerID = @LedgerID";
                                 using (var updateCmd = new MySqlCommand(updateLedgerRefQuery, connection, (MySqlTransaction)transaction))
                                 {
                                     updateCmd.Parameters.AddWithValue("@ReferenceID", receiptId);
                                     updateCmd.Parameters.AddWithValue("@LedgerID", id);
                                     updateCmd.Parameters.AddWithValue("@EntryID", mainLedgerId);
+                                    updateCmd.Parameters.AddWithValue("@ForWho", creditRecipt.customer.CustomerId);
                                     await updateCmd.ExecuteNonQueryAsync();
                                 }
                             }
@@ -707,7 +709,7 @@ namespace AutoDynamics.Services
                             }
 
                             string insertQuery = @"UPDATE Payments SET TotalAmountPaid = @TotalAmountPaid
-                                        ,CheckNumber = @CheckNumber,Narration = @Narration,PaymentMode = @PaymentMode
+                                        ,CheckNumber = @CheckNumber,Narration = @Narration,PaymentMode = @PaymentMode,SupplierID = @SupplierID
                                             WHERE PaymentID = @PaymentID; 
                                            ";
                             using (var command = new MySqlCommand(insertQuery, connection, (MySqlTransaction)transaction))
@@ -717,6 +719,7 @@ namespace AutoDynamics.Services
                                 command.Parameters.AddWithValue("@Narration", creditRecipt.Narration);
                                 command.Parameters.AddWithValue("@PaymentID", creditRecipt.PaymentId);
                                 command.Parameters.AddWithValue("@PaymentMode", creditRecipt.paymentType.ToString());
+                                command.Parameters.AddWithValue("@SupplierID", creditRecipt.supplier.SupplierID);
                                 await command.ExecuteNonQueryAsync();
                             }
                                
@@ -747,13 +750,14 @@ namespace AutoDynamics.Services
                             foreach (var entry in existingReceipts)
                             {
                                 string reverseCredit = @"UPDATE SupplierCreditRecord 
-                                                 SET PaidAmount = PaidAmount - @PaidAmount 
+                                                 SET PaidAmount = PaidAmount - @PaidAmount , SupplierID = @SupplierID
                                                  WHERE SupplierCreditID = @SupplierCreditID";
 
                                 using (var command = new MySqlCommand(reverseCredit, connection, (MySqlTransaction)transaction))
                                 {
                                     command.Parameters.AddWithValue("@PaidAmount", entry.AmountPaid);
                                     command.Parameters.AddWithValue("@SupplierCreditID", entry.CreditID);
+                                    command.Parameters.AddWithValue("@SupplierID", creditRecipt.supplier.SupplierID);
                                     await command.ExecuteNonQueryAsync();
                                 }
                             }
@@ -780,12 +784,13 @@ namespace AutoDynamics.Services
                             // Set receipt reference in ledgers
                             foreach (int id in ledgerIds)
                             {
-                                string updateLedgerRefQuery = @"UPDATE CashBankLedger SET ReferenceID = @ReferenceID, EntryID = @EntryID WHERE LedgerID = @LedgerID";
+                                string updateLedgerRefQuery = @"UPDATE CashBankLedger SET ReferenceID = @ReferenceID, EntryID = @EntryID,ForWho = @ForWho WHERE LedgerID = @LedgerID";
                                 using (var updateCmd = new MySqlCommand(updateLedgerRefQuery, connection, (MySqlTransaction)transaction))
                                 {
                                     updateCmd.Parameters.AddWithValue("@ReferenceID", paymentID);
                                     updateCmd.Parameters.AddWithValue("@LedgerID", id);
                                     updateCmd.Parameters.AddWithValue("@EntryID", mainLedgerId);
+                                    updateCmd.Parameters.AddWithValue("@ForWho", creditRecipt.supplier.SupplierID);
                                     await updateCmd.ExecuteNonQueryAsync();
                                 }
                             }

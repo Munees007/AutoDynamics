@@ -9,7 +9,7 @@
     <div class="d-flex justify-content-between">
         <h2 class="text-center mb-4">Supplier Credit Record</h2> <!-- Title Added -->
         <div class="d-flex gap-3">
-            <button class="btn btn-success" @onclick="async ()=>{await FetchData();}">Refresh</button>
+            <button class="btn btn-success" @onclick="async ()=>{await CorrectedFetch();}">Refresh</button>
         </div>
     </div>
     <div class="col-md-12 mb-4">
@@ -32,34 +32,25 @@
                             <thead class="table-dark">
                                 <tr>
                                     <th>S. No.</th>
-
-
+                                    <th>SupplierID</th>
                                     <th>Supplier Name</th>
                                     <th>Supplier Mobile</th>
                                     <th>Credit Amount</th>
-                                    <th>Paid Amount</th>
-                                    <th>Remaining Balance</th>
-                                    <th>Due Date</th>
-                                    <th>Status</th>
-                                    <th>Created At</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach (var record in filteredSivakasiRecords)
                                 {
-                                    <tr style="cursor:pointer" @onclick="()=> CreditSelect(record.Supplier)">
-                                        <td>@(sno++)</td>
-
-
-                                        <td>@record.Supplier.Name</td>
-                                        <td>@record.Supplier.Contact</td>
-                                        <td>@record.CreditAmount.ToString("N2")</td>
-                                        <td>@record.PaidAmount.ToString("N2")</td>
-                                        <td>@record.RemainingBalance</td>
-                                        <td>@record.DueDate</td>
-                                        <td>@record.Status</td>
-                                        <td>@record.CreatedAt</td>
-                                    </tr>
+                                    if (record.CreditAmount > 0)
+                                    {
+                                        <tr style="cursor:pointer" @onclick="()=> CreditSelect(record.Supplier)">
+                                            <td>@(sno++)</td>
+                                            <td>@record.Supplier.SupplierID</td>
+                                            <td>@record.Supplier.Name</td>
+                                            <td>@record.Supplier.Contact</td>
+                                            <td>@record.CreditAmount.ToString("N2")</td>
+                                        </tr>
+                                    }
                                 }
                             </tbody>
                         </table>
@@ -90,32 +81,25 @@
                             <thead class="table-dark">
                                 <tr>
                                     <th>S. No.</th>
-
-
+                                    <th>SupplierID</th>
                                     <th>Supplier Name</th>
                                     <th>Supplier Mobile</th>
                                     <th>Credit Amount</th>
-                                    <th>Paid Amount</th>
-                                    <th>Remaining Balance</th>
-                                    <th>Due Date</th>
-                                    <th>Status</th>
-                                    <th>Created At</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach (var record in filteredBypassRecords)
                                 {
-                                    <tr style="cursor:pointer" @onclick="()=> CreditSelect(record.Supplier)">
-                                        <td>@(sno++)</td>
-                                        <td>@record.Supplier.Name</td>
-                                        <td>@record.Supplier.Contact</td>
-                                        <td>@record.CreditAmount</td>
-                                        <td>@record.PaidAmount</td>
-                                        <td>@record.RemainingBalance</td>
-                                        <td>@record.DueDate</td>
-                                        <td>@record.Status</td>
-                                        <td>@record.CreatedAt</td>
-                                    </tr>
+                                    if(record.CreditAmount > 0)
+                                    {
+                                        <tr style="cursor:pointer" @onclick="()=> CreditSelect(record.Supplier)">
+                                            <td>@(sno++)</td>
+                                            <td>@record.Supplier.SupplierID</td>
+                                            <td>@record.Supplier.Name</td>
+                                            <td>@record.Supplier.Contact</td>
+                                            <td>@record.CreditAmount</td>
+                                        </tr>
+                                    }
                                 }
                             </tbody>
                         </table>
@@ -140,7 +124,7 @@
 
     List<SupplierCreditRecord> filteredSivakasiRecords = new List<SupplierCreditRecord>();
     List<SupplierCreditRecord> filteredBypassRecords = new List<SupplierCreditRecord>();
-
+    DateOnly filterDate = new DateOnly(2025,7,31);
     decimal sivakasiCreditTotal = 0m;
     decimal bypassCreditTotal = 0m;
     bool isLoading = false;
@@ -170,7 +154,7 @@
     }
     protected override async Task OnInitializedAsync()
     {
-        await FetchData();
+        await CorrectedFetch();
         StateHasChanged();
     }
     public void CreditSelect(Supplier data)
@@ -195,24 +179,106 @@
             {
                 if(row["PaymentType"].ToString() == "CREDIT")
                 {
-                   
-                        string insertQuery = @"INSERT INTO SupplierCreditRecord (SupplierID,PurchaseBillID,CreditAmount,DueDate) VALUES(@SupplierID,@PurchaseBillID,@CreditAmount,@DueDate)";
 
-                        var parameters = new Dictionary<string, object>
+                    string insertQuery = @"INSERT INTO SupplierCreditRecord (SupplierID,PurchaseBillID,CreditAmount,DueDate) VALUES(@SupplierID,@PurchaseBillID,@CreditAmount,@DueDate)";
+
+                    var parameters = new Dictionary<string, object>
                     {
                     { "@SupplierID", row["SupplierID"].ToString() },
                     { "@PurchaseBillID", row["PurchaseBillID"] },
                     { "@CreditAmount", row["TotalAmount"] },
                     { "@DueDate", Convert.ToDateTime(row["PurchaseDate"]).AddDays(30)} // Assuming due date is 30 days from purchase date
                     };
-                        await DatabaseHandler.ExecuteNonQueryAsync(insertQuery, parameters);
+                    await DatabaseHandler.ExecuteNonQueryAsync(insertQuery, parameters);
 
 
-                    
+
                 }
             }
         }
-        
+
+    }
+    public async Task CorrectedFetch()
+    {
+        isLoading = true;
+        string fetchQuery = @"USE AutoDynamicsDB;
+
+SELECT
+    s.SupplierID,
+    s.Name,
+    s.Contact,
+
+    COALESCE(p.PurchaseTotal, 0) AS PurchaseTotal,
+    COALESCE(pa.PaymentAmount, 0) AS PaymentAmount,
+    COALESCE(l.CrAmount, 0) AS CrAmount,
+    COALESCE(l.DrAmount, 0) AS DrAmount,
+    COALESCE(p.PurchaseTotal, 0) + COALESCE(l.DrAmount, 0) - COALESCE(pa.PaymentAmount, 0) - COALESCE(l.CrAmount, 0) AS Balance
+FROM
+    Suppliers s
+
+-- Purchase Total per supplier (subtract CASH payments)
+LEFT JOIN (
+    SELECT
+        SupplierID,
+        SUM(TotalAmount)
+        - COALESCE(SUM(CASE WHEN PaymentType = 'CASH' THEN TotalAmount ELSE 0 END), 0) AS PurchaseTotal
+    FROM PurchaseBills
+    WHERE Branch = @Branch
+      AND DATE(PurchaseDate) <= @Date
+    GROUP BY SupplierID
+) p ON p.SupplierID = s.SupplierID
+
+-- Payment Total per supplier
+LEFT JOIN (
+    SELECT SupplierID, SUM(TotalAmountPaid) AS PaymentAmount
+    FROM Payments
+    WHERE Branch = @Branch
+      AND DATE(PaymentDate) <= @Date
+    GROUP BY SupplierID
+) pa ON pa.SupplierID = s.SupplierID
+
+-- Ledger Credit/Debit per supplier
+LEFT JOIN (
+    SELECT
+        ForWho AS SupplierID,
+        SUM(CASE WHEN CrAmount IS NOT NULL THEN CrAmount ELSE 0 END) AS CrAmount,
+        SUM(CASE WHEN DrAmount IS NOT NULL THEN DrAmount ELSE 0 END) AS DrAmount
+    FROM CashBankLedger
+    WHERE Branch = @Branch
+      AND TransactionType IN ('OTHER', 'EXPENSE')
+      AND AccountID IN (19)
+      AND DATE(Date) <= @Date
+    GROUP BY ForWho
+) l ON l.SupplierID = s.SupplierID;
+
+
+";
+
+        var res = await DatabaseHandler.ExecuteQueryAsync(fetchQuery, new Dictionary<string, object>
+        {
+            {"@Date",filterDate.ToString("yyyy-MM-dd")},
+            {"@Branch","Sivakasi"}
+        });
+
+        if(res.Count>0)
+        {
+            foreach(var row in res)
+            {
+                sivakasiRecords.Add(new SupplierCreditRecord
+                {
+						Supplier = new Supplier
+						{
+							SupplierID = row["SupplierID"].ToString(),
+							Name = row["Name"].ToString(),
+							Contact = row["Contact"].ToString()
+						},
+						CreditAmount = Convert.ToDecimal(row["Balance"]),
+                });
+            }
+            filteredSivakasiRecords = sivakasiRecords;
+        }
+
+        isLoading = false;
     }
     public async Task FetchData()
     {

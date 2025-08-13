@@ -25,6 +25,8 @@
                 <tr>
                     <th>Product ID</th>
                     <th>HSNCode</th>
+
+                    <th>Tyre For</th>
                     <th>Brand ID</th>
                     <th>Brand</th>
                     <th>Size</th>
@@ -49,6 +51,7 @@
                         <tr>
                             <td>@product.ProductID</td>
                             <td>@product.HSNCode</td>
+							<td>@product.tyreFor.ToString()</td>
                             <td>@product.BrandID</td>
                             <td>@product.Brand</td>
                             <td>@product.Size</td>
@@ -127,6 +130,7 @@
                     CreatedBy = row["CreatedBy"].ToString() ?? "",
                     LastUpdatedAt = row["LastUpdatedAt"].ToString() ?? "",
                     LastUpdatedBy = row["LastUpdatedBy"].ToString() ?? "",
+                    tyreFor = Enum.TryParse<TyreFor>(row["TyreFor"].ToString() ?? "", out var tyreFor) ? tyreFor : TyreFor.FOUR_WHEELER
                 });
                 Brands.Add(new BrandType
                 {

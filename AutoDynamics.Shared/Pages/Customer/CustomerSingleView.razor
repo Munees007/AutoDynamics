@@ -16,7 +16,7 @@
 	<div class="card shadow-lg">
 		<div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">
 			<h4 class="mb-0">Customer Details</h4>
-			<button disabled=true class="btn btn-sm btn-dark" @onclick="()=>{statementDialog.showDialog = true;StateHasChanged();}">💾 Download Statement</button>
+			<button class="btn btn-sm btn-dark" @onclick="()=>{statementDialog.showDialog = true;StateHasChanged();}">💾 Download Statement</button>
 		</div>
 		<div class="card-body">
 			<div class="row">
@@ -372,7 +372,7 @@
 				// {
 				// 	customerStatements.Add(new CustomerStatement
 				// 		{
-							//date = bill.Bill.BillDate, // Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
+				//date = bill.Bill.BillDate, // Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
 				// 			credit = bill.BillPayment.BankAmount,
 				// 			debit = 0,
 				// 			particulars = "By credit for Bill No: " + bill.Bill.BillNo,
@@ -453,7 +453,7 @@
 			// {
 			// 	customerStatements.Add(new CustomerStatement
 			// 		{
-						//date = bill.Bill.BillDate, // Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
+			//date = bill.Bill.BillDate, // Or maybe: bill.Bill.BillDate.AddSeconds(1) to ensure order
 			// 			credit = bill.BillPayment.BankAmount,
 			// 			debit = 0,
 			// 			particulars = "By credit for Bill No: " + bill.Bill.BillNo,
@@ -534,6 +534,15 @@
 
 	async void DownloadStatement(DateTime? startDate,DateTime? endDate)
 	{
+		isLoading = true;
+		bills = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.All,customerID:customerData.CustomerId,isCusomerOnly:true);
+		sivakasiBills = bills
+			.Where(b => b.Bill.Branch == "Sivakasi")
+			.ToList();
+		bypassBills = bills.Where(b => b.Bill.Branch != "Sivakasi").ToList();
+
+		sivakasiCreditRecipts = await DatabaseHandler.GetFilteredReceiptsync(BillDateFilterType.All, customerID: customerData.CustomerId, isCustomerView: true);
+		sivakasiCreditRecipts = sivakasiCreditRecipts.Where((r) => r.Branch == "Sivakasi").ToList();
 		List<CustomerStatement> customerStatements = createLedgers(); ;
 
 		decimal openingBalance = await GetOpeningBalanceAsync(customerStatements, startDate);
@@ -543,10 +552,10 @@
 				.Where(x => x.date >= startDate && x.date <= endDate)
 				.ToList();
 		}
-		
+
 		if (customerStatements.Count > 0)
 		{
-			
+
 			string path = await PDFGenerator.GenerateCustomerStatement(customerStatements,openingBalance,customerData,startDate?.ToString("dd/MM/yyyy"),endDate?.ToString("dd/MM/yyyy"));
 
 			ToastService.ShowToast($"SavedAt = {path}", ToastType.sucess);
@@ -555,6 +564,8 @@
 		{
 			ToastService.ShowToast("No Records There", ToastType.info);
 		}
+		isLoading = false;
+		StateHasChanged();
 	}
 
 	protected override async Task OnInitializedAsync()
@@ -593,7 +604,7 @@
 			}
 		}
 
-		string creditQuery = $"SELECT c.*,b.* FROM CreditRecord c JOIN Bills b ON b.BillID = c.BillID WHERE c.CustomerID = '{customerData.CustomerId}'";
+		string creditQuery = $"SELECT c.*,b.* FROM CreditRecord c JOIN Bills b ON b.BillID = c.BillID WHERE c.CustomerID = '{customerData.CustomerId}' AND c.Status not in ('Paid')";
 		var res1 = await DatabaseHandler.ExecuteQueryAsync(creditQuery);
 		if(res1.Count > 0)
 		{

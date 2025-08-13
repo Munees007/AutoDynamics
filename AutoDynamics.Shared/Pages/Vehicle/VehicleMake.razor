@@ -5,15 +5,16 @@
 
 <h3>This page is used to manage Vehicle Makes</h3>
 
-<EditForm Model="@vehicleMake" OnValidSubmit="HandleSubmit">
-    <h2 class="text-center mt-3">Create Vehicle Make</h2>
-    <div class="mb-3">
-        <label for="VehicleMake" class="form-label">Vehicle Make:</label>
-        <input type="text" id="VehicleMake" @bind="vehicleMake.Vehicle_Make" class="form-control" maxlength="255" required>
-    </div>
-    <button type="submit" class="btn btn-primary w-100">@(isUpdating ? "Updating" : "Submit")</button>
-</EditForm>
+<DialoBox dialogBox="vehicleMakeCustomBox"></DialoBox>
 
+<div class="row justify-content-end">
+    <div class="col-auto">
+        <button class="btn btn-primary"
+                @onclick="()=>{ vehicleMakeCustomBox.showDialog = true; StateHasChanged(); }">
+            Add
+        </button>
+    </div>
+</div>
 
 <Loader show="isProcessing" customText="@loaderText"></Loader>
 
@@ -49,7 +50,7 @@
                             <td>@vehicleMakeData.Vehicle_Make</td>
                             <td>
                                 <button class="btn btn-warning btn-sm" @onclick="() => UpdateService(vehicleMakeData)">Update</button>
-                                <button class="btn btn-danger btn-sm" @onclick="() => DeleteService(vehicleMakeData.VehicleMakeID)">Delete</button>
+                                @* <button class="btn btn-danger btn-sm" @onclick="() => DeleteService(vehicleMakeData.VehicleMakeID)">Delete</button> *@
                             </td>
                         </tr>
                     }
@@ -68,8 +69,30 @@
     private bool isProcessing = false;
     private string loaderText = "";
     string searchQuery = "";
+
+    CustomDialogBox vehicleMakeCustomBox;
     protected override async Task OnInitializedAsync()
     {
+        vehicleMakeCustomBox = new CustomDialogBox
+        {
+                    body = @<EditForm Model="@vehicleMake" OnValidSubmit="HandleSubmit">
+        <h2 class="text-center mt-3">Create Vehicle Make</h2>
+        <div class="mb-3">
+            <label for="VehicleMake" class="form-label">Vehicle Make:</label>
+            <input type="text" id="VehicleMake" @bind="vehicleMake.Vehicle_Make" class="form-control" maxlength="255" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">@(isUpdating ? "Updating" : "Submit")</button>
+    </EditForm>,
+            Title = isUpdating ? "Updating Vehicle Make" : "Create Vehicle Make",
+			OnCloase = EventCallback.Factory.Create(this, async () =>
+			{
+				vehicleMake.VehicleMakeID = "";
+				vehicleMake.Vehicle_Make = "";
+				isUpdating = false;
+				vehicleMakeCustomBox.showDialog = false;
+				StateHasChanged();
+			}),
+        };
         await FetchServices();
     }
     public void FilterMake(ChangeEventArgs e)
@@ -84,6 +107,7 @@
     {
         isUpdating = true;
         vehicleMake = currentVehicleMake;
+		vehicleMakeCustomBox.showDialog = true;
         StateHasChanged();
     }
     public void setProcessing(bool state)

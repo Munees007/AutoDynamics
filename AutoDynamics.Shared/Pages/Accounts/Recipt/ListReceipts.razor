@@ -63,7 +63,7 @@ else
                 <div class="card shadow-lg">
                     <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">Sivakasi Branch</h5>
-                        <h5 class="mb-0">Count: @sivakasiBills</h5>
+                        <h5 class="mb-0">Total: @sivakasiBills.ToString("F2")</h5>
                     </div>
                     <div class="card-body">
                         @if (filteredSivakasiReceipts.Any())
@@ -122,7 +122,7 @@ else
                 <div class="card shadow-lg">
                     <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">Bypass Branch</h5>
-                        <h5 class="mb-0">Count: @sivakasiBills</h5>
+                        <h5 class="mb-0">Total: @bypassBills.ToString("F2")</h5>
                     </div>
                     <div class="card-body">
                         @if (filteredBypassReceipts.Any())
@@ -189,7 +189,7 @@ else
     List<CreditReciptType> filteredSivakasiReceipts = new();
     List<CreditReciptType> filteredBypassReceipts = new();
 
-	int sivakasiBills = 0, bypassBills = 0;
+	decimal sivakasiBills = 0, bypassBills = 0;
 
     bool isAdmin = false,isLoading = false;
     string branch = "";
@@ -386,8 +386,8 @@ else
         sivakasiReceipts = filteredSivakasiReceipts;
         bypassReceipts = filteredBypassReceipts;
 
-        sivakasiBills = filteredSivakasiReceipts.Count;
-		bypassBills = filteredBypassReceipts.Count;
+        sivakasiBills = filteredSivakasiReceipts.Sum((s)=>s.TotalAmountPaid);
+        bypassBills = filteredBypassReceipts.Sum((s) => s.TotalAmountPaid);
         isLoading = false;
         loaderText = "";
         StateHasChanged();
@@ -404,8 +404,8 @@ else
             filteredSivakasiReceipts = sivakasiReceipts;
             filteredBypassReceipts = bypassReceipts;
         }
-        sivakasiBills = filteredSivakasiReceipts.Count;
-		bypassBills = filteredBypassReceipts.Count;
+        sivakasiBills = filteredSivakasiReceipts.Sum((s) => s.TotalAmountPaid);
+        bypassBills = filteredBypassReceipts.Sum((s) => s.TotalAmountPaid);
     }
 
     async Task<List<CreditReciptType>> FilterBills()

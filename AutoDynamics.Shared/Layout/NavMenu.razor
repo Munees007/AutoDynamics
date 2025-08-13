@@ -34,7 +34,7 @@
 @code
 {
     string[] ignoreDuplicates = { "Add Bill", "Add Receipt", "Add Purchase", "Add Payment" };
-    
+
     RenderFragment RenderMenu(MenuType menu) => @<div class="nav-btn">
         <p class="rounded-3 user-select-none text-black" @onclick="() => MenuClicked(menu)">
             @menu.Name
@@ -191,8 +191,11 @@
 
         }
     }},
-        
-       
+
+        {
+            7,new MenuType("Restricted","#",typeof(ReducePayments))
+        }
+
 };
 
     

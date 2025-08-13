@@ -1,4 +1,4 @@
-@page "/product/add"
+﻿@page "/product/add"
 @inject IDatabaseHandler DatabaseHandler
 @inject IAlertService AlertService
 @inject IMyLocalStorageService MyLocalStorageService
@@ -39,6 +39,17 @@
             <label for="HSNCode" class="form-label">HSNCode:</label>
             <input autocomplete="off" type="text" id="HSNCode" @bind="product.HSNCode" class="form-control" placeholder="Enter the HSN Code" required maxlength="12">
         </div>
+        <div class="mb-3">
+            <label for="TyreType" class="form-label fw-semibold">
+                Tyre For:
+            </label>
+            <select class="form-select shadow-sm rounded-3" style="max-width: 300px;" @bind="product.tyreFor">
+                <option value="@TyreFor.FOUR_WHEELER">🚗 Four Wheeler</option>
+                <option value="@TyreFor.TWO_WHEELER">🏍 Two Wheeler</option>
+                <option value="@TyreFor.TUBE">🛞 Tube</option>
+            </select>
+        </div>
+
         <div class="mb-3">
             <label for="Brand" class="form-label">Brand:</label>
             <input @onkeydown="HandleBranchKey" autocomplete="off" type="text" id="Brand" @bind="brandSearch" @oninput="OnBrandInput" class="form-control" placeholder="Search by Brand Name" required maxlength="12">
@@ -330,8 +341,10 @@
 						TubeOrTubeless = row["TubeOrTubeless"].ToString() ?? "",
 						Price = Convert.ToDouble(row["Price"].ToString()),
 						CreatedBy = row["CreatedBy"].ToString() ?? "",
-						LastUpdatedBy = row["LastUpdatedBy"].ToString() ?? ""
+						LastUpdatedBy = row["LastUpdatedBy"].ToString() ?? "",
+						tyreFor = Enum.TryParse<TyreFor>(row["TyreFor"].ToString() ?? "", out var tyreFor) ? tyreFor : TyreFor.FOUR_WHEELER
 					});
+                    
 
                 filteredSizes.Add(row["Size"].ToString() ?? "");
 
@@ -344,7 +357,7 @@
         string username = await MyLocalStorageService.GetItemAsync("Username") ?? "";
         if(isProductUpdating)
         {
-            string updateQuery = @"UPDATE Product SET HSNCode = @hsnCode, Brand = @brand,BrandID = @brandID, Size = @size, Pattern = @pattern, TubeOrTubeless = @tubeOrTubeless, Price = @price, CreatedBy = @createdBy, LastUpdatedBy = @lastUpdatedBy WHERE ProductID = @productId";
+            string updateQuery = @"UPDATE Product SET HSNCode = @hsnCode, Brand = @brand,BrandID = @brandID, Size = @size, Pattern = @pattern, TubeOrTubeless = @tubeOrTubeless, Price = @price, CreatedBy = @createdBy, LastUpdatedBy = @lastUpdatedBy,TyreFor = @TyreFor WHERE ProductID = @productId";
 
             var updateParameter = new Dictionary<string, object>
             {
@@ -357,7 +370,8 @@
                 {"@tubeOrTubeless",data.TubeOrTubeless},
                 {"@price",data.Price},
                 {"@createdBy",data.CreatedBy},
-                {"@lastUpdatedBy",username}
+                {"@lastUpdatedBy",username},
+                {"@TyreFor",data.tyreFor.ToString()}
             };
 
             int rowsAffected = await DatabaseHandler.ExecuteNonQueryAsync(updateQuery, updateParameter);
@@ -367,7 +381,7 @@
         else
         {
             string productId = await DatabaseHandler.GenerateID("PD", 10, "Product", "ProductID");
-            string insertQuery = @"INSERT INTO Product (ProductID,HSNCode,Brand,BrandID,Size,Pattern,TubeOrTubeless,Price,CreatedBy) VALUES (@productID,@hsnCode,@brand,@brandID,@size,@pattern,@tubeOrTubeless,@price,@createdBy)";
+            string insertQuery = @"INSERT INTO Product (ProductID,HSNCode,Brand,BrandID,Size,Pattern,TubeOrTubeless,Price,CreatedBy,TyreFor) VALUES (@productID,@hsnCode,@brand,@brandID,@size,@pattern,@tubeOrTubeless,@price,@createdBy,@TyreFor)";
             var insertParameter = new Dictionary<string, object>
             {
                 {"@productId",productId},
@@ -378,7 +392,8 @@
                 {"@pattern",data.Pattern},
                 {"@tubeOrTubeless",data.TubeOrTubeless},
                 {"@price",data.Price},
-                {"@createdBy",username}
+                {"@createdBy",username},
+				{"@TyreFor",data.tyreFor.ToString()}
             };
             int insertRowsAffected = await DatabaseHandler.ExecuteNonQueryAsync(insertQuery, insertParameter);
             await AlertService.ShowAlertAsync("Product Add:", "Added Successful", "Done");
