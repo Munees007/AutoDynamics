@@ -8,7 +8,7 @@
 @inject IJSRuntime JS
 @inject ITabService TabService
 @inject IToastService ToastService
-
+@inject IExcelService ExcelService
 @using System.Diagnostics
 
 <div class="container mt-4">
@@ -147,7 +147,11 @@
                 },
 				new FooterBtn
 				{
-						  Button = @<button class="btn btn-primary" @onclick="()=>{DownloadStatement(startDate,endDate);}">OK</button>
+						  Button = @<button class="btn btn-primary" @onclick="()=>{DownloadStatement(startDate,endDate,false);}">PDF</button>
+	        	},
+				new FooterBtn
+				{
+						  Button = @<button class="btn btn-primary" @onclick="()=>{DownloadStatement(startDate,endDate,true);}">EXCEL</button>
 	        	},
 				},
 				OnCloase = EventCallback.Factory.Create(this, async () =>
@@ -532,7 +536,7 @@
 
 	}
 
-	async void DownloadStatement(DateTime? startDate,DateTime? endDate)
+	async void DownloadStatement(DateTime? startDate,DateTime? endDate,bool isExcel)
 	{
 		isLoading = true;
 		bills = await DatabaseHandler.GetFilteredBillsAsync(BillDateFilterType.All,customerID:customerData.CustomerId,isCusomerOnly:true);
@@ -555,9 +559,15 @@
 
 		if (customerStatements.Count > 0)
 		{
-
-			string path = await PDFGenerator.GenerateCustomerStatement(customerStatements,openingBalance,customerData,startDate?.ToString("dd/MM/yyyy"),endDate?.ToString("dd/MM/yyyy"));
-
+			string path = "";
+			if (isExcel)
+			{
+				path = await ExcelService.GenerateCustomerStatementExcel(customerStatements, openingBalance, customerData, startDate?.ToString("dd/MM/yyyy"), endDate?.ToString("dd/MM/yyyy"));
+			}
+			else
+			{
+				path = await PDFGenerator.GenerateCustomerStatement(customerStatements, openingBalance, customerData, startDate?.ToString("dd/MM/yyyy"), endDate?.ToString("dd/MM/yyyy"));
+			}
 			ToastService.ShowToast($"SavedAt = {path}", ToastType.sucess);
 		}
 		else

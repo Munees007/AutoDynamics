@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using AutoDynamics.Shared.Modals.Accounts;
 using AutoDynamics.Shared.Modals.Billing;
 using AutoDynamics.Shared.Pages.Billing;
+using Syncfusion.Blazor.Inputs;
 
 
 namespace AutoDynamics.Services
@@ -218,7 +219,7 @@ namespace AutoDynamics.Services
             string updateQuery = @"
         UPDATE CashBankLedger 
         SET   isActive = 1,Branch = @Branch,
-        TransactionType = @TransactionType,
+        TransactionType = @TransactionType,Date = @Date,
             
             Particulars = @Particulars, DrAmount = @DrAmount, CrAmount = @CrAmount, Balance = @Balance , ForWho = @ForWho,billOrInvoiceNo = @billOrInvoiceNo
         WHERE AccountID = @AccountID AND ReferenceID = @ReferenceID AND TransactionType = @TransactionType AND Branch = @Branch;";
@@ -234,8 +235,8 @@ namespace AutoDynamics.Services
 
                     using (var command = new MySqlCommand(updateQuery, connection, transaction))
                     {
-                        
-                        
+
+                        command.Parameters.AddWithValue("@Date", ledger.Date);
                         command.Parameters.AddWithValue("@AccountID", ledger.AccountID);
                         command.Parameters.AddWithValue("@Branch", ledger.Branch);
                         command.Parameters.AddWithValue("@TransactionType", ledger.TransactionType.ToString());
@@ -488,9 +489,8 @@ namespace AutoDynamics.Services
                             {
                                 ledger.ReferenceID = receiptId;
                             }
-                            
-                            string insertQuery = @"UPDATE Receipts SET TotalAmountPaid = @TotalAmountPaid
-                                        ,CheckNumber = @CheckNumber,Narration = @Narration,PaymentMode = @PaymentMode,CustomerID = @CustomerID
+                            string insertQuery = @"UPDATE Receipts SET TotalAmountPaid = @TotalAmountPaid,PaymentDate = @PaymentDate,Branch = @Branch,
+                                        CheckNumber = @CheckNumber,Narration = @Narration,PaymentMode = @PaymentMode,CustomerID = @CustomerID
                                             WHERE ReceiptID = @ReceiptID; 
                                            ";
 
@@ -498,7 +498,8 @@ namespace AutoDynamics.Services
                             {
                                 
                                 command.Parameters.AddWithValue("@TotalAmountPaid", creditRecipt.creditBills.Sum(x => x.amountPayed));
-                                
+                                command.Parameters.AddWithValue("@PaymentDate", creditRecipt.ReciptDate);
+                                command.Parameters.AddWithValue("@Branch", creditRecipt.Branch);
                                 command.Parameters.AddWithValue("@CheckNumber", creditRecipt.CheckNumber);
                                 command.Parameters.AddWithValue("@Narration", creditRecipt.narration);
                                 command.Parameters.AddWithValue("@ReceiptID", creditRecipt.ReceiptId);
@@ -707,14 +708,15 @@ namespace AutoDynamics.Services
                             {
                                 ledger.ReferenceID = paymentID;
                             }
-
-                            string insertQuery = @"UPDATE Payments SET TotalAmountPaid = @TotalAmountPaid
-                                        ,CheckNumber = @CheckNumber,Narration = @Narration,PaymentMode = @PaymentMode,SupplierID = @SupplierID
+                            string insertQuery = @"UPDATE Payments SET TotalAmountPaid = @TotalAmountPaid,PaymentDate = @PaymentDate,Branch=@Branch,
+                                        CheckNumber = @CheckNumber,Narration = @Narration,PaymentMode = @PaymentMode,SupplierID = @SupplierID
                                             WHERE PaymentID = @PaymentID; 
                                            ";
                             using (var command = new MySqlCommand(insertQuery, connection, (MySqlTransaction)transaction))
                             {
                                 command.Parameters.AddWithValue("@TotalAmountPaid", creditRecipt.paymentBills.Sum(x => x.amountPayed));
+                                command.Parameters.AddWithValue("@PaymentDate", creditRecipt.PaymentDate);
+                                command.Parameters.AddWithValue("@Branch", creditRecipt.Branch);
                                 command.Parameters.AddWithValue("@CheckNumber", creditRecipt.CheckNumber);
                                 command.Parameters.AddWithValue("@Narration", creditRecipt.Narration);
                                 command.Parameters.AddWithValue("@PaymentID", creditRecipt.PaymentId);
@@ -1582,8 +1584,8 @@ WHERE ProductID = @ProductID AND Branch = @Branch
 
                     // 2. Insert into Bill table and get BillID
                     string insertBillQuery = @"
-            INSERT INTO Bills (Branch, BillingYear, BillNo, CustomerID, VehicleNo, BillDate, UsageReading, TotalAmount, Discount, GrandTotal, Notes) 
-            VALUES (@Branch, @BillingYear, @BillNo, @CustomerID, @VehicleNo, @BillDate, @UsageReading, @TotalAmount, @Discount, @GrandTotal, @Notes);
+            INSERT INTO Bills (Branch, BillingYear, BillNo, CustomerID, VehicleNo, BillDate, UsageReading, TotalAmount, Discount, GrandTotal, Notes,BillBy) 
+            VALUES (@Branch, @BillingYear, @BillNo, @CustomerID, @VehicleNo, @BillDate, @UsageReading, @TotalAmount, @Discount, @GrandTotal, @Notes,@BillBy);
             ";
 
                     using (var command = new MySqlCommand(insertBillQuery, connection, (MySqlTransaction)transaction))
@@ -1599,7 +1601,9 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                         command.Parameters.AddWithValue("@Discount", bill.Discount);
                         command.Parameters.AddWithValue("@GrandTotal", bill.GrandTotal);
                         command.Parameters.AddWithValue("@Notes", bill.Notes);
-                        
+                        command.Parameters.AddWithValue("@BillBy",bill.BillBy);
+
+
 
                         await command.ExecuteNonQueryAsync();
                         
@@ -1863,7 +1867,8 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                     UsageReading = billReader.GetDecimal("UsageReading").ToString() ?? "",
                     Discount = billReader.GetDecimal("Discount"),
                     GrandTotal = billReader.GetDecimal("GrandTotal"),
-                    Notes = billReader.IsDBNull("Notes") ? null : billReader.GetString("Notes")
+                    Notes = billReader.IsDBNull("Notes") ? null : billReader.GetString("Notes"),
+                    BillBy = billReader.GetString("BillBy")
                 };
                 billDictionary[bill.BillID] = new BillDetails
                 {

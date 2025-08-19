@@ -15,11 +15,11 @@
         <h3 class="text-success fw-bolder @(!(isUpdating || isViewing) ? "visually-hidden" :"")">
             Bill No: @((bill.Branch == "Sivakasi" ? "SFR" : "BPR") + bill.BillNo.ToString().PadLeft(4, '0'))
         </h3>
-         <button type="button" class="btn btn-outline-secondary @(isViewing ? "visually-hidden" : "")" @onclick="async ()=>{await NecessaryData(true);}"> 
+        <button type="button" class="btn btn-outline-secondary @(isViewing ? "visually-hidden" : "")" @onclick="async ()=>{await NecessaryData(true);}"> 
             Refresh
         </button> 
     </div>
-    
+
 </div>
 <div class="container m-3">
     @if(isAdmin)
@@ -34,17 +34,35 @@
                     <option value="ByPass">ByPass</option>
                 </select>
             </div>
-            
+
         </div>
 
         <hr />
     }
+    
+    
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label">Bill By</label>
+                <select disabled="@(isViewing || isUpdating)" autocomplete="off" class="form-select" @bind="bill.BillBy">
+                    <option value="">Select Bill By</option>
+                    @foreach(var user in Users)
+                    {
+                        <option value="@user">@user</option>
+                    }
+                </select>
+            </div>
+
+        </div>
+
+        <hr />
+    
 
     <div class="row mb-3">
-    <div class="col-10">
-        <label class="form-label">Notes</label>
-        <textarea disabled="@isViewing" autocomplete="off" @bind="bill.Notes" placeholder="type something..." class="form-control" />
-    </div>
+        <div class="col-10">
+            <label class="form-label">Notes</label>
+            <textarea disabled="@isViewing" autocomplete="off" @bind="bill.Notes" placeholder="type something..." class="form-control" />
+        </div>
     </div>
 
     <hr />
@@ -57,7 +75,7 @@
 
             <div class="input-group">
                 <input disabled="@isViewing" @onkeydown="HandleCustomerKey" autocomplete="off" type="text" id="Customer" @bind="CustomerSearch" @oninput="OnCustomerSearch" class="form-control" placeholder="Search by ID, Name, or Contact" required>
-                
+
             </div>
             <SearchSelect @ref="customerListRef" Items="filteredCustomers" OnSelect="@(c=> SelectCustomer(c))" T="UserModal" showSuggestions="ShowCustomerSuggestion" ShowSuggestionsChanged="@((bool val) => ShowCustomerSuggestion = val)">
                 <ItemTemplate Context="cust">
@@ -284,7 +302,7 @@
     [Parameter] public BillDetails updateData { set; get; } = new();
     [Parameter] public bool isViewing {set;get;} = false;
 
-
+    public List<string> Users = new List<string>();
     private string loaderText = "";
     private string CustomerSearch = "";
     private string ProductSearch = "";
@@ -737,6 +755,7 @@
         string productsQuery = @"SELECT s.*, p.* FROM Stock s JOIN Product p ON p.ProductID = s.ProductID";
         string brandsQuery = @"SELECT * FROM Brands";
         string accountQuery = @"SELECT * FROM LedgerAccounts";
+        string userQuery = @"SELECT * FROM Users";
 
         var res1 = await DatabaseHandler.ExecuteQueryAsync(customerQuery);
         var res2 = await DatabaseHandler.ExecuteQueryAsync(vehicleQuery);
@@ -744,6 +763,7 @@
         var res4 = await DatabaseHandler.ExecuteQueryAsync(productsQuery);
         var res5 = await DatabaseHandler.ExecuteQueryAsync(brandsQuery);
         var res6 = await DatabaseHandler.ExecuteQueryAsync(accountQuery);
+        var res7 = await DatabaseHandler.ExecuteQueryAsync(userQuery);
 
         customers = new List<UserModal>();
         vehicles = new List<VehicleType>();
@@ -844,6 +864,13 @@
                     });
 
 
+            }
+        }
+        if(res7.Count > 0)
+        {
+            foreach(var row in res7)
+            {
+				Users.Add(row["Username"].ToString() ?? "");
             }
         }
         if (isManual)

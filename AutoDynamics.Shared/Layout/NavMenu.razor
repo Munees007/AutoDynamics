@@ -1,5 +1,5 @@
 ﻿@inject NavigationManager Navigation
-
+@inject IMyLocalStorageService MyLocalStorageService
 @inject ITabService TabService
 @inject IMultiWindowService MultiWindowService
 @* <div class="top-row ps-3 navbar navbar-dark"> *@
@@ -186,19 +186,32 @@
         SubMenus = new List<MenuType> {
 
             new MenuType("Services", "/reports/service-reports", typeof(ServiceReoports)),
+            new MenuType("Product Report", "/product-report", typeof(ProductReport)),
             // new MenuType("Credit Record", "/credit/details", typeof(ViewCredit)),
             // new MenuType("Supplier Credit", "/supplier/credit", typeof(SupplierCreditRecordView)),
 
         }
     }},
 
-        {
-            7,new MenuType("Restricted","#",typeof(ReducePayments))
-        }
-
 };
+    bool isAdmin = false;
+    protected override async Task OnInitializedAsync()
+    {
+        isAdmin = await MyLocalStorageService.GetItemAsync("IsAdmin") == "true" ? true : false;
 
-    
+        if(isAdmin)
+        {
+            groupMenuOBJ.Add(
+					7, new MenuType("Settings", "#") {
+						SubMenus = new List<MenuType> {
+                            new MenuType("Manage Users", "/settings/manageUser", typeof(ManageUser)),
+							
+						}
+					}
+            );
+        }
+    }
+
 
 
     void MenuClicked(MenuType menuV)

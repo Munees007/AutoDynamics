@@ -86,8 +86,6 @@
             Title = isUpdating ? "Updating Vehicle Make" : "Create Vehicle Make",
 			OnCloase = EventCallback.Factory.Create(this, async () =>
 			{
-				vehicleMake.VehicleMakeID = "";
-				vehicleMake.Vehicle_Make = "";
 				isUpdating = false;
 				vehicleMakeCustomBox.showDialog = false;
 				StateHasChanged();

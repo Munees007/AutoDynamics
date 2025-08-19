@@ -558,7 +558,101 @@ public async Task<string> CreateCreditExcel(string branch, List<CreditRecord> si
             }
         }
 
+
+    public async Task<string> GenerateCustomerStatementExcel(List<CustomerStatement> customerStatements, decimal openingBalance, UserModal customer, string StartDate, string EndDate)
+    {
+        try
+        {
+            using (var workbook = new XLWorkbook())
+            {
+                var worksheet = workbook.Worksheets.Add("Customer Statement");
+
+                // Title
+                worksheet.Cell(1, 1).Value = "AutoDynamics - Customer Statement";
+                worksheet.Range(1, 1, 1, 6).Merge().Style
+                    .Font.SetBold().Font.SetFontSize(16)
+                    .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
+
+                // Info
+                worksheet.Cell(2, 1).Value = $"Customer: {customer.Name}";
+                worksheet.Cell(3, 1).Value = $"Customer ID: {customer.CustomerId}";
+                worksheet.Cell(4, 1).Value = $"Date: from {StartDate} to {EndDate}";
+                worksheet.Cell(5, 1).Value = $"Opening Balance: {openingBalance:0.00}";
+
+                // Table Header
+                var headerRow = 7;
+                worksheet.Cell(headerRow, 1).Value = "Date";
+                worksheet.Cell(headerRow, 2).Value = "Type";
+                worksheet.Cell(headerRow, 3).Value = "Particulars";
+                worksheet.Cell(headerRow, 4).Value = "Debit";
+                worksheet.Cell(headerRow, 5).Value = "Credit";
+                worksheet.Cell(headerRow, 6).Value = "Balance";
+
+                worksheet.Range(headerRow, 1, headerRow, 6).Style
+                    .Font.SetBold()
+                    .Fill.SetBackgroundColor(XLColor.LightGray)
+                    .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
+
+                // Data Rows
+                decimal runningBalance = openingBalance;
+                var row = headerRow + 1;
+
+                var sortedStatements = customerStatements.OrderBy(s => s.date).ToList();
+                foreach (var entry in sortedStatements)
+                {
+                    worksheet.Cell(row, 1).Value = entry.date.ToString("dd-MM-yyyy");
+                    worksheet.Cell(row, 2).Value = entry.type;
+                    worksheet.Cell(row, 3).Value = entry.particulars;
+                    worksheet.Cell(row, 4).Value = entry.debit > 0 ? entry.debit.ToString("0.00") : "";
+                    worksheet.Cell(row, 5).Value = entry.credit > 0 ? entry.credit.ToString("0.00") : "";
+
+                    // Balance logic same as PDF
+                    if (entry.accountType == "SALES A/C")
+                    {
+                        runningBalance += entry.credit;
+                    }
+                    else if (entry.accountType == "CASH A/C" || entry.accountType == "BANK A/C" || entry.accountType == "CARD A/C")
+                    {
+                        runningBalance -= entry.debit;
+                    }
+                    else if (entry.accountType == "RECEIPT A/C")
+                    {
+                        runningBalance -= entry.debit;
+                    }
+
+                    worksheet.Cell(row, 6).Value = runningBalance.ToString("0.00");
+                    row++;
+                }
+
+                // Closing Balance
+                worksheet.Cell(row, 5).Value = "Closing Balance:";
+                worksheet.Cell(row, 6).Value = runningBalance.ToString("0.00");
+                worksheet.Cell(row, 5).Style.Font.SetBold();
+                worksheet.Cell(row, 6).Style.Font.SetBold();
+
+                worksheet.Columns().AdjustToContents();
+
+                // Save File
+                string tempPath = Path.Combine(FileSystem.CacheDirectory, "CustomerStatement.xlsx");
+                workbook.SaveAs(tempPath);
+
+                if (DeviceInfo.Platform == DevicePlatform.WinUI)
+                {
+                    Process.Start(new ProcessStartInfo { FileName = tempPath, UseShellExecute = true });
+                    return "Excel opened successfully.";
+                }
+
+                return "Excel generated successfully.";
+            }
+        }
+        catch (Exception ex)
+        {
+            return $"Error: {ex.Message}";
+        }
     }
+
+
+}
 
 
 }

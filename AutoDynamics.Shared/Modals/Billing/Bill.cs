@@ -21,6 +21,7 @@ namespace AutoDynamics.Shared.Modals.Billing
         public decimal GrandTotal { get; set; }
         public string? Notes { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public string BillBy { get; set; } = string.Empty; // User who created the bill
 
         public ICollection<BillItem> BillItems { get; set; } = new List<BillItem>();
         public ICollection<BillPayment> BillPayments { get; set; } = new List<BillPayment>();

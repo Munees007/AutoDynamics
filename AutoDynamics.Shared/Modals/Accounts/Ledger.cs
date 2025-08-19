@@ -34,6 +34,8 @@ namespace AutoDynamics.Shared.Modals.Accounts
         public decimal DR_Amount { get; set; } = 0m;
         public decimal Balance { get; set; } = 0m;
         public bool isActive { get; set; } = false;
+        public string naration { get; set; } = string.Empty;
+        public string RefNo { get; set; } = string.Empty;
         public PaymentTypes PaymentMode { get; set; } = PaymentTypes.CASH;
     }
 }

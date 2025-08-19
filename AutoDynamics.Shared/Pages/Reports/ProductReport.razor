@@ -1,0 +1,162 @@
+﻿@page "/product-report"
+@using System.Data
+@inject IDatabaseHandler DatabaseHandler
+
+<h3 class="mb-4 text-primary">📊 Product Report</h3>
+
+<div class="card shadow-sm p-3 mb-4">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label">Start Date:</label>
+            <input type="date" class="form-control" @bind="StartDate" />
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label">End Date:</label>
+            <input type="date" class="form-control" @bind="EndDate" />
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label">Filter By:</label>
+            <select class="form-select" @bind="FilterBy">
+                <option value="Brand">Brand</option>
+                <option value="Size">Size</option>
+                <option value="Type">Type</option>
+            </select>
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label">Filter Value (optional):</label>
+            <input type="text" class="form-control" @bind="FilterValue" />
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <button class="btn btn-primary w-100" @onclick="LoadReport">
+            <i class="bi bi-search"></i> Generate Report
+        </button>
+    </div>
+</div>
+
+@if (ReportData.Count > 0)
+{
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped align-middle shadow-sm">
+            <thead class="table-dark">
+                <tr>
+                    <th>@FilterBy</th>
+                    <th>Purchases</th>
+                    <th>Sales</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in ReportData)
+                {
+                    <tr>
+                        <td>@row.FilterValue</td>
+                        <td>@row.PurchaseCount</td>
+                        <td>@row.SalesCount</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else if (IsLoaded)
+{
+    <div class="alert alert-warning text-center shadow-sm">
+        No records found for the selected filters.
+    </div>
+}
+
+@code {
+    private DateTime StartDate { get; set; } = DateTime.Today.AddDays(-30);
+    private DateTime EndDate { get; set; } = DateTime.Today;
+    private string FilterBy { get; set; } = "Brand";
+    private string FilterValue { get; set; }
+
+    private bool IsLoaded { get; set; } = false;
+    private List<ReportRow> ReportData { get; set; } = new();
+
+    private async Task LoadReport()
+    {
+        string sql = @"
+SELECT
+    CASE
+        WHEN @FilterBy = 'Brand' THEN pr.Brand
+        WHEN @FilterBy = 'Size' THEN pr.Size
+        WHEN @FilterBy = 'Type' THEN pr.TubeOrTubeless
+    END AS FilterValue,
+    COALESCE(SUM(pi.PurchaseCount), 0) AS PurchaseCount,
+    COALESCE(SUM(bi.SalesCount), 0) AS SalesCount,
+    COALESCE(SUM(pi.PurchaseCount), 0) - COALESCE(SUM(bi.SalesCount), 0) AS StockBalance
+FROM Product pr
+LEFT JOIN (
+    SELECT
+        p.ProductID,
+        COUNT(*) AS PurchaseCount
+    FROM PurchaseItems p
+    JOIN PurchaseBills pb ON pb.PurchaseBillID = p.PurchaseBillID
+    WHERE pb.PurchaseDate BETWEEN @StartDate AND @EndDate
+    GROUP BY p.ProductID
+) pi ON pr.ProductID = pi.ProductID
+LEFT JOIN (
+    SELECT
+        b.ItemID,
+        COUNT(*) AS SalesCount
+    FROM BillItems b
+    JOIN Bills bl ON bl.BillID = b.BillID
+    WHERE b.ItemType = 'PRODUCT'
+      AND bl.BillDate BETWEEN @StartDate AND @EndDate
+    GROUP BY b.ItemID
+) bi ON pr.ProductID = bi.ItemID
+WHERE
+    (@FilterBy <> 'Brand' OR @FilterValue IS NULL OR pr.Brand = @FilterValue)
+    AND (@FilterBy <> 'Size' OR @FilterValue IS NULL OR pr.Size = @FilterValue)
+    AND (@FilterBy <> 'Type' OR @FilterValue IS NULL OR pr.TubeOrTubeless = @FilterValue)
+GROUP BY
+    CASE
+        WHEN @FilterBy = 'Brand' THEN pr.Brand
+        WHEN @FilterBy = 'Size' THEN pr.Size
+        WHEN @FilterBy = 'Type' THEN pr.TubeOrTubeless
+    END
+ORDER BY FilterValue;
+";
+
+        var parameters = new Dictionary<string, object?>
+        {
+            { "@StartDate", StartDate },
+            { "@EndDate", EndDate },
+            { "@FilterBy", FilterBy },
+            { "@FilterValue", string.IsNullOrWhiteSpace(FilterValue) ? DBNull.Value : FilterValue }
+        };
+
+        var dt = await DatabaseHandler.ExecuteQueryAsync(sql, parameters);
+
+        if(dt.Count > 0)
+        {
+            foreach(var row in dt)
+            {
+                ReportData.Add(new ReportRow
+                {
+						FilterValue = row["FilterValue"].ToString() ?? string.Empty,
+						PurchaseCount = Convert.ToInt32(row["PurchaseCount"]),
+						SalesCount = Convert.ToInt32(row["SalesCount"]),
+						StockBalance = Convert.ToInt32(row["StockBalance"])
+                });
+            }
+        }
+
+        
+
+        IsLoaded = true;
+    }
+
+    public class ReportRow
+    {
+        public string FilterValue { get; set; }
+        public int PurchaseCount { get; set; }
+        public int SalesCount { get; set; }
+        public int StockBalance { get; set; }
+    }
+}

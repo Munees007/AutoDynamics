@@ -124,7 +124,7 @@
 
     List<SupplierCreditRecord> filteredSivakasiRecords = new List<SupplierCreditRecord>();
     List<SupplierCreditRecord> filteredBypassRecords = new List<SupplierCreditRecord>();
-    DateOnly filterDate = new DateOnly(2025,7,31);
+    DateOnly filterDate = DateOnly.FromDateTime(DateTime.Today);
     decimal sivakasiCreditTotal = 0m;
     decimal bypassCreditTotal = 0m;
     bool isLoading = false;

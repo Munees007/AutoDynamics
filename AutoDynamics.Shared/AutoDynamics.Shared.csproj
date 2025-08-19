@@ -29,6 +29,7 @@
   <ItemGroup>
     <Folder Include="Pages\Accounts\Ledger\" />
     <Folder Include="Pages\Credit\" />
+    <Folder Include="Pages\Settings\" />
     <Folder Include="Pages\Reports\" />
     <Folder Include="Pages\Stock\" />
     <Folder Include="Pages\Product\" />

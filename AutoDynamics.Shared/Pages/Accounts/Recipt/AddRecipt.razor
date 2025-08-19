@@ -14,7 +14,7 @@
         </div>
 
         <div class="col-md-10 input-group">
-            <label class="input-group-text">CheckNumber</label>
+            <label class="input-group-text">Cheque Number</label>
             <input type="text" class="form-control" @bind="creditReciptTypes.CheckNumber"/>
         </div>
 
@@ -24,9 +24,9 @@
         </div>
 
         <div class="col-md-8">
-            
+
             <label for="Customer" class="form-label fw-bold">Customer: @(creditReciptTypes.customer.CustomerId != null ? creditReciptTypes.customer.Name : "")</label>
-            
+
             <div class="input-group">
                 <input @onkeydown="HandleCustomerKey"  autocomplete="off" type="text" id="Customer"
                 @bind="CustomerSearch" @oninput="OnCustomerSearch"
@@ -195,7 +195,7 @@
             await NecessaryData();
             if (IsUpdating)
             {
-                
+
                 filteredCreditBills = creditReciptTypes.creditBills;
                 creditBills = creditReciptTypes.creditBills;
                 CustomerSearch = creditReciptTypes.customer.CustomerId;
@@ -247,6 +247,8 @@
 
 
             }
+
+            await SelectCustomer(creditReciptTypes.customer);
         }
 
 
@@ -449,7 +451,7 @@
             splitAmount = 0;
             CustomerSearch = "";
             ToastService.ShowToast("Receipt Added Successfully", ToastType.sucess);
-            
+
         }
         catch(Exception e)
         {
@@ -469,14 +471,14 @@
             isLoading = true;
             CustomerSearch = customer.CustomerId;
             creditReciptTypes.customer = customer;
-			SelectedCustomer = $"{customer.Name} - {customer.Contact}";
+            SelectedCustomer = $"{customer.Name} - {customer.Contact}";
             string fetchCreditQuery = "SELECT * FROM CreditRecord cr JOIN Bills b ON b.BillID = cr.BillID WHERE cr.CustomerID = @CustomerID";
 
-			var bills = await DatabaseHandler.ExecuteQueryAsync(fetchCreditQuery, new Dictionary<string, object>
+            var bills = await DatabaseHandler.ExecuteQueryAsync(fetchCreditQuery, new Dictionary<string, object>
 			{
 				{ "@CustomerID", customer.CustomerId }
 			});
-            
+
             Debug.WriteLine(bills.Count);
             Debug.WriteLine(currentBranch);
             if (bills.Count > 0)
@@ -484,9 +486,10 @@
                 List<CreditBill> credits = new List<CreditBill>();
                 foreach (var bill in bills)
                 {
-                    
-                    if (currentBranch == bill["Branch"].ToString() && bill["Status"].ToString() != "Paid" )
+
+                    if (currentBranch == bill["Branch"].ToString() && bill["Status"].ToString() != "Paid")
                     {
+
                         CreditBill temp = new CreditBill
                             {
                                 creditId = Int32.Parse(bill["CreditID"].ToString() ?? "0"),
@@ -500,11 +503,21 @@
 								remainingBalance = decimal.Parse(bill["RemainingBalance"].ToString() ?? "0"),
                                 paymentType = Modals.PaymentTypes.CASH
                             };
-                            credits.Add(temp);
+                        if (IsUpdating && creditReciptTypes.ReciptDate <= temp.BillDate)
+                        {
+                            temp.isSelected = false;
+                            creditReciptTypes.creditBills.Add(temp);
+                            continue;
+                        }
+                        credits.Add(temp);
                     }
 
                 }
-                creditReciptTypes.creditBills = credits;
+                if(!IsUpdating)
+                {
+                    creditReciptTypes.creditBills = credits;
+                }
+                
             }
             ShowCustomerSuggestion = false;
             isLoading = false;

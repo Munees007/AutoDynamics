@@ -108,9 +108,6 @@
 </EditForm>,
 			OnCloase = EventCallback.Factory.Create(this, async () =>
 			{
-				vehicleModel.VehicleModelID = "";
-				vehicleModel.VehicleMakeID = "";
-				vehicleModel.VehicelModel = "";
 				isUpdating = false;
 				vehicleModalCustomBox.showDialog = false;
 				StateHasChanged();

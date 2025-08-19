@@ -8,7 +8,7 @@
             <div class="row">
                 <div class="col-md-6">
                     <p><strong>Payment Date:</strong> @paymentReceipt.PaymentDate.ToString("dd/MM/yyyy")</p>
-                    <p><strong>Payment Number:</strong> @((paymentReceipt.Branch == "Sivakasi" ? "RC_SFR" : "RC_BPR") + paymentReceipt.PaymentNo.ToString().PadLeft(4, '0'))</p>
+                    <p><strong>Payment Number:</strong> @((paymentReceipt.Branch == "Sivakasi" ? "PY_SFR" : "PY_BPR") + paymentReceipt.PaymentNo.ToString().PadLeft(4, '0'))</p>
                     <p><strong>Cheque Number:</strong> @paymentReceipt.CheckNumber</p>
                 </div>
                 <div class="col-md-6">
