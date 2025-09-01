@@ -41,8 +41,10 @@
                 <th>Date</th>
                 <th>Account Type</th>
                 <th>Transaction Type</th>
+                <th>Bill No</th>
                 <th>ForWho</th>
                 <th>Particulars</th>
+                <th>Narations</th>
                 <th>Dr (₹)</th>
                 <th>Cr (₹)</th>
                 <th>Balance</th>
@@ -56,12 +58,15 @@
                     <td>@ledger.Date.ToString("dd-MM-yyyy")</td>
                     <td>@ledger.AccountType?.AccountName</td>
                     <td>@ledger.TransactionType</td>
+                    <td>@ledger.RefNo</td>
                     <td>@ledger.ForWhoName</td>
                     <td>@ledger.Particulars</td>
+                    <td>@ledger.naration</td>
+
                     <td class="text-end">@ledger.DR_Amount.ToString("N2")</td>
                     <td class="text-end">@ledger.CR_Amount.ToString("N2")</td>
                     <td class="text-end">@GetFormattedBalance(ledger.Balance)</td>
-                    <td class="d-flex flex-column gap-2 h-100">
+                    <td class="d-flex flex-column gap-2">
                         @if (ledger.TransactionType == TransactionType.EXPENSE || ledger.TransactionType == TransactionType.OTHER)
                         {
                             <button class="btn btn-warning btn-sm" @onclick="()=>{ViewLedgerFun(ledger);}">VIEW</button>
@@ -72,6 +77,13 @@
             }
         </tbody>
     </table>
+    <div class="d-flex justify-content-end mb-3">
+        <div class="card text-end p-3 shadow-sm border border-primary" style="min-width: 250px;">
+            <h5 class="card-title mb-3">Total</h5>
+            <p class="mb-1"><strong>Incomes:</strong> @ledgers.Sum(a => a.DR_Amount)</p>
+            <p class="mb-0"><strong>Expenses:</strong> @ledgers.Sum(a => a.CR_Amount)</p>
+        </div>
+    </div>
 </div>
 @code{
     [Parameter] public LedgerAcccounts LedgerAccount { get; set; } = new();
@@ -277,22 +289,76 @@
                         Balance = Convert.ToDecimal(row["Balance"]),
                         isActive = active
                     };
-                if (temp.TransactionType == TransactionType.BILL || temp.TransactionType == TransactionType.RECEIPT)
+                if (temp.TransactionType == TransactionType.BILL)
                 {
-                    string getCustomerDetails = $"SELECT Name FROM Customers WHERE CustomerID = '{temp.ForWho}'";
+                    string getCustomerDetails = $"SELECT Name FROM Customers WHERE CustomerID = (SELECT CustomerID FROM Bills WHERE BillID = {temp.ReferenceID})";
                     var customerDetails = await DatabaseHandler.ExecuteQueryAsync(getCustomerDetails);
+                    string billNo = $"SELECT BillNo,Branch FROM Bills WHERE BillID = {temp.ReferenceID}";
+                    var billNoData = await DatabaseHandler.ExecuteQueryAsync(billNo);
                     if (customerDetails.Count > 0)
                     {
                         temp.ForWhoName = customerDetails[0]["Name"].ToString() ?? "";
                     }
+                    if (billNoData.Count > 0)
+                    {
+                        temp.RefNo = (billNoData[0]["Branch"].ToString() == "Sivakasi" ? "SFR" : "BPR") + billNoData[0]["BillNo"].ToString()?.PadLeft(4, '0');
+                    }
                 }
-                if (temp.TransactionType == TransactionType.PURCHASE || temp.TransactionType == TransactionType.PAYMENT)
+                if (temp.TransactionType == TransactionType.RECEIPT)
                 {
-                    string getCustomerDetails = $"SELECT Name FROM Suppliers WHERE SupplierID = '{temp.ForWho}'";
+                    string getCustomerDetails = $"SELECT Name FROM Customers WHERE CustomerID = (SELECT CustomerID FROM Receipts WHERE ReceiptID = {temp.ReferenceID})";
                     var customerDetails = await DatabaseHandler.ExecuteQueryAsync(getCustomerDetails);
+                    string getNaration = $"SELECT Narration FROM Receipts WHERE ReceiptID = {temp.ReferenceID}";
+                    var narationData = await DatabaseHandler.ExecuteQueryAsync(getNaration);
+                    string receiptNo = $"SELECT ReceiptNo,Branch FROM Receipts WHERE ReceiptID = {temp.ReferenceID}";
+                    var receiptNoData = await DatabaseHandler.ExecuteQueryAsync(receiptNo);
                     if (customerDetails.Count > 0)
                     {
                         temp.ForWhoName = customerDetails[0]["Name"].ToString() ?? "";
+                    }
+                    if (narationData.Count > 0)
+                    {
+                        temp.naration = narationData[0]["Narration"].ToString() ?? "";
+                    }
+                    if (receiptNoData.Count > 0)
+                    {
+                        temp.RefNo = (receiptNoData[0]["Branch"].ToString() == "Sivakasi" ? "RC_SFR" : "RC_BPR") + receiptNoData[0]["ReceiptNo"].ToString()?.PadLeft(4, '0');
+                    }
+                }
+                if (temp.TransactionType == TransactionType.PURCHASE)
+                {
+                    string getCustomerDetails = $"SELECT Name FROM Suppliers WHERE SupplierID = (SELECT SupplierID FROM PurchaseBills WHERE PurchaseBillID = {temp.ReferenceID})";
+                    var customerDetails = await DatabaseHandler.ExecuteQueryAsync(getCustomerDetails);
+                    string billNo = $"SELECT BillNo,Branch FROM PurchaseBills WHERE PurchaseBillID = {temp.ReferenceID}";
+                    var billNoData = await DatabaseHandler.ExecuteQueryAsync(billNo);
+                    if (customerDetails.Count > 0)
+                    {
+                        temp.ForWhoName = customerDetails[0]["Name"].ToString() ?? "";
+                    }
+                    if (billNoData.Count > 0)
+                    {
+                        temp.RefNo = (billNoData[0]["Branch"].ToString() == "Sivakasi" ? "SFRP" : "BPRP") + billNoData[0]["BillNo"].ToString()?.PadLeft(4, '0');
+                    }
+                }
+                if (temp.TransactionType == TransactionType.PAYMENT)
+                {
+                    string getCustomerDetails = $"SELECT Name FROM Suppliers WHERE SupplierID = (SELECT SupplierID FROM Payments WHERE PaymentID = {temp.ReferenceID})";
+                    var customerDetails = await DatabaseHandler.ExecuteQueryAsync(getCustomerDetails);
+                    string getNaration = $"SELECT Narration FROM Payments WHERE PaymentID = {temp.ReferenceID}";
+                    var narationData = await DatabaseHandler.ExecuteQueryAsync(getNaration);
+                    string paymentNo = $"SELECT PaymentNo,Branch FROM Payments WHERE PaymentID = {temp.ReferenceID}";
+                    var paymentNoData = await DatabaseHandler.ExecuteQueryAsync(paymentNo);
+                    if (customerDetails.Count > 0)
+                    {
+                        temp.ForWhoName = customerDetails[0]["Name"].ToString() ?? "";
+                    }
+                    if (narationData.Count > 0)
+                    {
+                        temp.naration = narationData[0]["Narration"].ToString() ?? "";
+                    }
+                    if (paymentNoData.Count > 0)
+                    {
+                        temp.RefNo = (paymentNoData[0]["Branch"].ToString() == "Sivakasi" ? "PY_SFR" : "PY_BPR") + paymentNoData[0]["PaymentNo"].ToString()?.PadLeft(4, '0');
                     }
                 }
 

@@ -7,11 +7,12 @@
 <div class="col-md-12 mb-3">
 
     <select class="form-select form-select-md" @bind="selectedBrand">
-        <option value="">Select a Brand</option>
-        @foreach (var brand in Brands)
-        {
-            <option value="@brand.BrandName">@brand.BrandName</option>
-        }
+        <option value="">Select a Filter Option</option>
+        <option value="size">Size</option>
+        <option value="brand">Brand</option>
+        <option value="pattern">Pattern</option>
+        <option value="hsn">HSNCode</option>
+        <option value="type">Type</option>
     </select>
 </div>
 
@@ -51,7 +52,7 @@
                         <tr>
                             <td>@product.ProductID</td>
                             <td>@product.HSNCode</td>
-							<td>@product.tyreFor.ToString()</td>
+                            <td>@product.tyreFor.ToString()</td>
                             <td>@product.BrandID</td>
                             <td>@product.Brand</td>
                             <td>@product.Size</td>
@@ -92,15 +93,44 @@
     {
         string text = e.Value.ToString();
 
-        filteredProducts = products.Where(p =>
-    p.Brand == selectedBrand &&
-    (p.Size.Contains(text, StringComparison.OrdinalIgnoreCase) ||
-     p.Pattern.Contains(text, StringComparison.OrdinalIgnoreCase) ||
-     p.TubeOrTubeless.Contains(text, StringComparison.OrdinalIgnoreCase) ||
-     p.HSNCode.Contains(text, StringComparison.OrdinalIgnoreCase) ||
-     p.ProductID.Contains(text, StringComparison.OrdinalIgnoreCase)
-    )
-    ).ToList();
+        if (!string.IsNullOrEmpty(text))
+        {
+            if (selectedBrand == "size")
+            {
+                filteredProducts = products
+                    .Where(p => p.Size.Contains(text, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+            else if (selectedBrand == "brand")
+            {
+                filteredProducts = products
+                    .Where(p => p.Brand.Contains(text, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+            else if (selectedBrand == "pattern")
+            {
+                filteredProducts = products
+                    .Where(p => p.Pattern.Contains(text, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+            else if (selectedBrand == "hsn")
+            {
+                filteredProducts = products
+                    .Where(p => p.HSNCode.Contains(text, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+            else if (selectedBrand == "type")
+            {
+                filteredProducts = products
+                    .Where(p => p.tyreFor.ToString().Contains(text, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+            else
+            {
+                // default: search in all fields
+                filteredProducts = products;
+            }
+        }
 
 
         StateHasChanged();

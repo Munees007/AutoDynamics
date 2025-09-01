@@ -72,6 +72,7 @@ else
                                         <th>Branch</th>
                                         <th>Vehicle No</th>
                                         <th>Bill Date</th>
+                                        <th>Bill By</th>
                                         <th>Total</th>
                                         <th>Actions</th>
                                     </tr>
@@ -87,6 +88,7 @@ else
                                             <td>@bill.Bill.Branch</td>
                                             <td>@bill.Bill.VehicleNo</td>
                                             <td>@bill.Bill.BillDate.ToString("yyyy-MM-dd")</td>
+                                            <td>@bill.Bill.BillBy</td>
                                             <td>₹@(Math.Round(bill.Bill.TotalAmount))</td>
                                             <td>
                                                 <button class="btn btn-sm btn-success" @onclick="() => DownloadBill(bill)">Download</button>
@@ -129,6 +131,7 @@ else
                                         <th>Branch</th>
                                         <th>Vehicle No</th>
                                         <th>Bill Date</th>
+                                        <th>Bill By</th>
                                         <th>Total</th>
                                         <th>Actions</th>
                                     </tr>
@@ -144,6 +147,7 @@ else
                                             <td>@bill.Bill.Branch</td>
                                             <td>@bill.Bill.VehicleNo</td>
                                             <td>@bill.Bill.BillDate.ToString("yyyy-MM-dd")</td>
+                                            <td>@bill.Bill.BillBy</td>
                                             <td>₹@bill.Bill.TotalAmount</td>
                                             <td>
                                                 <button class="btn btn-sm btn-success" @onclick="() => DownloadBill(bill)">Download</button>

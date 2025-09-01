@@ -218,8 +218,8 @@ else
     public void SearchBills(ChangeEventArgs e)
     {
         searchQuery = e.Value.ToString();
-        filteredSivakasiReceipts = sivakasiReceipts.Where((b) => CreateBillNo(b).Contains(searchQuery) || b.supplier.Name.Contains(searchQuery)).ToList();
-        filteredBypassReceipts = bypassReceipts.Where((b) => CreateBillNo(b).Contains(searchQuery) || b.supplier.Name.Contains(searchQuery)).ToList();
+        filteredSivakasiReceipts = sivakasiReceipts.Where((b) => CreateBillNo(b).Contains(searchQuery) || b.supplier.Name.Contains(searchQuery,StringComparison.OrdinalIgnoreCase)).ToList();
+        filteredBypassReceipts = bypassReceipts.Where((b) => CreateBillNo(b).Contains(searchQuery) || b.supplier.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
     }
 
     public string CreateBillNo(PaymentReciptType receipt)

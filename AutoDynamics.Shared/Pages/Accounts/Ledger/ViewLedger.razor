@@ -83,10 +83,10 @@ else
                     <th>Date</th>
                     <th>Account Type</th>
                     <th>Transaction Type</th>
+                    <th>Bill No</th>
                     <th>ForWho</th>
                     <th>Particulars</th>
                     <th>Narations</th>
-                    <th>Bill No</th>
                     <th>Dr (₹)</th>
                     <th>Cr (₹)</th>
                     <th>Balance</th>
@@ -100,10 +100,11 @@ else
                         <td>@ledger.Date.ToString("dd-MM-yyyy")</td>
                         <td>@ledger.AccountType?.AccountName</td>
                         <td>@ledger.TransactionType</td>
+                        <td>@ledger.RefNo</td>
                         <td>@ledger.ForWhoName</td>
                         <td>@ledger.Particulars</td>
                         <td>@ledger.naration</td>
-                        <td>@ledger.RefNo</td>
+                        
                         <td class="text-end">@ledger.DR_Amount.ToString("N2")</td>
                         <td class="text-end">@ledger.CR_Amount.ToString("N2")</td>
                         <td class="text-end">@GetFormattedBalance(ledger.Balance)</td>
