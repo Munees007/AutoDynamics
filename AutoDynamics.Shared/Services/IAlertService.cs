@@ -2,6 +2,6 @@
 {
     public interface IAlertService
     {
-        Task ShowAlertAsync(string title, string message, string buttonText = "OK");
+        Task<bool> ShowAlertAsync(string title, string message, string buttonText = "OK");
     }
 }

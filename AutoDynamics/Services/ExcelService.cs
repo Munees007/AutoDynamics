@@ -34,6 +34,7 @@ namespace AutoDynamics.Services
             ws.Cell(1, 12).Value ="SGST";
             ws.Cell(1, 13).Value ="ROUND";
             ws.Cell(1, 14).Value = "TOTAL";
+            ws.Cell(1,15).Value = "STATE";
             var headerRow = ws.Row(1);
             headerRow.Style.Font.FontColor = XLColor.Red;
             int excelRow = 2; // Start writing from Excel row 2
@@ -96,6 +97,7 @@ namespace AutoDynamics.Services
                     ws.Cell(excelRow, 12).Style.NumberFormat.Format = "0.00";
                     ws.Cell(excelRow, 13).Value = roundingDiff;
                     ws.Cell(excelRow, 14).Value = total;
+                    ws.Cell(excelRow, 15).Value = bill.isActive ? "ACTIVE" : "CANCELED";
                     excelRow++;
                 }
 
@@ -419,9 +421,7 @@ public async Task<string> CreateCreditExcel(string branch, List<CreditRecord> si
     }
         public async Task<string> CreateStockExcel(
     string branch,
-    string[] twoWheelerHSNCode,
-    string[] fourWheelerHSNCode,
-    string[] tubesHSNCod,
+
     List<StockType> sivakasiCredit = null,
     List<StockType> bypassCredit = null)
         {
@@ -444,6 +444,87 @@ public async Task<string> CreateCreditExcel(string branch, List<CreditRecord> si
                     allCredits.AddRange((bypassCredit ?? new()).Select(x => ("Bypass", x)));
                 }
 
+                // ===== New logic: Category-wise worksheets first =====
+                var categories = new List<(string Title, Func<(string Branch, StockType Item), bool> Filter)>
+{
+    ("Two_Wheeler", x => x.Item.Product.tyreFor == TyreFor.TWO_WHEELER),
+    ("Four_Wheeler", x => x.Item.Product.tyreFor == TyreFor.FOUR_WHEELER),
+    ("Tubes", x => x.Item.Product.tyreFor == TyreFor.TUBE)
+};
+
+                foreach (var (title, filter) in categories)
+                {
+                    var worksheet = workbook.Worksheets.Add(title + "_Category");
+                    int row = 1;
+                    worksheet.Cell(row, 1).Value = title.Replace("_", " ").ToUpper();
+                    worksheet.Range(row, 1, row, 6).Merge().Style.Font.SetBold().Font.FontSize = 14;
+                    worksheet.Cell(row, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                    row += 2;
+
+                    // Group by brand inside category sheet
+                    var categoryItems = allCredits.Where(filter)
+                                                  .GroupBy(x => x.Item.Product.Brand);
+
+                    foreach (var brandGroup in categoryItems)
+                    {
+                        string brandName = brandGroup.Key;
+                        worksheet.Cell(row, 1).Value = $"Brand: {brandName}";
+                        worksheet.Range(row, 1, row, 6).Merge().Style.Font.SetBold().Font.FontSize = 12;
+                        worksheet.Cell(row, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+                        row++;
+
+                        var branchGroups = brandGroup.GroupBy(x => x.Branch);
+
+                        foreach (var branchGroup in branchGroups)
+                        {
+                            worksheet.Cell(row, 1).Value = $"Branch: {branchGroup.Key}";
+                            worksheet.Range(row, 1, row, 6).Merge().Style.Font.SetBold();
+                            worksheet.Cell(row, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+                            row++;
+
+                            string[] headers = { "Product ID", "Brand", "Size", "Pattern", "Tube/Tubeless", "Available Qty" };
+                            for (int i = 0; i < headers.Length; i++)
+                            {
+                                var cell = worksheet.Cell(row, i + 1);
+                                cell.Value = headers[i];
+                                cell.Style.Font.SetBold();
+                                cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                                cell.Style.Fill.BackgroundColor = XLColor.LightGray;
+                                cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                            }
+                            row++;
+
+                            foreach (var (branchName, item) in branchGroup)
+                            {
+                                var values = item.GenerateForExcel();
+                                if (values.Length < 6 || !decimal.TryParse(values[5], out var qty) || qty == 0)
+                                    continue;
+
+                                for (int i = 0; i < values.Length; i++)
+                                {
+                                    var cell = worksheet.Cell(row, i + 1);
+                                    if (i >= 2 && decimal.TryParse(values[i], out var number))
+                                    {
+                                        cell.Value = number;
+                                        cell.Style.NumberFormat.Format = "#,##0.00";
+                                    }
+                                    else
+                                    {
+                                        cell.Value = values[i];
+                                    }
+                                    cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                                }
+                                row++;
+                            }
+
+                            row++; // gap after branch
+                        }
+
+                        row += 2; // gap after brand
+                    }
+                }
+
+
                 // Group by Brand
                 var groupedByBrand = allCredits
                     .Where(x => !string.IsNullOrEmpty(x.Item.Product.Brand))
@@ -462,10 +543,10 @@ public async Task<string> CreateCreditExcel(string branch, List<CreditRecord> si
                     row += 2;
 
                     // 🔹 Write category-wise section
-                    void WriteCategory(string title, Func<string, bool> hsnMatch)
+                    void WriteCategory(string title, Func<StockType, bool> hsnMatch)
                     {
                         var categoryGroup = brandGroup
-                            .Where(x => hsnMatch(x.Item.Product.HSNCode))
+                            .Where(x => hsnMatch(x.Item))
                             .GroupBy(x => x.Branch);
 
                         if (!categoryGroup.Any()) return;
@@ -530,9 +611,9 @@ public async Task<string> CreateCreditExcel(string branch, List<CreditRecord> si
                     }
 
                     // ✅ Call for each category
-                    WriteCategory("Two Wheeler", hsn => twoWheelerHSNCode.Contains(hsn));
-                    WriteCategory("Four Wheeler", hsn => fourWheelerHSNCode.Contains(hsn));
-                    WriteCategory("Tubes", hsn => tubesHSNCod.Contains(hsn));
+                    WriteCategory("Two Wheeler", stock => stock.Product.tyreFor == TyreFor.TWO_WHEELER);
+                    WriteCategory("Four Wheeler", stock => stock.Product.tyreFor == TyreFor.FOUR_WHEELER);
+                    WriteCategory("Tubes", stock => stock.Product.tyreFor == TyreFor.TUBE);
                 }
 
                 // Final steps

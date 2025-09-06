@@ -245,15 +245,15 @@
         
         if (excelOption == "Both")
         {
-            await ExcelService.CreateStockExcel(excelOption, twoWheelerCodes.ToArray(), fourWheelerCodes.ToArray(), tubeCodes.ToArray(), filteredSivakasiStocks, filteredBypassStocks);
+            await ExcelService.CreateStockExcel(excelOption, filteredSivakasiStocks, filteredBypassStocks);
         }
         else if (excelOption == "Sivakasi")
         {
-            await ExcelService.CreateStockExcel(excelOption, twoWheelerCodes.ToArray(), fourWheelerCodes.ToArray(), tubeCodes.ToArray(), sivakasiCredit: filteredSivakasiStocks);
+            await ExcelService.CreateStockExcel(excelOption, sivakasiCredit: filteredSivakasiStocks);
         }
         else
         {
-            await ExcelService.CreateStockExcel(excelOption, twoWheelerCodes.ToArray(), fourWheelerCodes.ToArray(), tubeCodes.ToArray(), bypassCredit: filteredBypassStocks);
+            await ExcelService.CreateStockExcel(excelOption, bypassCredit: filteredBypassStocks);
         }
     }
 
@@ -311,18 +311,18 @@
         }
         else if(filterOption == "four")
         {
-            filteredSivakasiStocks = sivakasiStocks.FindAll((s) => fourWheelerCodes.Contains(s.Product.HSNCode)).ToList();
-            filteredBypassStocks = bypassStocks.FindAll((s) => fourWheelerCodes.Contains(s.Product.HSNCode)).ToList();
+            filteredSivakasiStocks = sivakasiStocks.FindAll((s) => s.Product.tyreFor == TyreFor.FOUR_WHEELER).ToList();
+            filteredBypassStocks = bypassStocks.FindAll((s) => s.Product.tyreFor == TyreFor.FOUR_WHEELER).ToList();
         }
         else if(filterOption == "two")
         {
-            filteredSivakasiStocks = sivakasiStocks.FindAll((s) => twoWheelerCodes.Contains(s.Product.HSNCode)).ToList();
-            filteredBypassStocks = bypassStocks.FindAll((s) => twoWheelerCodes.Contains(s.Product.HSNCode)).ToList();
+            filteredSivakasiStocks = sivakasiStocks.FindAll((s) => s.Product.tyreFor == TyreFor.TWO_WHEELER).ToList();
+            filteredBypassStocks = bypassStocks.FindAll((s) => s.Product.tyreFor == TyreFor.TWO_WHEELER).ToList();
         }
         else
         {
-            filteredSivakasiStocks = sivakasiStocks.FindAll((s) => tubeCodes.Contains(s.Product.HSNCode)).ToList();
-            filteredBypassStocks = bypassStocks.FindAll((s) => tubeCodes.Contains(s.Product.HSNCode)).ToList();
+            filteredSivakasiStocks = sivakasiStocks.FindAll((s) => s.Product.tyreFor == TyreFor.TUBE).ToList();
+            filteredBypassStocks = bypassStocks.FindAll((s) => s.Product.tyreFor == TyreFor.TUBE).ToList();
         }
         filteredSivakasiStocks.ForEach(s => sivakasiStockTotal += s.AvailableQuantity);
         filteredBypassStocks.ForEach(s => bypassStockTotal += s.AvailableQuantity);
@@ -377,9 +377,9 @@
     private bool MatchesFilter(StockType s)
     {
         if (FilterOption == "all") return true;
-        if (FilterOption == "two") return twoWheelerCodes.Contains(s.Product.HSNCode);
-        if (FilterOption == "four") return fourWheelerCodes.Contains(s.Product.HSNCode);
-        if (FilterOption == "tube") return tubeCodes.Contains(s.Product.HSNCode);
+        if (FilterOption == "two") return s.Product.tyreFor == TyreFor.TWO_WHEELER;
+        if (FilterOption == "four") return s.Product.tyreFor == TyreFor.FOUR_WHEELER;
+        if (FilterOption == "tube") return s.Product.tyreFor == TyreFor.TUBE;
         return true;
     }
 

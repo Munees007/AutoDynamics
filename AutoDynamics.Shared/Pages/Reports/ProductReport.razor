@@ -80,6 +80,7 @@ else if (IsLoaded)
 
     private async Task LoadReport()
     {
+        ReportData.Clear();
         string sql = @"
 SELECT
     CASE
@@ -87,29 +88,25 @@ SELECT
         WHEN @FilterBy = 'Size' THEN pr.Size
         WHEN @FilterBy = 'Type' THEN pr.TubeOrTubeless
     END AS FilterValue,
-    COALESCE(SUM(pi.PurchaseCount), 0) AS PurchaseCount,
-    COALESCE(SUM(bi.SalesCount), 0) AS SalesCount,
-    COALESCE(SUM(pi.PurchaseCount), 0) - COALESCE(SUM(bi.SalesCount), 0) AS StockBalance
+    COALESCE(SUM(p.TotalPurchaseQty), 0) AS PurchaseQty,
+    COALESCE(SUM(s.TotalSalesQty), 0) AS SalesQty,
+    COALESCE(SUM(p.TotalPurchaseQty), 0) - COALESCE(SUM(s.TotalSalesQty), 0) AS StockBalance
 FROM Product pr
 LEFT JOIN (
-    SELECT
-        p.ProductID,
-        COUNT(*) AS PurchaseCount
+    SELECT p.ProductID, SUM(p.Quantity) AS TotalPurchaseQty
     FROM PurchaseItems p
     JOIN PurchaseBills pb ON pb.PurchaseBillID = p.PurchaseBillID
     WHERE pb.PurchaseDate BETWEEN @StartDate AND @EndDate
     GROUP BY p.ProductID
-) pi ON pr.ProductID = pi.ProductID
+) p ON pr.ProductID = p.ProductID
 LEFT JOIN (
-    SELECT
-        b.ItemID,
-        COUNT(*) AS SalesCount
+    SELECT b.ItemID, SUM(b.Quantity) AS TotalSalesQty
     FROM BillItems b
     JOIN Bills bl ON bl.BillID = b.BillID
     WHERE b.ItemType = 'PRODUCT'
       AND bl.BillDate BETWEEN @StartDate AND @EndDate
     GROUP BY b.ItemID
-) bi ON pr.ProductID = bi.ItemID
+) s ON pr.ProductID = s.ItemID
 WHERE
     (@FilterBy <> 'Brand' OR @FilterValue IS NULL OR pr.Brand = @FilterValue)
     AND (@FilterBy <> 'Size' OR @FilterValue IS NULL OR pr.Size = @FilterValue)
@@ -121,6 +118,7 @@ GROUP BY
         WHEN @FilterBy = 'Type' THEN pr.TubeOrTubeless
     END
 ORDER BY FilterValue;
+
 ";
 
         var parameters = new Dictionary<string, object?>
@@ -138,12 +136,12 @@ ORDER BY FilterValue;
             foreach(var row in dt)
             {
                 ReportData.Add(new ReportRow
-                {
-						FilterValue = row["FilterValue"].ToString() ?? string.Empty,
-						PurchaseCount = Convert.ToInt32(row["PurchaseCount"]),
-						SalesCount = Convert.ToInt32(row["SalesCount"]),
-						StockBalance = Convert.ToInt32(row["StockBalance"])
-                });
+                    {
+                        FilterValue = row["FilterValue"].ToString() ?? string.Empty,
+                        PurchaseCount = Convert.ToInt32(row["PurchaseQty"]),
+                        SalesCount = Convert.ToInt32(row["SalesQty"]),
+                        StockBalance = Convert.ToInt32(row["StockBalance"])
+                    });
             }
         }
 

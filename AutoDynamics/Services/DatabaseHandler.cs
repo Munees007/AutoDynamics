@@ -1868,7 +1868,8 @@ WHERE ProductID = @ProductID AND Branch = @Branch
                     Discount = billReader.GetDecimal("Discount"),
                     GrandTotal = billReader.GetDecimal("GrandTotal"),
                     Notes = billReader.IsDBNull("Notes") ? null : billReader.GetString("Notes"),
-                    BillBy = billReader.GetString("BillBy")
+                    BillBy = billReader.GetString("BillBy"),
+                    isActive = billReader.GetInt32(billReader.GetOrdinal("isActive")) == 1
                 };
                 billDictionary[bill.BillID] = new BillDetails
                 {

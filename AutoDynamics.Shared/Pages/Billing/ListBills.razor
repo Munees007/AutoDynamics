@@ -11,6 +11,7 @@
 @inject IFormFactor FormFactor
 @inject IDownloadExcel DownloadExcel
 @inject ITabService TabService
+
 <h3 class="text-center mb-4">Billing Details@(isCustomerView ? $": {customerFromView.Name}" : "")</h3>
 <DialoBox dialogBox="excelDialog"></DialoBox>
 <div class="mb-3">
@@ -62,6 +63,7 @@ else
                     <div class="card-body">
                         @if (filteredSivakasiBills.Any())
                         {
+                            <h6 class="text-success">Active Bills</h6>
                             <table class="table table-bordered table-hover">
                                 <thead class="table-dark">
                                     <tr>
@@ -72,7 +74,7 @@ else
                                         <th>Branch</th>
                                         <th>Vehicle No</th>
                                         <th>Bill Date</th>
-                                        <th>Bill By</th>
+                                        <th>Executive</th>
                                         <th>Total</th>
                                         <th>Actions</th>
                                     </tr>
@@ -95,17 +97,65 @@ else
                                                 @if (isAdmin)
                                                 {
                                                     <button class="btn btn-sm btn-danger" @onclick="() => UpdateBill(bill)">Update</button>
+                                                    <button class="btn btn-sm btn-warning" @onclick="() => CancelBill(bill)">Cancel</button>
                                                 }
                                             </td>
 
                                         </tr>
                                     }
+
                                 </tbody>
                             </table>
                         }
                         else
                         {
-                            <p class="text-muted text-center">No records for Sivakasi.</p>
+                            <p class="text-muted text-center">No active bills for Sivakasi.</p>
+                        }
+
+                        @if (canceledSivakasiBills.Any())
+                        {
+                            <h6 class="text-success">Canceled Bills</h6>
+                            <table class="table table-bordered table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Bill No</th>
+                                        <th>Customer ID</th>
+                                        <th>Name</th>
+                                        <th>Mobile No</th>
+                                        <th>Branch</th>
+                                        <th>Vehicle No</th>
+                                        <th>Bill Date</th>
+                                        <th>Executive</th>
+                                        <th>Total</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var bill in canceledSivakasiBills)
+                                    {
+                                        <tr>
+                                            <td style="cursor:pointer;" @onclick="()=> ViewBill(bill)">@("SFR" + (bill.Bill.BillNo.ToString().PadLeft(4, '0')))</td>
+                                            <td>@bill.Bill.CustomerID</td>
+                                            <td>@bill.customer.Name</td>
+                                            <td>@bill.customer.Contact</td>
+                                            <td>@bill.Bill.Branch</td>
+                                            <td>@bill.Bill.VehicleNo</td>
+                                            <td>@bill.Bill.BillDate.ToString("yyyy-MM-dd")</td>
+                                            <td>@bill.Bill.BillBy</td>
+                                            <td>₹@(Math.Round(bill.Bill.TotalAmount))</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-success" @onclick="() => DownloadBill(bill)">Download</button>
+                                            </td>
+
+                                        </tr>
+                                    }
+
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center">No canceled bills for Sivakasi.</p>
                         }
                     </div>
                 </div>
@@ -121,6 +171,7 @@ else
                     <div class="card-body">
                         @if (filteredBypassBills.Any())
                         {
+                            <h6 class="text-success">Active Bills</h6>
                             <table class="table table-bordered table-hover">
                                 <thead class="table-dark">
                                     <tr>
@@ -131,7 +182,7 @@ else
                                         <th>Branch</th>
                                         <th>Vehicle No</th>
                                         <th>Bill Date</th>
-                                        <th>Bill By</th>
+                                        <th>Executive</th>
                                         <th>Total</th>
                                         <th>Actions</th>
                                     </tr>
@@ -163,7 +214,53 @@ else
                         }
                         else
                         {
-                            <p class="text-muted text-center">No records for Bypass.</p>
+                            <p class="text-muted text-center">No active bills for Bypass.</p>
+                        }
+
+                        @if (canceledBypassBills.Any())
+                        {
+                            <h6 class="text-success">Canceled Bills</h6>
+                            <table class="table table-bordered table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Bill No</th>
+                                        <th>Customer ID</th>
+                                        <th>Name</th>
+                                        <th>Mobile No</th>
+                                        <th>Branch</th>
+                                        <th>Vehicle No</th>
+                                        <th>Bill Date</th>
+                                        <th>Executive</th>
+                                        <th>Total</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var bill in canceledBypassBills)
+                                    {
+                                        <tr>
+                                            <td style="cursor:pointer;" @onclick="()=> ViewBill(bill)">@("SFR" + (bill.Bill.BillNo.ToString().PadLeft(4, '0')))</td>
+                                            <td>@bill.Bill.CustomerID</td>
+                                            <td>@bill.customer.Name</td>
+                                            <td>@bill.customer.Contact</td>
+                                            <td>@bill.Bill.Branch</td>
+                                            <td>@bill.Bill.VehicleNo</td>
+                                            <td>@bill.Bill.BillDate.ToString("yyyy-MM-dd")</td>
+                                            <td>@bill.Bill.BillBy</td>
+                                            <td>₹@(Math.Round(bill.Bill.TotalAmount))</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-success" @onclick="() => DownloadBill(bill)">Download</button>
+                                            </td>
+
+                                        </tr>
+                                    }
+
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center">No canceled bills for ByPass.</p>
                         }
                     </div>
                 </div>
@@ -181,6 +278,8 @@ else
     List<BillDetails> billDetails = new();
     List<BillDetails> sivakasiBills = new();
     List<BillDetails> bypassBills = new();
+    List<BillDetails> canceledSivakasiBills = new();
+    List<BillDetails> canceledBypassBills = new();
     List<BillDetails> filteredSivakasiBills = new();
     List<BillDetails> filteredBypassBills = new();
 
@@ -204,6 +303,55 @@ else
     Dictionary<string, dynamic> Parameters;
 
     CustomDialogBox excelDialog = new CustomDialogBox();
+
+    public async Task CancelBill(BillDetails bill)
+    {
+        string deactivateBillQuery = $@"Update Bills set isActive = 0 where BillID = {bill.Bill.BillID} and Branch = {bill.Bill.Branch}";
+        string deleteCreditQuery = $@"Delete from CreditRecord where BillID = {bill.Bill.BillID}";
+        string deleteLedgerEntryQuery = $@"Delete from CashBankLedger where ReferenceID = {bill.Bill.BillID} and Branch = {bill.Bill.Branch}";
+
+        bool answer = await AlertService.ShowAlertAsync("Are you sure you want to cancel this bill? This action cannot be undone.", "Canceling a bill");
+        if(answer)
+        {
+            try
+            {
+                var res = await DatabaseHandler.ExecuteNonQueryAsync(deactivateBillQuery);
+                var res2 = await DatabaseHandler.ExecuteNonQueryAsync(deleteCreditQuery);
+                var res3 = await DatabaseHandler.ExecuteNonQueryAsync(deleteLedgerEntryQuery);
+                if (res > 0 && res2 > 0 && res3 > 0)
+                {
+                    bill.Bill.isActive = false;
+                    billDetails.Remove(bill);
+                    if (bill.Bill.Branch == "Sivakasi")
+                    {
+						filteredSivakasiBills.Remove(bill);
+						sivakasiBills.Remove(bill);
+                        canceledSivakasiBills.Add(bill);
+                    } 
+                    else 
+                    {
+						filteredBypassBills.Remove(bill);
+						bypassBills.Remove(bill);
+                        canceledBypassBills.Add(bill);
+                    }
+                    ToastService.ShowToast("Bill Canceled Successfully", ToastType.sucess);
+                }
+                else
+                {
+                    ToastService.ShowToast("Bill Canceled Failed", ToastType.error);
+                }
+            }
+            catch(Exception e)
+            {
+                ToastService.ShowToast(e.Message, ToastType.error);
+            }
+
+        }
+        else
+        {
+            ToastService.ShowToast("Operation Cancelled", ToastType.warning);
+        }
+    }
 
     public void SearchBills(ChangeEventArgs e)
     {
@@ -374,8 +522,10 @@ else
         loaderText = "Fetching Bills";
         isLoading = true;
         billDetails = await FilterBills();
+        canceledSivakasiBills = billDetails.Where((b) => b.Bill.Branch == "Sivakasi" && !b.Bill.isActive).ToList();
+        canceledBypassBills = billDetails.Where((b) => b.Bill.Branch == "ByPass" && !b.Bill.isActive).ToList();
+        billDetails = billDetails.Where((b) => b.Bill.isActive).ToList();
         filteredSivakasiBills = billDetails.Where((b)=> b.Bill.Branch == "Sivakasi").ToList();
-
         filteredSivakasiBills = filteredSivakasiBills.OrderBy((sb) => sb.Bill.BillNo).ToList();
         filteredBypassBills = billDetails.Where((b) => b.Bill.Branch == "ByPass").ToList();
         filteredBypassBills = filteredBypassBills.OrderBy((bb)=>bb.Bill.BillNo).ToList();

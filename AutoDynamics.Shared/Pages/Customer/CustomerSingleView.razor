@@ -304,7 +304,7 @@
 
 	}
 
-	public List<CustomerStatement> createLedgers()
+	public async Task<List<CustomerStatement>> createLedgers()
 	{
 		List<CustomerStatement> customerStatements = new();
 		List<BillDetails> neededBills = sivakasiBills;
@@ -547,7 +547,7 @@
 
 		sivakasiCreditRecipts = await DatabaseHandler.GetFilteredReceiptsync(BillDateFilterType.All, customerID: customerData.CustomerId, isCustomerView: true);
 		sivakasiCreditRecipts = sivakasiCreditRecipts.Where((r) => r.Branch == "Sivakasi").ToList();
-		List<CustomerStatement> customerStatements = createLedgers(); ;
+		List<CustomerStatement> customerStatements = await createLedgers(); ;
 
 		decimal openingBalance = await GetOpeningBalanceAsync(customerStatements, startDate);
 		if (startDate != null && endDate != null)

@@ -19,7 +19,7 @@ namespace AutoDynamics.Shared.Services
         public byte[] GenerateExcelPurchase(PurchaseDetails[] purchaseBills, string details);
         public Task<List<List<string>>> readData(IBrowserFile file,int workSheetPosition,int startRow);
         public Task<string> CreateCreditExcel(string branch, List<CreditRecord> sivakasiCredit = null, List<CreditRecord> bypassCredit = null);
-        public Task<string> CreateStockExcel(string branch, string[] twoWheelerHSNCode, string[] fourWheelerHSNCode, string[] tubesHSNCode, List<StockType> sivakasiCredit = null, List<StockType> bypassCredit = null);
+        public Task<string> CreateStockExcel(string branch,List<StockType> sivakasiCredit = null, List<StockType> bypassCredit = null);
         Task<string> GenerateCustomerStatementExcel(List<CustomerStatement> customerStatements, decimal openingBalance, UserModal customer, string StartDate, string EndDate);
     }
 }

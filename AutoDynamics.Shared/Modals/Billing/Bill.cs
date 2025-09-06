@@ -23,6 +23,8 @@ namespace AutoDynamics.Shared.Modals.Billing
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public string BillBy { get; set; } = string.Empty; // User who created the bill
 
+        public bool isActive { get; set; } = true;
+
         public ICollection<BillItem> BillItems { get; set; } = new List<BillItem>();
         public ICollection<BillPayment> BillPayments { get; set; } = new List<BillPayment>();
     }
