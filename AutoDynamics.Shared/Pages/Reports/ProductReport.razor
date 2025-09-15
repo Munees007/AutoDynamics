@@ -96,7 +96,7 @@ LEFT JOIN (
     SELECT p.ProductID, SUM(p.Quantity) AS TotalPurchaseQty
     FROM PurchaseItems p
     JOIN PurchaseBills pb ON pb.PurchaseBillID = p.PurchaseBillID
-    WHERE pb.PurchaseDate BETWEEN @StartDate AND @EndDate
+    WHERE DATE(pb.PurchaseDate) BETWEEN @StartDate AND @EndDate
     GROUP BY p.ProductID
 ) p ON pr.ProductID = p.ProductID
 LEFT JOIN (
@@ -104,7 +104,7 @@ LEFT JOIN (
     FROM BillItems b
     JOIN Bills bl ON bl.BillID = b.BillID
     WHERE b.ItemType = 'PRODUCT'
-      AND bl.BillDate BETWEEN @StartDate AND @EndDate
+      AND DATE(bl.BillDate) BETWEEN @StartDate AND @EndDate
     GROUP BY b.ItemID
 ) s ON pr.ProductID = s.ItemID
 WHERE

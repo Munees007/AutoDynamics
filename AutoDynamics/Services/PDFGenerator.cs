@@ -235,8 +235,9 @@ namespace AutoDynamics.Services
                     // ✅ Table Items (Existing logic preserved)
                     foreach (var item in billDetails.BillItems)
                     {
-                        var cgstRate = item.ItemType == "SERVICE" ? 9 : (item.TaxRate == TaxRate.TAX_18 ? 9 : 14);
-                        var sgstRate = item.ItemType == "SERVICE" ? 9 : (item.TaxRate == TaxRate.TAX_18 ? 9 : 14);
+                        int taxRate = Int32.Parse(item.TaxRate.ToString().Split('_')[1]) / 2;
+                        var cgstRate = taxRate;
+                        var sgstRate = taxRate;
                         var cgstAmt = Math.Round(item.TaxableValue * (cgstRate / 100m), 2);
                         var sgstAmt = Math.Round(item.TaxableValue * (sgstRate / 100m), 2);
 

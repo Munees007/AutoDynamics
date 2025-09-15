@@ -62,8 +62,9 @@ namespace AutoDynamics.Services
                     
                     foreach (var item in serviceItems)
                     {
-                        var cgstRate =  9;
-                        var sgstRate =9;
+                        int taxRate = Int32.Parse(item.TaxRate.ToString().Split('_')[1]) / 2;
+                        var cgstRate =  taxRate;
+                        var sgstRate =taxRate;
                         var cgstAmt = Math.Round(item.TaxableValue * (cgstRate / 100m), 2);
                         var sgstAmt = Math.Round(item.TaxableValue * (sgstRate / 100m), 2);
                        
@@ -115,8 +116,9 @@ namespace AutoDynamics.Services
                     var total = 0m;
                     foreach (var item in hsnGroup)
                     {
-                        var cgstRate = 14;
-                        var sgstRate = 14;
+                        int taxRate = Int32.Parse(item.TaxRate.ToString().Split('_')[1]) / 2;
+                        var cgstRate = taxRate;
+                        var sgstRate = taxRate;
                         var cgstAmt = Math.Round(item.TaxableValue * (cgstRate / 100m), 2);
                         var sgstAmt = Math.Round(item.TaxableValue * (sgstRate / 100m), 2);
 
@@ -224,9 +226,11 @@ namespace AutoDynamics.Services
                         var sgst = 0m;
                         if (item != null)
                         {
-                            item.TaxableValue = purchase.taxType == TaxType.INCLUSIVE_TAX ? (item.TaxRate == TaxRate.TAX_18 ? Math.Round(total / 1.18m, 2) : Math.Round(total / 1.28m, 2)) : total;
-                            cgst = item.TaxRate == TaxRate.TAX_18 ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
-                            sgst = item.TaxRate == TaxRate.TAX_18 ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
+                            int taxRate = Int32.Parse(item.TaxRate.ToString().Split('_')[1]) / 2;
+                            decimal inclusiveTaxRate = 1 + (taxRate / 100);
+                            item.TaxableValue = purchase.taxType == TaxType.INCLUSIVE_TAX ? (Math.Round(total / inclusiveTaxRate, 2)) : total;
+                            cgst = Math.Round(item.TaxableValue * (taxRate / 100m), 2);
+                            sgst = Math.Round(item.TaxableValue * (taxRate / 100m), 2);
                             item.TotalPrice = Math.Round(item.TaxableValue + cgst + sgst);
                             totalQuantity += item.Quantity;
                             totalTaxableAmount += item.TaxableValue;

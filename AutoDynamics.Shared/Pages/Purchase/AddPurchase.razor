@@ -153,6 +153,8 @@
                                 <select disabled="@isViewing" @bind="item.TaxRate" class="form-select" style="width:fit-content">
                                     <option value="@TaxRate.TAX_28">28%</option>
                                     <option value="@TaxRate.TAX_18">18%</option>
+                                    <option value="@TaxRate.TAX_5">5%</option>
+                                    <option value="@TaxRate.TAX_12">12%</option>
                                 </select>
                             </td>
                             <td>
@@ -184,9 +186,11 @@
                                 var sgst =0m;
                                 if(item != null)
                                 {
+                                    int taxRate = Int32.Parse(item.TaxRate.ToString().Split('_')[1]) / 2;
+                                    Debug.WriteLine("Tax Rate" + taxRate);
                                     item.TaxableValue = purchase.taxType == TaxType.INCLUSIVE_TAX ? (item.TaxRate == TaxRate.TAX_18 ? Math.Round(total / 1.18m, 2) : Math.Round(total / 1.28m, 2)) : total;
-                                    cgst = item.TaxRate == TaxRate.TAX_18 ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
-                                    sgst = item.TaxRate == TaxRate.TAX_18 ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2);
+                                    cgst = Math.Round(item.TaxableValue * (taxRate / 100m), 2);
+                                    sgst = Math.Round(item.TaxableValue * (taxRate / 100m), 2);
                                     item.TotalPrice = Math.Round(item.TaxableValue + cgst + sgst);
 
                                 }
@@ -589,7 +593,13 @@
 
     private void AddNewItem()
     {
-        purchaseItems.Add(new PurchaseItems());
+        DateTime today = DateTime.Now;
+        TaxRate taxRate = (today.Day == 22 && today.Month == 9 && today.Year == 2025) ? TaxRate.TAX_18 : TaxRate.TAX_28;
+        PurchaseItems items = new PurchaseItems
+        {
+            TaxRate = taxRate
+        };
+        purchaseItems.Add(items);
     }
 
     private void RemoveItem(PurchaseItems item)

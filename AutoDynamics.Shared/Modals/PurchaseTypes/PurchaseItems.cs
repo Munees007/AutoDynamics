@@ -62,6 +62,8 @@ namespace AutoDynamics.Shared.Modals.PurchaseTypes
     public enum TaxRate
     {
         TAX_28,
-        TAX_18
+        TAX_18,
+        TAX_5,
+        TAX_12
     }
 }

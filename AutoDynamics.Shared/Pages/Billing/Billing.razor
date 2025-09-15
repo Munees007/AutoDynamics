@@ -39,24 +39,24 @@
 
         <hr />
     }
-    
-    
-        <div class="row mb-3">
-            <div class="col-md-4">
-                <label class="form-label">EXECUTIVE</label>
-                <select disabled="@(isViewing || isUpdating)" autocomplete="off" class="form-select" @bind="bill.BillBy">
-                    <option value="">Select Bill By</option>
-                    @foreach(var user in Users)
-                    {
-                        <option value="@user">@user</option>
-                    }
-                </select>
-            </div>
 
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <label class="form-label">EXECUTIVE</label>
+            <select disabled="@(isViewing || isUpdating)" autocomplete="off" class="form-select" @bind="bill.BillBy">
+                <option value="">Select Bill By</option>
+                @foreach(var user in Users)
+                {
+                    <option value="@user">@user</option>
+                }
+            </select>
         </div>
 
-        <hr />
-    
+    </div>
+
+    <hr />
+
 
     <div class="row mb-3">
         <div class="col-10">
@@ -171,7 +171,7 @@
                 item.index = i;
                 <tr style="@((item.itemOutOfStock) ? "background:lightcoral;" : "")">
                     <td>
-                        <select disabled="@isViewing" autocomplete="off" class="form-select" @bind="item.ItemType">
+                        <select @oninput="(e)=>{OnTypeChange(e,item);}" disabled="@isViewing" autocomplete="off" class="form-select" @bind="item.ItemType">
                             <option value="SERVICE">S</option>
                             <option value="PRODUCT">P</option>
                         </select>
@@ -228,14 +228,21 @@
                         <input disabled="@isViewing" @oninput="(e)=>{CheckStock(item,e);}" autocomplete="off" type="number" class="form-control" @bind="item.Quantity" min="1">
                     </td>
                     <td><input disabled="@isViewing" autocomplete="off" type="number" class="form-control" @bind="item.UnitPrice" min="0" step="0.01"></td>
-
+                    <td>
+                        <select disabled="@isViewing" @bind="item.TaxRate" class="form-select" style="width:fit-content">
+                            <option value="@TaxRate.TAX_28">28%</option>
+                            <option value="@TaxRate.TAX_18">18%</option>
+                            <option value="@TaxRate.TAX_5">5%</option>
+                            <option value="@TaxRate.TAX_12">12%</option>
+                        </select>
+                    </td>
                     @* Tax Calculation *@
                     @{
-
+                        int taxRate = Int32.Parse(item.TaxRate.ToString().Split('_')[1]) / 2;
                         var total = item.Quantity * item.UnitPrice;
                         item.TaxableValue = item.ItemType == "SERVICE" ? Math.Round(total / 1.18m, 2) : (item.TaxRate == TaxRate.TAX_18 ? Math.Round(total / 1.18m, 2):  Math.Round(total / 1.28m, 2));
-                        var cgst = item.ItemType == "SERVICE" ? Math.Round(item.TaxableValue * (9 / 100m), 2) :(item.TaxRate == TaxRate.TAX_18 ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2));
-                        var sgst = item.ItemType == "SERVICE" ? Math.Round(item.TaxableValue * (9 / 100m), 2) :(item.TaxRate == TaxRate.TAX_18 ? Math.Round(item.TaxableValue * (9 / 100m), 2) : Math.Round(item.TaxableValue * (14 / 100m), 2));
+                        var cgst = Math.Round(item.TaxableValue * (taxRate / 100m), 2);
+                        var sgst = Math.Round(item.TaxableValue * (taxRate / 100m), 2);
                         item.TotalPrice = Math.Round(item.TaxableValue + cgst + sgst);
                     }
                     <td>@item.TaxableValue</td>
@@ -347,6 +354,8 @@
 
     private List<LedgerAcccounts> AccountTypes = new();
 
+
+
     private void NoVehicle()
     {
         VehicleSearch = "";
@@ -389,10 +398,22 @@
         return true;
     }
 
-
+    public void OnTypeChange(ChangeEventArgs e, BillItem item)
+    {
+        string val = e.Value.ToString();
+        DateTime today = DateTime.Now;
+        Debug.WriteLine(e.Value);
+        if(val == "SERVICE")
+        {
+            item.TaxRate = (today.Day == 22 && today.Month == 9 && today.Year == 2025) ? TaxRate.TAX_5 : TaxRate.TAX_18;
+        }
+        else
+        {
+            item.TaxRate = (today.Day == 22 && today.Month == 9 && today.Year == 2025) ? TaxRate.TAX_18 : TaxRate.TAX_28;
+        }
+    }
     public async void OnProductsSearch(ChangeEventArgs e, int index)
     {
-
         string temp = e.Value.ToString() ?? "";
         filteredProducts = products.Where(p =>
     p.Brand == BillItems[index].BrandName &&
@@ -870,7 +891,7 @@
         {
             foreach(var row in res7)
             {
-				Users.Add(row["Username"].ToString() ?? "");
+                Users.Add(row["Username"].ToString() ?? "");
             }
         }
         if (isManual)
@@ -883,7 +904,12 @@
 
     private void AddNewItem()
     {
-        BillItems.Add(new BillItem());
+        DateTime today = DateTime.Now;
+        BillItem temp = new BillItem
+        {
+            TaxRate = (today.Day == 22 && today.Month == 9 && today.Year == 2025) ? TaxRate.TAX_18 : TaxRate.TAX_28
+        };
+        BillItems.Add(temp);
     }
 
     private void RemoveItem(BillItem item)

@@ -217,7 +217,7 @@
         bestServices.Clear();
         customerGroups.Clear();
 
-        string whereCondition = "ItemType = 'SERVICE' AND Date(b.CreatedAt) BETWEEN @from AND @to";
+        string whereCondition = "ItemType = 'SERVICE' AND Date(b.BillDate) BETWEEN @from AND @to";
 
         var parameters = new Dictionary<string, object>
 {
@@ -243,7 +243,7 @@
         }
 
         string getData = $@"
-    SELECT bi.Quantity, b.CreatedAt, b.BillID, bi.ItemName, bi.TaxableValue, b.CustomerID, c.Name
+    SELECT bi.Quantity, b.BillDate, b.BillID, bi.ItemName, bi.TaxableValue, b.CustomerID, c.Name
     FROM BillItems bi
     JOIN Bills b ON b.BillID = bi.BillID
     JOIN Customers c ON c.CustomerID = b.CustomerID

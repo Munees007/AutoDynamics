@@ -6,6 +6,7 @@
     @if (!IsUpdating) {<h3 class="mb-4 fw-bold">Enter Receipt</h3>
     }
 
+
     <!-- Date and Customer Search -->
     <div class="row g-4 mb-4">
         <div class="col-md-4">
@@ -22,6 +23,16 @@
             <label class="input-group-text">Narration</label>
             <input type="text" class="form-control" @bind="creditReciptTypes.narration" />
         </div>
+
+        <div class="col-md-10">
+            <div class="input-group">
+                <span class="input-group-text">Is Advance Payment</span>
+                <div class="input-group-text">
+                    <input type="checkbox"  class="form-check-input mt-0" @bind="isAdvance" />
+                </div>
+            </div>
+        </div>
+
 
         <div class="col-md-8">
 
@@ -51,58 +62,69 @@
             <option value="@PaymentTypes.UPI">UPI</option>
         </select>
     </div>
-    <!-- Credit Bills Section -->
-    <h5 class="fw-semibold mb-3 fw-bold">Credit Bills</h5>
+    @if(isAdvance)
+    {
+        <div class="input-group mb-3">
+            <span class="input-group-text fw-bold">Amount</span>
+            <input type="number" id="amount" class="form-control" @bind="@splitAmount" placeholder="Enter amount" />
+        </div>
+    }
+    else
+    {
+        <!-- Credit Bills Section -->
+        <h5 class="fw-semibold mb-3 fw-bold">Credit Bills</h5>
 
-    <div class="input-group mb-3">
-        <span class="input-group-text fw-bold">Amount</span>
-        <input type="number" id="amount" class="form-control" @bind="@splitAmount" placeholder="Enter amount" />
-        <button class="btn btn-primary" type="button" @onclick="HandleSplitAmount">Apply</button>
-    </div>
-
-
-    <div class="table-responsive">
-        <table class="table table-bordered align-middle text-center">
-            <thead class="table-light">
-                <tr>
-                    <th>Select</th>
-                    <th>Bill No</th>
-                    <th>Bill Date</th>
-                    <th>Due Amount</th>
-                    <th>Already Paid</th>
-                    <th>Need to Pay</th>
-                    <th>Amount Paid</th>
+        <div class="input-group mb-3">
+            <span class="input-group-text fw-bold">Amount</span>
+            <input type="number" id="amount" class="form-control" @bind="@splitAmount" placeholder="Enter amount" />
+            <button class="btn btn-primary" type="button" @onclick="HandleSplitAmount">Apply</button>
+        </div>
 
 
-                </tr>
-            </thead>
-            <tbody>
-                @for (int i = 0; i < creditReciptTypes.creditBills.Count; i++)
-                {
-                    var item = creditReciptTypes.creditBills[i];
-                    item.index = i;
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle text-center">
+                <thead class="table-light">
                     <tr>
-                        <td>
-                            <input type="checkbox" @oninput="(e)=>{triggerCheckBox(e,item);}" @bind="item.isSelected" class="form-check-input" style="width:25px;height:25px;cursor:pointer" />
-                        </td>
-                        <td>
-                            @((item.branch == "Sivakasi" ? "SFR" : "BPR") + item.billNo.ToString().PadLeft(4,'0'))
-                        </td>
-                        <td>@item.BillDate.ToString("MMM-dd-yyyy")</td>
-
-                        <td>@item.dueAmount</td>
-                        <td>@item.paidAmount</td>
-                        <td>@item.remainingBalance</td>
-                        <td>
-                            <input autocomplete="off" type="number" class="form-control text-end" @bind="item.amountPayed" min="1">
-                        </td>
+                        <th>Select</th>
+                        <th>Bill No</th>
+                        <th>Bill Date</th>
+                        <th>Due Amount</th>
+                        <th>Already Paid</th>
+                        <th>Need to Pay</th>
+                        <th>Amount Paid</th>
 
 
                     </tr>
-                }
-            </tbody>
-        </table>
-    </div>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < creditReciptTypes.creditBills.Count; i++)
+                    {
+                        var item = creditReciptTypes.creditBills[i];
+                        item.index = i;
+                        <tr>
+                            <td>
+                                <input type="checkbox" @oninput="(e)=>{triggerCheckBox(e,item);}" @bind="item.isSelected" class="form-check-input" style="width:25px;height:25px;cursor:pointer" />
+                            </td>
+                            <td>
+                                @((item.branch == "Sivakasi" ? "SFR" : "BPR") + item.billNo.ToString().PadLeft(4, '0'))
+                            </td>
+                            <td>@item.BillDate.ToString("MMM-dd-yyyy")</td>
+
+                            <td>@item.dueAmount</td>
+                            <td>@item.paidAmount</td>
+                            <td>@item.remainingBalance</td>
+                            <td>
+                                <input autocomplete="off" type="number" class="form-control text-end" @bind="item.amountPayed" min="1">
+                            </td>
+
+
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
 
     <!-- Submit Button -->
     <div class="d-flex justify-content-end mt-4">
@@ -115,6 +137,8 @@
     [Parameter] public bool IsUpdating { get; set; } = false;
     [Parameter] public CreditReciptType creditReciptTypes { get; set; } = new();
     List<UserModal> customers = new();
+
+    public bool isAdvance { get; set; } = false;
 
     private string CustomerSearch = "";
     private List<UserModal> filteredCustomers { set; get; } = new List<UserModal>();
@@ -343,6 +367,10 @@
             if(!validateData(out errorText))
             {
                 throw new Exception(errorText);
+            }
+            if(isAdvance)
+            {
+                creditReciptTypes.TotalAmountPaid = splitAmount;
             }
             List<CreditBill> selectedBills = creditReciptTypes.creditBills
                 .Where(b => b.isSelected && b.amountPayed > 0)
