@@ -33,9 +33,9 @@
                         {
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox"
-                                       value="@service.Service"
-                                       @onchange="e => ToggleService(service.Service, (bool)e.Value)"
-                                       checked="@selectedServices.Contains(service.Service)" />
+                                value="@service.Service"
+                                @onchange="e => ToggleService(service.Service, (bool)e.Value)"
+                                checked="@selectedServices.Contains(service.Service)" />
                                 <label class="form-check-label">@service.Service</label>
                             </div>
                         }
@@ -74,10 +74,10 @@
                     @foreach (var svc in ChartDatas.Select(x => x.Service).Distinct())
                     {
                         <ChartSeries DataSource="@ChartDatas.Where(x => x.Service == svc)"
-                                     XName="Week"
-                                     YName="Value"
-                                     Name="@svc"
-                                     Type="ChartSeriesType.Column">
+                        XName="Week"
+                        YName="Value"
+                        Name="@svc"
+                        Type="ChartSeriesType.Column">
                             <ChartMarker>
                                 <ChartDataLabel Visible="true" Position="Syncfusion.Blazor.Charts.LabelPosition.Middle" />
                             </ChartMarker>
@@ -98,12 +98,19 @@
     <h4 class="mt-4">Top Services</h4>
     <table class="table table-striped">
         <thead>
-            <tr><th>Service</th><th>Total Quantity</th><th>Total Taxable Value</th></tr>
+            <tr><th>Service</th><th>Total Quantity</th><th>Total Taxable Value</th><th>Total CGST Value</th><th>Total SGST Value</th><th>Total Price</th></tr>
         </thead>
         <tbody>
             @foreach (var svc in bestServices)
             {
-                <tr><td>@svc.Service</td><td>@svc.Total</td><td>@svc.TaxableValue</td></tr>
+                <tr>
+                    <td>@svc.Service</td>
+                    <td>@svc.Total</td>
+                    <td>@svc.TaxableValue</td>
+                    <td>@svc.TotalCGST</td>
+                    <td>@svc.TotalSGST</td>
+                    <td>@svc.TotalPrice</td>
+                </tr>
             }
         </tbody>
     </table>
@@ -166,6 +173,10 @@
         public DateTime createdAt { get; set; }
         public string CustomerName { get; set; } = "";
         public decimal TaxableValue { get; set; } = 0.0m;
+        public decimal TotalAmount { get; set; } = 0.0m;
+        public decimal Cgst { get; set; } = 0.0m; 
+        public decimal Sgst { get; set; } = 0.0m;
+        public TaxRate taxRate { get; set; } = TaxRate.TAX_18;
     }
 
     public class ChartData
@@ -181,6 +192,9 @@
         public string Service { get; set; } = "";
         public int Total { get; set; }
         public decimal TaxableValue { get; set; } = 0.0m;
+        public decimal TotalPrice { get; set; } = 0.0m;
+        public decimal TotalCGST { get; set; } = 0.0m;
+        public decimal TotalSGST { get; set; } = 0.0m;
     }
 
     public class CustomerGroup
@@ -243,7 +257,7 @@
         }
 
         string getData = $@"
-    SELECT bi.Quantity, b.BillDate, b.BillID, bi.ItemName, bi.TaxableValue, b.CustomerID, c.Name
+    SELECT bi.Quantity, b.BillDate, b.BillID, bi.*, b.CustomerID, c.Name
     FROM BillItems bi
     JOIN Bills b ON b.BillID = bi.BillID
     JOIN Customers c ON c.CustomerID = b.CustomerID
@@ -254,14 +268,24 @@
 
         foreach (var row in res)
         {
-            serviceReportData.Add(new ServiceReportData
-                {
-                    label = row["ItemName"].ToString() ?? "",
-                    Quantity = Convert.ToInt32(row["Quantity"]),
-                    createdAt = Convert.ToDateTime(row["CreatedAt"]),
-                    CustomerName = row["Name"].ToString() ?? "",
-                    TaxableValue = Convert.ToDecimal(row["TaxableValue"])
-                });
+            ServiceReportData temp = new ServiceReportData
+            {
+                label = row["ItemName"].ToString() ?? "",
+                Quantity = Convert.ToInt32(row["Quantity"]),
+                createdAt = Convert.ToDateTime(row["BillDate"]),
+                CustomerName = row["Name"].ToString() ?? "",
+                TaxableValue = Convert.ToDecimal(row["TaxableValue"]),
+                TotalAmount = Convert.ToDecimal(row["TotalPrice"]),
+                taxRate = Enum.TryParse<TaxRate>(row["TaxRate"].ToString(), out var parsedTax) ? parsedTax : TaxRate.TAX_18
+            };
+            int taxRate = Int32.Parse(temp.taxRate.ToString().Split('_')[1]);
+            int halfRate = taxRate / 2;
+            var cgst = Math.Round(temp.TaxableValue * (halfRate / 100m), 2);
+            var sgst = Math.Round(temp.TaxableValue * (halfRate / 100m), 2);
+            Debug.WriteLine($"TaxRate = {taxRate},CGST = {cgst},SGST = {sgst}, Taxable Value = {temp.TaxableValue} , TotalPrice = {temp.TotalAmount}");
+            temp.Cgst = cgst;
+            temp.Sgst = sgst;
+            serviceReportData.Add(temp);
         }
         Debug.WriteLine($"Service Count: {serviceReportData.Count}");
         IEnumerable<ChartData> groupedData;
@@ -314,7 +338,11 @@
         // Top Services
         bestServices = serviceReportData
             .GroupBy(x => x.label)
-            .Select(g => new TopService { Service = g.Key, Total = g.Sum(x => x.Quantity),TaxableValue = g.Sum(x=> x.TaxableValue) })
+            .Select(g => new TopService { Service = g.Key, Total = g.Sum(x => x.Quantity),TaxableValue = g.Sum(x=> x.TaxableValue),
+                    TotalPrice = g.Sum(x => x.TotalAmount),
+                    TotalCGST = g.Sum(x => x.Cgst),
+                    TotalSGST = g.Sum(x => x.Sgst),
+                })
             .OrderByDescending(x => x.Total)
             
             .ToList();

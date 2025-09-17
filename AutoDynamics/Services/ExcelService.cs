@@ -104,7 +104,7 @@ namespace AutoDynamics.Services
 
                 // --- PRODUCT ITEMS with TaxRate.TAX_28 ---
                 var productItems = bills[row].BillItems
-                    .Where(i => i.ItemType == "PRODUCT" && i.TaxRate == TaxRate.TAX_28)
+                    .Where(i => i.ItemType == "PRODUCT")
                     .GroupBy(i => i.HSNCode); // Group by HSN if multiple
 
                 foreach (var hsnGroup in productItems)
