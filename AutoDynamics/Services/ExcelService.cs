@@ -51,7 +51,7 @@ namespace AutoDynamics.Services
                 var serviceItems = bills[row].BillItems
                     .Where(i => i.ItemType == "SERVICE")
                     .ToList();
-
+                int serviceTaxRate = 0;
                 if (serviceItems.Any())
                 {
                     var totalCGST = 0m;
@@ -62,9 +62,10 @@ namespace AutoDynamics.Services
                     
                     foreach (var item in serviceItems)
                     {
-                        int taxRate = Int32.Parse(item.TaxRate.ToString().Split('_')[1]) / 2;
-                        var cgstRate =  taxRate;
-                        var sgstRate =taxRate;
+                        int taxRate = Int32.Parse(item.TaxRate.ToString().Split('_')[1]);
+                        serviceTaxRate = taxRate;
+                        var cgstRate =  taxRate/2;
+                        var sgstRate =taxRate/2;
                         var cgstAmt = Math.Round(item.TaxableValue * (cgstRate / 100m), 2);
                         var sgstAmt = Math.Round(item.TaxableValue * (sgstRate / 100m), 2);
                        
@@ -89,7 +90,7 @@ namespace AutoDynamics.Services
                     ws.Cell(excelRow, 6).Value = bill.Vehicle.ModelName;
                     ws.Cell(excelRow, 7).Value = customer.GSTIN;
                     ws.Cell(excelRow, 8).Value = totalQuantity;
-                    ws.Cell(excelRow, 9).Value = 18;
+                    ws.Cell(excelRow, 9).Value = serviceTaxRate.ToString() ;
                     ws.Cell(excelRow, 10).Value = totalTaxableAmount;
                     ws.Cell(excelRow, 10).Style.NumberFormat.Format = "0.00";
                     ws.Cell(excelRow, 11).Value = totalCGST;
@@ -106,7 +107,7 @@ namespace AutoDynamics.Services
                 var productItems = bills[row].BillItems
                     .Where(i => i.ItemType == "PRODUCT")
                     .GroupBy(i => i.HSNCode); // Group by HSN if multiple
-
+                int productTaxRate = 0;
                 foreach (var hsnGroup in productItems)
                 {
                     var totalCGST = 0m;
@@ -116,9 +117,10 @@ namespace AutoDynamics.Services
                     var total = 0m;
                     foreach (var item in hsnGroup)
                     {
-                        int taxRate = Int32.Parse(item.TaxRate.ToString().Split('_')[1]) / 2;
-                        var cgstRate = taxRate;
-                        var sgstRate = taxRate;
+                        int taxRate = Int32.Parse(item.TaxRate.ToString().Split('_')[1]);
+                        productTaxRate = taxRate;
+                        var cgstRate = taxRate/2;
+                        var sgstRate = taxRate/2;
                         var cgstAmt = Math.Round(item.TaxableValue * (cgstRate / 100m), 2);
                         var sgstAmt = Math.Round(item.TaxableValue * (sgstRate / 100m), 2);
 
@@ -145,7 +147,7 @@ namespace AutoDynamics.Services
                     ws.Cell(excelRow, 6).Value = bill.Vehicle.ModelName;
                     ws.Cell(excelRow, 7).Value = customer.GSTIN;
                     ws.Cell(excelRow, 8).Value = totalQuantity;
-                    ws.Cell(excelRow, 9).Value = 28;
+                    ws.Cell(excelRow, 9).Value = productTaxRate.ToString();
                     ws.Cell(excelRow, 10).Value = totalTaxableAmount;
                     ws.Cell(excelRow, 10).Style.NumberFormat.Format = "0.00";
                     ws.Cell(excelRow, 11).Value = totalCGST;
@@ -154,6 +156,7 @@ namespace AutoDynamics.Services
                     ws.Cell(excelRow, 12).Style.NumberFormat.Format = "0.00";
                     ws.Cell(excelRow, 13).Value = roundingDiff;
                     ws.Cell(excelRow, 14).Value = total;
+                    ws.Cell(excelRow, 15).Value = bill.isActive ? "ACTIVE" : "CANCELED";
                     excelRow++;
                 }
             }
@@ -192,7 +195,7 @@ namespace AutoDynamics.Services
 
                 // --- SERVICE ITEMS (Tax 18%) ---
                 var purchaseItems = purchaseBills[row].purchaseItems;
-                    
+                int purchaseTaxRate = 0;
 
                 if (purchaseItems.Any())
                 {
@@ -226,11 +229,13 @@ namespace AutoDynamics.Services
                         var sgst = 0m;
                         if (item != null)
                         {
-                            int taxRate = Int32.Parse(item.TaxRate.ToString().Split('_')[1]) / 2;
+                            int taxRate = Int32.Parse(item.TaxRate.ToString().Split('_')[1]);
+                            purchaseTaxRate = taxRate;
+                            int halfRate = taxRate / 2;
                             decimal inclusiveTaxRate = 1 + (taxRate / 100);
                             item.TaxableValue = purchase.taxType == TaxType.INCLUSIVE_TAX ? (Math.Round(total / inclusiveTaxRate, 2)) : total;
-                            cgst = Math.Round(item.TaxableValue * (taxRate / 100m), 2);
-                            sgst = Math.Round(item.TaxableValue * (taxRate / 100m), 2);
+                            cgst = Math.Round(item.TaxableValue * (halfRate / 100m), 2);
+                            sgst = Math.Round(item.TaxableValue * (halfRate / 100m), 2);
                             item.TotalPrice = Math.Round(item.TaxableValue + cgst + sgst);
                             totalQuantity += item.Quantity;
                             totalTaxableAmount += item.TaxableValue;
@@ -253,7 +258,7 @@ namespace AutoDynamics.Services
                     
                     ws.Cell(excelRow, 4).Value = customer.GSTIN;
                     ws.Cell(excelRow, 5).Value = totalQuantity;
-                    ws.Cell(excelRow, 6).Value = 28;
+                    ws.Cell(excelRow, 6).Value = purchaseTaxRate.ToString();
                     ws.Cell(excelRow, 7).Value = totalTaxableAmount;
                     ws.Cell(excelRow, 7).Style.NumberFormat.Format = "0.00";
                     ws.Cell(excelRow, 8).Value = totalCGST;

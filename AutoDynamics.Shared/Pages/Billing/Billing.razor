@@ -408,7 +408,7 @@
         Debug.WriteLine(e.Value);
         if(val == "SERVICE")
         {
-            item.TaxRate = (today.Day == 22 && today.Month == 9 && today.Year == 2025) ? TaxRate.TAX_5 : TaxRate.TAX_18;
+            item.TaxRate = (today.Day == 22 && today.Month == 9 && today.Year == 2025) ? TaxRate.TAX_18 : TaxRate.TAX_18;
         }
         else
         {
@@ -795,7 +795,7 @@
         products = new List<ProductType>();
         brands = new List<BrandType>();
         AccountTypes = new List<LedgerAcccounts>();
-
+        Users = new List<string>();
         if(res1.Count>0)
         {
             foreach(var row in res1)
