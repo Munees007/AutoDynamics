@@ -186,13 +186,14 @@
                                 var sgst =0m;
                                 if(item != null)
                                 {
-                                    int taxRate = Int32.Parse(item.TaxRate.ToString().Split('_')[1]) / 2;
+                                    int taxRate = Int32.Parse(item.TaxRate.ToString().Split('_')[1]);
+                                    int halfRate = taxRate / 2;
+                                    var multiplier = 1 + (taxRate / 100m);
                                     Debug.WriteLine("Tax Rate" + taxRate);
-                                    item.TaxableValue = purchase.taxType == TaxType.INCLUSIVE_TAX ? (item.TaxRate == TaxRate.TAX_18 ? Math.Round(total / 1.18m, 2) : Math.Round(total / 1.28m, 2)) : total;
-                                    cgst = Math.Round(item.TaxableValue * (taxRate / 100m), 2);
-                                    sgst = Math.Round(item.TaxableValue * (taxRate / 100m), 2);
+                                    item.TaxableValue = purchase.taxType == TaxType.INCLUSIVE_TAX ? (Math.Round(total / multiplier, 2)) : total;
+                                    cgst = Math.Round(item.TaxableValue * (halfRate / 100m), 2);
+                                    sgst = Math.Round(item.TaxableValue * (halfRate / 100m), 2);
                                     item.TotalPrice = Math.Round(item.TaxableValue + cgst + sgst);
-
                                 }
 
                             }

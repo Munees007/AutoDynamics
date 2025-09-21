@@ -45,8 +45,10 @@
             <thead class="table-dark">
                 <tr>
                     <th>@FilterBy</th>
-                    <th>Purchases</th>
-                    <th>Sales</th>
+                    <th>Purchases - Four wheeler</th>
+                    <th>Purchases - Two wheeler</th>
+                    <th>Sales - Four wheeler</th>
+                    <th>Sales - Two wheeler</th>
                 </tr>
             </thead>
             <tbody>
@@ -54,10 +56,19 @@
                 {
                     <tr>
                         <td>@row.FilterValue</td>
-                        <td>@row.PurchaseCount</td>
-                        <td>@row.SalesCount</td>
+                        <td>@row.PurchaseCount[0]</td>
+                        <td>@row.PurchaseCount[1]</td>
+                        <td>@row.SalesCount[0]</td>
+                        <td>@row.SalesCount[1]</td>
                     </tr>
                 }
+                <tr>
+                    <td>Total</td>
+                    <td>@ReportData.Sum(r=>r.PurchaseCount[0])</td>
+                    <td>@ReportData.Sum(r=>r.PurchaseCount[1])</td>
+                    <td>@ReportData.Sum(r=>r.SalesCount[0])</td>
+                    <td>@ReportData.Sum(r => r.SalesCount[1])</td>
+                </tr>
             </tbody>
         </table>
     </div>
@@ -88,9 +99,17 @@ SELECT
         WHEN @FilterBy = 'Size' THEN pr.Size
         WHEN @FilterBy = 'Type' THEN pr.TubeOrTubeless
     END AS FilterValue,
-    COALESCE(SUM(p.TotalPurchaseQty), 0) AS PurchaseQty,
-    COALESCE(SUM(s.TotalSalesQty), 0) AS SalesQty,
-    COALESCE(SUM(p.TotalPurchaseQty), 0) - COALESCE(SUM(s.TotalSalesQty), 0) AS StockBalance
+    pr.TyreFor,
+
+COALESCE(SUM(CASE WHEN pr.TyreFor = 'FOUR_WHEELER' THEN p.TotalPurchaseQty ELSE 0 END), 0) AS PurchaseQty_FourWheeler,
+COALESCE(SUM(CASE WHEN pr.TyreFor = 'FOUR_WHEELER' THEN s.TotalSalesQty ELSE 0 END), 0) AS SalesQty_FourWheeler,
+COALESCE(SUM(CASE WHEN pr.TyreFor = 'FOUR_WHEELER' THEN p.TotalPurchaseQty ELSE 0 END), 0)
+  - COALESCE(SUM(CASE WHEN pr.TyreFor = 'FOUR_WHEELER' THEN s.TotalSalesQty ELSE 0 END), 0) AS StockBalance_FourWheeler,
+
+COALESCE(SUM(CASE WHEN pr.TyreFor = 'TWO_WHEELER' THEN p.TotalPurchaseQty ELSE 0 END), 0) AS PurchaseQty_TwoWheeler,
+COALESCE(SUM(CASE WHEN pr.TyreFor = 'TWO_WHEELER' THEN s.TotalSalesQty ELSE 0 END), 0) AS SalesQty_TwoWheeler,
+COALESCE(SUM(CASE WHEN pr.TyreFor = 'TWO_WHEELER' THEN p.TotalPurchaseQty ELSE 0 END), 0)
+  - COALESCE(SUM(CASE WHEN pr.TyreFor = 'TWO_WHEELER' THEN s.TotalSalesQty ELSE 0 END), 0) AS StockBalance_TwoWheeler
 FROM Product pr
 LEFT JOIN (
     SELECT p.ProductID, SUM(p.Quantity) AS TotalPurchaseQty
@@ -117,7 +136,7 @@ GROUP BY
         WHEN @FilterBy = 'Size' THEN pr.Size
         WHEN @FilterBy = 'Type' THEN pr.TubeOrTubeless
     END
-ORDER BY FilterValue;
+ORDER BY FilterValue,pr.TyreFor;
 
 ";
 
@@ -138,14 +157,14 @@ ORDER BY FilterValue;
                 ReportData.Add(new ReportRow
                     {
                         FilterValue = row["FilterValue"].ToString() ?? string.Empty,
-                        PurchaseCount = Convert.ToInt32(row["PurchaseQty"]),
-                        SalesCount = Convert.ToInt32(row["SalesQty"]),
-                        StockBalance = Convert.ToInt32(row["StockBalance"])
+                        PurchaseCount = new int[] { Convert.ToInt32(row["PurchaseQty_FourWheeler"]), Convert.ToInt32(row["PurchaseQty_TwoWheeler"]) },
+                        SalesCount = new int[] { Convert.ToInt32(row["SalesQty_FourWheeler"]), Convert.ToInt32(row["SalesQty_TwoWheeler"]) },
+                        StockBalance = Convert.ToInt32(row["StockBalance_TwoWheeler"])
                     });
             }
         }
 
-        
+
 
         IsLoaded = true;
     }
@@ -153,8 +172,8 @@ ORDER BY FilterValue;
     public class ReportRow
     {
         public string FilterValue { get; set; }
-        public int PurchaseCount { get; set; }
-        public int SalesCount { get; set; }
+        public int[] PurchaseCount { get; set; } = new int[2];
+        public int[] SalesCount { get; set; } = new int[2];
         public int StockBalance { get; set; }
     }
 }
