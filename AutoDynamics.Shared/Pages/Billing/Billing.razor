@@ -311,7 +311,7 @@
     [Parameter] public bool isUpdating { set; get; } = false;
     [Parameter] public BillDetails updateData { set; get; } = new();
     [Parameter] public bool isViewing {set;get;} = false;
-
+    DateTime cutoffDate = new DateTime(2025, 9, 22);
     public List<string> Users = new List<string>();
     private string loaderText = "";
     private string CustomerSearch = "";
@@ -408,11 +408,11 @@
         Debug.WriteLine(e.Value);
         if(val == "SERVICE")
         {
-            item.TaxRate = (today.Day == 22 && today.Month == 9 && today.Year == 2025) ? TaxRate.TAX_18 : TaxRate.TAX_18;
+            item.TaxRate = (today.Date >= cutoffDate.Date) ? TaxRate.TAX_18 : TaxRate.TAX_18;
         }
         else
         {
-            item.TaxRate = (today.Day == 22 && today.Month == 9 && today.Year == 2025) ? TaxRate.TAX_18 : TaxRate.TAX_28;
+            item.TaxRate = (today.Date >= cutoffDate.Date) ? TaxRate.TAX_18 : TaxRate.TAX_28;
         }
     }
     public async void OnProductsSearch(ChangeEventArgs e, int index)
@@ -910,7 +910,7 @@
         DateTime today = DateTime.Now;
         BillItem temp = new BillItem
         {
-            TaxRate = (today.Day == 22 && today.Month == 9 && today.Year == 2025) ? TaxRate.TAX_18 : TaxRate.TAX_28
+            TaxRate = (today.Date >= cutoffDate.Date) ? TaxRate.TAX_18 : TaxRate.TAX_28
         };
         BillItems.Add(temp);
     }

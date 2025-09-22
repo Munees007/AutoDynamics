@@ -248,7 +248,7 @@
     private string loaderText = "";
     private string CustomerSearch = "";
     private string ProductSearch = "";
-
+    DateTime cutoffDate = new DateTime(2025, 9, 22);
     private string SelectedCustomer = "No Supplier Selected";
     private string SelectedVehicle = "No Vehicle Selected";
     private bool ShowCustomerSuggestion = false;
@@ -595,7 +595,7 @@
     private void AddNewItem()
     {
         DateTime today = DateTime.Now;
-        TaxRate taxRate = (today.Day == 22 && today.Month == 9 && today.Year == 2025) ? TaxRate.TAX_18 : TaxRate.TAX_28;
+        TaxRate taxRate = (today.Date >= cutoffDate.Date) ? TaxRate.TAX_18 : TaxRate.TAX_28;
         PurchaseItems items = new PurchaseItems
         {
             TaxRate = taxRate
